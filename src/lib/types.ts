@@ -54,12 +54,32 @@ export interface Client {
   total_pnl: number;
   pnl_percentage: number;
   active_strategies: number;
+  accounts_count: number;
   risk_level: RiskLevel;
   sparkline_path: string; // SVG path for mini chart
   sparkline_color: string; // hex color for the sparkline stroke
   broker: string;
   joined_at: string;
   last_active: string;
+}
+
+// ─── Client Account (trading accounts under a client) ────
+export interface ClientAccount {
+  id: string;
+  account_name: string;
+  account_label: string;
+  platform: string;
+  account_type: "Demo" | "Real";
+  account_number: string;
+  currency: string;
+  balance: number;
+  credit: number;
+  equity: number;
+  free_margin: number;
+  open_trades: number;
+  asset_class: string;
+  algorithm_id: string | null;
+  is_active: boolean;
 }
 
 // ─── Strategy / Algorithm ─────────────────────────────────

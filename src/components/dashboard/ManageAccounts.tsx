@@ -19,138 +19,11 @@ import {
   Check,
   Search,
 } from "lucide-react";
-import { mockClients, getCategoryColor } from "@/lib/mock-data";
+import { mockClients, getCategoryColor, getClientAccounts } from "@/lib/mock-data";
 import { useSavedAlgorithms } from "@/context/SavedAlgorithmsContext";
-import type { Algorithm } from "@/lib/types";
-
-// ─── Types ──────────────────────────────────────────────
-interface ClientAccount {
-  id: string;
-  account_name: string;
-  account_label: string;
-  platform: string;
-  account_type: "Demo" | "Real";
-  account_number: string;
-  currency: string;
-  balance: number;
-  credit: number;
-  equity: number;
-  free_margin: number;
-  open_trades: number;
-  asset_class: string;
-  algorithm_id: string | null;
-  is_active: boolean;
-}
+import type { Algorithm, ClientAccount } from "@/lib/types";
 
 type MainTab = "accounts" | "open-positions" | "closed-positions";
-
-// ─── Mock Data ──────────────────────────────────────────
-function getMockAccounts(clientName: string): ClientAccount[] {
-  return [
-    {
-      id: "acc_001",
-      account_name: `slave - tradovate - BLUERJPYWBEO`,
-      account_label: `tradovate Demo / BLUERJPYWBEO (USD)`,
-      platform: "Tradovate",
-      account_type: "Demo",
-      account_number: "BLUERJPYWBEO",
-      currency: "USD",
-      balance: 197363.4,
-      credit: 0,
-      equity: 197363.4,
-      free_margin: 197363.4,
-      open_trades: 0,
-      asset_class: "Futures",
-      algorithm_id: null,
-      is_active: false,
-    },
-    {
-      id: "acc_002",
-      account_name: `slave - tradovate - XYZABC123`,
-      account_label: `tradovate Real / XYZABC123 (USD)`,
-      platform: "Tradovate",
-      account_type: "Real",
-      account_number: "XYZABC123",
-      currency: "USD",
-      balance: 52480.25,
-      credit: 500.0,
-      equity: 52980.25,
-      free_margin: 48250.0,
-      open_trades: 3,
-      asset_class: "Futures",
-      algorithm_id: "algo_001",
-      is_active: true,
-    },
-    {
-      id: "acc_003",
-      account_name: `slave - MT5 - 12345678`,
-      account_label: `MetaTrader 5 Demo / 12345678 (EUR)`,
-      platform: "MetaTrader 5",
-      account_type: "Demo",
-      account_number: "12345678",
-      currency: "EUR",
-      balance: 10000.0,
-      credit: 0,
-      equity: 10000.0,
-      free_margin: 10000.0,
-      open_trades: 0,
-      asset_class: "Forex",
-      algorithm_id: "algo_005",
-      is_active: true,
-    },
-    {
-      id: "acc_004",
-      account_name: `slave - MT4 - 87654321`,
-      account_label: `MetaTrader 4 Real / 87654321 (USD)`,
-      platform: "MetaTrader 4",
-      account_type: "Real",
-      account_number: "87654321",
-      currency: "USD",
-      balance: 25890.5,
-      credit: 0,
-      equity: 25890.5,
-      free_margin: 24500.0,
-      open_trades: 1,
-      asset_class: "Forex",
-      algorithm_id: null,
-      is_active: false,
-    },
-    {
-      id: "acc_005",
-      account_name: `slave - Binance - SPOT-A1B2C3`,
-      account_label: `Binance Real / SPOT-A1B2C3 (USDT)`,
-      platform: "Binance",
-      account_type: "Real",
-      account_number: "SPOT-A1B2C3",
-      currency: "USDT",
-      balance: 84210.0,
-      credit: 0,
-      equity: 84210.0,
-      free_margin: 78000.0,
-      open_trades: 5,
-      asset_class: "Crypto",
-      algorithm_id: "algo_009",
-      is_active: true,
-    },
-    {
-      id: "acc_006",
-      account_name: `slave - Schwab - 99887766`,
-      account_label: `Schwab Real / 99887766 (USD)`,
-      platform: "Schwab",
-      account_type: "Real",
-      account_number: "99887766",
-      currency: "USD",
-      balance: 145000.0,
-      credit: 0,
-      equity: 145000.0,
-      free_margin: 130000.0,
-      open_trades: 2,
-      asset_class: "Stocks",
-      algorithm_id: "algo_001",
-      is_active: true,
-    },
-  ];
-}
 
 // ─── Algorithm Color Helper (uses same category colors as sidebar) ──
 function getAlgoDropdownColor(category: string): {
@@ -178,7 +51,7 @@ export default function ManageAccounts() {
   const { savedAlgorithms } = useSavedAlgorithms();
 
   const [accounts, setAccounts] = useState<ClientAccount[]>(
-    getMockAccounts(clientName)
+    getClientAccounts(slug)
   );
   const [activeTab, setActiveTab] = useState<MainTab>("accounts");
   const [showAddModal, setShowAddModal] = useState(false);

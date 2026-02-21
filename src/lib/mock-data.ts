@@ -23,6 +23,7 @@ import type {
   Agency,
   AgencyUser,
   Client,
+  ClientAccount,
   Strategy,
   Algorithm,
   AlgorithmDetail,
@@ -126,7 +127,8 @@ export const mockClients: Client[] = [
     liquidity: 450200,
     total_pnl: 32450,
     pnl_percentage: 7.76,
-    active_strategies: 4,
+    active_strategies: 3,
+    accounts_count: 4,
     risk_level: "low",
     sparkline_path: "M0,40 Q20,35 40,38 T80,30 T120,25 T160,15 T200,10 T240,5 T280,2",
     sparkline_color: "#10b981",
@@ -148,6 +150,7 @@ export const mockClients: Client[] = [
     total_pnl: 12340.5,
     pnl_percentage: 10.92,
     active_strategies: 2,
+    accounts_count: 3,
     risk_level: "medium",
     sparkline_path: "M0,35 Q30,30 60,32 T120,25 T180,20 T240,15 T280,10",
     sparkline_color: "#10b981",
@@ -169,6 +172,7 @@ export const mockClients: Client[] = [
     total_pnl: -1250,
     pnl_percentage: -11.07,
     active_strategies: 0,
+    accounts_count: 1,
     risk_level: "high",
     sparkline_path: "M0,20 Q30,25 60,35 T120,40 T180,38 T240,42 T280,45",
     sparkline_color: "#ef4444",
@@ -190,6 +194,7 @@ export const mockClients: Client[] = [
     total_pnl: 150220,
     pnl_percentage: 13.66,
     active_strategies: 3,
+    accounts_count: 5,
     risk_level: "low",
     sparkline_path: "M0,45 Q20,40 40,38 T80,35 T120,30 T160,20 T200,10 T240,5 T280,2",
     sparkline_color: "#10b981",
@@ -211,6 +216,7 @@ export const mockClients: Client[] = [
     total_pnl: -4500,
     pnl_percentage: -7.55,
     active_strategies: 0,
+    accounts_count: 2,
     risk_level: "high",
     sparkline_path: "M0,20 Q20,25 40,28 T80,35 T120,30 T160,35 T200,40 T240,42 T280,45",
     sparkline_color: "#ef4444",
@@ -232,6 +238,7 @@ export const mockClients: Client[] = [
     total_pnl: 28400,
     pnl_percentage: 9.73,
     active_strategies: 2,
+    accounts_count: 3,
     risk_level: "medium",
     sparkline_path: "M0,38 Q25,34 50,30 T100,26 T150,22 T200,16 T250,12 T280,8",
     sparkline_color: "#10b981",
@@ -253,6 +260,7 @@ export const mockClients: Client[] = [
     total_pnl: 112300,
     pnl_percentage: 14.44,
     active_strategies: 3,
+    accounts_count: 4,
     risk_level: "low",
     sparkline_path: "M0,42 Q30,38 60,34 T120,28 T180,20 T240,12 T280,6",
     sparkline_color: "#10b981",
@@ -274,6 +282,7 @@ export const mockClients: Client[] = [
     total_pnl: 81000,
     pnl_percentage: 13.64,
     active_strategies: 2,
+    accounts_count: 3,
     risk_level: "medium",
     sparkline_path: "M0,36 Q25,32 50,28 T100,24 T150,20 T200,14 T250,10 T280,6",
     sparkline_color: "#10b981",
@@ -282,6 +291,71 @@ export const mockClients: Client[] = [
     last_active: "2026-02-20T15:45:00Z",
   },
 ];
+
+// ─── Client Accounts (shared between Clients list + Manage Accounts) ──
+// Equity totals per client must match client.liquidity exactly.
+// active_strategies = count of unique non-null algorithm_ids
+// accounts_count   = total accounts in the array
+export const mockClientAccounts: Record<string, ClientAccount[]> = {
+  "CL-7829": [ // Apex Capital Ltd — liquidity: 450200, strategies: 3, accounts: 4
+    { id: "acc_001", account_name: "slave - tradovate - BLUERJPYWBEO", account_label: "tradovate Demo / BLUERJPYWBEO (USD)", platform: "Tradovate", account_type: "Demo", account_number: "BLUERJPYWBEO", currency: "USD", balance: 197363.40, credit: 0, equity: 197363.40, free_margin: 197363.40, open_trades: 0, asset_class: "Futures", algorithm_id: null, is_active: false },
+    { id: "acc_002", account_name: "slave - tradovate - XYZABC123", account_label: "tradovate Real / XYZABC123 (USD)", platform: "Tradovate", account_type: "Real", account_number: "XYZABC123", currency: "USD", balance: 105356.35, credit: 500, equity: 105856.35, free_margin: 98250.00, open_trades: 3, asset_class: "Futures", algorithm_id: "algo_001", is_active: true },
+    { id: "acc_003", account_name: "slave - MT5 - 12345678", account_label: "MetaTrader 5 Demo / 12345678 (EUR)", platform: "MetaTrader 5", account_type: "Demo", account_number: "12345678", currency: "EUR", balance: 62770.25, credit: 0, equity: 62770.25, free_margin: 62770.25, open_trades: 0, asset_class: "Forex", algorithm_id: "algo_005", is_active: true },
+    { id: "acc_004", account_name: "slave - Binance - SPOT-A1B2C3", account_label: "Binance Real / SPOT-A1B2C3 (USDT)", platform: "Binance", account_type: "Real", account_number: "SPOT-A1B2C3", currency: "USDT", balance: 84210.00, credit: 0, equity: 84210.00, free_margin: 78000.00, open_trades: 5, asset_class: "Crypto", algorithm_id: "algo_009", is_active: true },
+  ],
+  "CL-9921": [ // Marcus Chen — liquidity: 125400, strategies: 2, accounts: 3
+    { id: "acc_005", account_name: "slave - MT5 - 99001122", account_label: "MetaTrader 5 Real / 99001122 (USD)", platform: "MetaTrader 5", account_type: "Real", account_number: "99001122", currency: "USD", balance: 68200.00, credit: 0, equity: 68200.00, free_margin: 62100.00, open_trades: 2, asset_class: "Forex", algorithm_id: "algo_001", is_active: true },
+    { id: "acc_006", account_name: "slave - MT5 - 99001123", account_label: "MetaTrader 5 Demo / 99001123 (USD)", platform: "MetaTrader 5", account_type: "Demo", account_number: "99001123", currency: "USD", balance: 25000.00, credit: 0, equity: 25000.00, free_margin: 25000.00, open_trades: 0, asset_class: "Forex", algorithm_id: null, is_active: false },
+    { id: "acc_007", account_name: "slave - Binance - SPOT-MC01", account_label: "Binance Real / SPOT-MC01 (USDT)", platform: "Binance", account_type: "Real", account_number: "SPOT-MC01", currency: "USDT", balance: 32200.00, credit: 0, equity: 32200.00, free_margin: 30500.00, open_trades: 1, asset_class: "Crypto", algorithm_id: "algo_009", is_active: true },
+  ],
+  "CL-3320": [ // Sarah Jenkins — liquidity: 10050, strategies: 0, accounts: 1
+    { id: "acc_008", account_name: "slave - Binance - SPOT-SJ99", account_label: "Binance Real / SPOT-SJ99 (USDT)", platform: "Binance", account_type: "Real", account_number: "SPOT-SJ99", currency: "USDT", balance: 10050.00, credit: 0, equity: 10050.00, free_margin: 10050.00, open_trades: 0, asset_class: "Crypto", algorithm_id: null, is_active: false },
+  ],
+  "CL-8812": [ // Quant Strategies — liquidity: 1250000, strategies: 3, accounts: 5
+    { id: "acc_009", account_name: "slave - Schwab - 44556677", account_label: "Schwab Real / 44556677 (USD)", platform: "Schwab", account_type: "Real", account_number: "44556677", currency: "USD", balance: 420000.00, credit: 0, equity: 420000.00, free_margin: 385000.00, open_trades: 4, asset_class: "Stocks", algorithm_id: "algo_001", is_active: true },
+    { id: "acc_010", account_name: "slave - tradovate - QS-FUT01", account_label: "tradovate Real / QS-FUT01 (USD)", platform: "Tradovate", account_type: "Real", account_number: "QS-FUT01", currency: "USD", balance: 310000.00, credit: 0, equity: 310000.00, free_margin: 275000.00, open_trades: 6, asset_class: "Futures", algorithm_id: "algo_005", is_active: true },
+    { id: "acc_011", account_name: "slave - MT5 - QS-FX01", account_label: "MetaTrader 5 Real / QS-FX01 (USD)", platform: "MetaTrader 5", account_type: "Real", account_number: "QS-FX01", currency: "USD", balance: 280000.00, credit: 0, equity: 280000.00, free_margin: 255000.00, open_trades: 3, asset_class: "Forex", algorithm_id: "algo_009", is_active: true },
+    { id: "acc_012", account_name: "slave - Schwab - QS-STK02", account_label: "Schwab Demo / QS-STK02 (USD)", platform: "Schwab", account_type: "Demo", account_number: "QS-STK02", currency: "USD", balance: 150000.00, credit: 0, equity: 150000.00, free_margin: 150000.00, open_trades: 0, asset_class: "Stocks", algorithm_id: null, is_active: false },
+    { id: "acc_013", account_name: "slave - Binance - QS-CRYPT01", account_label: "Binance Real / QS-CRYPT01 (USDT)", platform: "Binance", account_type: "Real", account_number: "QS-CRYPT01", currency: "USDT", balance: 90000.00, credit: 0, equity: 90000.00, free_margin: 82000.00, open_trades: 2, asset_class: "Crypto", algorithm_id: "algo_009", is_active: true },
+  ],
+  "CL-4512": [ // David Ross — liquidity: 55100, strategies: 0, accounts: 2
+    { id: "acc_014", account_name: "slave - tradovate - DR-FUT01", account_label: "tradovate Real / DR-FUT01 (USD)", platform: "Tradovate", account_type: "Real", account_number: "DR-FUT01", currency: "USD", balance: 35100.00, credit: 0, equity: 35100.00, free_margin: 35100.00, open_trades: 0, asset_class: "Futures", algorithm_id: null, is_active: false },
+    { id: "acc_015", account_name: "slave - tradovate - DR-FUT02", account_label: "tradovate Demo / DR-FUT02 (USD)", platform: "Tradovate", account_type: "Demo", account_number: "DR-FUT02", currency: "USD", balance: 20000.00, credit: 0, equity: 20000.00, free_margin: 20000.00, open_trades: 0, asset_class: "Futures", algorithm_id: null, is_active: false },
+  ],
+  "CL-6721": [ // Elena Rodriguez — liquidity: 320000, strategies: 2, accounts: 3
+    { id: "acc_016", account_name: "slave - MT4 - ER-FX01", account_label: "MetaTrader 4 Real / ER-FX01 (USD)", platform: "MetaTrader 4", account_type: "Real", account_number: "ER-FX01", currency: "USD", balance: 180000.00, credit: 0, equity: 180000.00, free_margin: 165000.00, open_trades: 3, asset_class: "Forex", algorithm_id: "algo_005", is_active: true },
+    { id: "acc_017", account_name: "slave - MT4 - ER-FX02", account_label: "MetaTrader 4 Demo / ER-FX02 (USD)", platform: "MetaTrader 4", account_type: "Demo", account_number: "ER-FX02", currency: "USD", balance: 50000.00, credit: 0, equity: 50000.00, free_margin: 50000.00, open_trades: 0, asset_class: "Forex", algorithm_id: null, is_active: false },
+    { id: "acc_018", account_name: "slave - Schwab - ER-STK01", account_label: "Schwab Real / ER-STK01 (USD)", platform: "Schwab", account_type: "Real", account_number: "ER-STK01", currency: "USD", balance: 90000.00, credit: 0, equity: 90000.00, free_margin: 82000.00, open_trades: 1, asset_class: "Stocks", algorithm_id: "algo_001", is_active: true },
+  ],
+  "CL-1190": [ // BlueSky Trading — liquidity: 890000, strategies: 3, accounts: 4
+    { id: "acc_019", account_name: "slave - Schwab - BST-STK01", account_label: "Schwab Real / BST-STK01 (USD)", platform: "Schwab", account_type: "Real", account_number: "BST-STK01", currency: "USD", balance: 350000.00, credit: 0, equity: 350000.00, free_margin: 320000.00, open_trades: 5, asset_class: "Stocks", algorithm_id: "algo_001", is_active: true },
+    { id: "acc_020", account_name: "slave - MT5 - BST-FX01", account_label: "MetaTrader 5 Real / BST-FX01 (USD)", platform: "MetaTrader 5", account_type: "Real", account_number: "BST-FX01", currency: "USD", balance: 240000.00, credit: 0, equity: 240000.00, free_margin: 220000.00, open_trades: 4, asset_class: "Forex", algorithm_id: "algo_005", is_active: true },
+    { id: "acc_021", account_name: "slave - tradovate - BST-FUT01", account_label: "tradovate Real / BST-FUT01 (USD)", platform: "Tradovate", account_type: "Real", account_number: "BST-FUT01", currency: "USD", balance: 200000.00, credit: 0, equity: 200000.00, free_margin: 185000.00, open_trades: 3, asset_class: "Futures", algorithm_id: "algo_009", is_active: true },
+    { id: "acc_022", account_name: "slave - Schwab - BST-STK02", account_label: "Schwab Demo / BST-STK02 (USD)", platform: "Schwab", account_type: "Demo", account_number: "BST-STK02", currency: "USD", balance: 100000.00, credit: 0, equity: 100000.00, free_margin: 100000.00, open_trades: 0, asset_class: "Stocks", algorithm_id: null, is_active: false },
+  ],
+  "CL-5544": [ // Michael Chang — liquidity: 675000, strategies: 2, accounts: 3
+    { id: "acc_023", account_name: "slave - Binance - MC-CRYPT01", account_label: "Binance Real / MC-CRYPT01 (USDT)", platform: "Binance", account_type: "Real", account_number: "MC-CRYPT01", currency: "USDT", balance: 325000.00, credit: 0, equity: 325000.00, free_margin: 298000.00, open_trades: 7, asset_class: "Crypto", algorithm_id: "algo_009", is_active: true },
+    { id: "acc_024", account_name: "slave - Bybit - MC-CRYPT02", account_label: "Bybit Real / MC-CRYPT02 (USDT)", platform: "Bybit", account_type: "Real", account_number: "MC-CRYPT02", currency: "USDT", balance: 250000.00, credit: 0, equity: 250000.00, free_margin: 230000.00, open_trades: 4, asset_class: "Crypto", algorithm_id: "algo_001", is_active: true },
+    { id: "acc_025", account_name: "slave - Bybit - MC-DEMO01", account_label: "Bybit Demo / MC-DEMO01 (USDT)", platform: "Bybit", account_type: "Demo", account_number: "MC-DEMO01", currency: "USDT", balance: 100000.00, credit: 0, equity: 100000.00, free_margin: 100000.00, open_trades: 0, asset_class: "Crypto", algorithm_id: null, is_active: false },
+  ],
+};
+
+// Helper: get accounts for a client by client_id
+export function getClientAccounts(clientId: string): ClientAccount[] {
+  return mockClientAccounts[clientId] || [];
+}
+
+// Helper: compute derived stats from accounts
+export function getClientAccountStats(clientId: string) {
+  const accounts = getClientAccounts(clientId);
+  const liquidity = accounts.reduce((sum, a) => sum + a.equity, 0);
+  const uniqueAlgos = new Set(accounts.filter(a => a.algorithm_id).map(a => a.algorithm_id));
+  return {
+    liquidity,
+    active_strategies: uniqueAlgos.size,
+    accounts_count: accounts.length,
+  };
+}
 
 // ─── Algorithms (Algorithms Overview page — matches HTML 1:1) ──
 export const mockAlgorithms: Algorithm[] = [

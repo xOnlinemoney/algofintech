@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon } from "lucide-react";
+import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu } from "lucide-react";
 import { mockClients, formatCurrencyFull, formatLiquidity, getStatusColor, getRiskColor } from "@/lib/mock-data";
 import type { Client, ClientStatus } from "@/lib/types";
 
@@ -206,23 +206,37 @@ function ClientCard({
         </div>
         <div className="space-y-0.5">
           <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-            Strategies
-          </p>
-          <p className="text-sm text-slate-300">
-            {client.active_strategies} Active
-          </p>
-        </div>
-        <div className="space-y-0.5 text-right">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
             Risk Level
           </p>
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full ${riskDotColor}`}></span>
             <span className="text-sm text-slate-300">
               {client.risk_level.charAt(0).toUpperCase() +
                 client.risk_level.slice(1)}
             </span>
           </div>
+        </div>
+        <div className="space-y-0.5 text-right">
+          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+            Broker
+          </p>
+          <p className="text-sm text-slate-300">{client.broker}</p>
+        </div>
+      </div>
+
+      {/* Accounts & Strategies Row */}
+      <div className="flex items-center gap-3 -mt-1">
+        <div className="flex items-center gap-1.5 bg-white/[0.03] border border-white/5 rounded-lg px-3 py-1.5 flex-1">
+          <Layers className="w-3.5 h-3.5 text-slate-500" />
+          <span className="text-xs text-slate-400">Accounts</span>
+          <span className="text-xs text-white font-medium ml-auto">{client.accounts_count}</span>
+        </div>
+        <div className="flex items-center gap-1.5 bg-white/[0.03] border border-white/5 rounded-lg px-3 py-1.5 flex-1">
+          <Cpu className="w-3.5 h-3.5 text-slate-500" />
+          <span className="text-xs text-slate-400">Strategies</span>
+          <span className={`text-xs font-medium ml-auto ${client.active_strategies > 0 ? "text-blue-400" : "text-slate-500"}`}>
+            {client.active_strategies}
+          </span>
         </div>
       </div>
 
