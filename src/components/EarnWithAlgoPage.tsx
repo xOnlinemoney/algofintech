@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Code2,
   ArrowRight,
   Wallet,
   Server,
@@ -32,13 +31,6 @@ export default function EarnWithAlgoPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] blur-[120px] pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.08)_0%,transparent_70%)]" />
 
         <div className="relative max-w-7xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/30 border border-indigo-500/20 w-fit mx-auto mb-6">
-            <Code2 className="w-4 h-4 text-indigo-400" />
-            <span className="text-xs font-medium text-indigo-400 tracking-wide uppercase">
-              Developer Portal
-            </span>
-          </div>
-
           <h1 className="text-4xl lg:text-5xl font-semibold text-white tracking-tight leading-[1.1] mb-6">
             Submit Your{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-400">
