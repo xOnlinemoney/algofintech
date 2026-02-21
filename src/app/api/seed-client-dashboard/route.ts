@@ -17,12 +17,22 @@ export async function GET() {
   }
 
   try {
-    // 1. Create the main dashboard record
+    // 0. Find the existing client (Apex Capital Ltd / CL-7829) to link
+    const { data: existingClient } = await supabase
+      .from("clients")
+      .select("id, client_id, name")
+      .eq("client_id", "CL-7829")
+      .single();
+
+    const linkedClientId = existingClient?.id || null;
+
+    // 1. Create/update the main dashboard record linked to the real client
     const { data: dashboard, error: dashErr } = await supabase
       .from("client_dashboards")
       .upsert(
         {
           client_name: "Alex",
+          client_id: linkedClientId,
           total_value: 12450.0,
           total_value_change: 3.7,
           todays_pnl: 127.5,
@@ -47,8 +57,10 @@ export async function GET() {
 
     const dashboardId = dashboard.id;
 
-    // 2. Seed accounts
-    // Clear old
+    // 2. Accounts now come from the shared client_accounts table.
+    // The agency adds accounts via /dashboard/clients/CL-7829 and they
+    // automatically appear on the client dashboard too.
+    // We keep the dashboard_accounts table as fallback display data.
     await supabase
       .from("client_dashboard_accounts")
       .delete()
@@ -226,7 +238,10 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       dashboard_id: dashboardId,
-      message: "Client dashboard data seeded successfully",
+      linked_client: existingClient
+        ? { id: existingClient.id, client_id: existingClient.client_id, name: existingClient.name }
+        : null,
+      message: "Client dashboard data seeded successfully. Accounts are pulled from the shared client_accounts table.",
     });
   } catch (err) {
     return NextResponse.json(
