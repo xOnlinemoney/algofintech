@@ -116,7 +116,7 @@ export default function Footer() {
               "API Documentation",
               "White-Label Solutions",
             ]}
-            linkMap={{ "API Documentation": "/api-docs" }}
+            linkMap={{ "Security & Compliance": "/security", "API Documentation": "/api-docs" }}
           />
           <FooterColumn
             title="Partnership"
