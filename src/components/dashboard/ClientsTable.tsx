@@ -20,6 +20,7 @@ export default function ClientsGrid() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCopySettings, setShowCopySettings] = useState(false);
   const [liveStats, setLiveStats] = useState<ClientStats>({});
+  const [dbClients, setDbClients] = useState<Client[]>([]);
 
   // Fetch live account stats from Supabase
   useEffect(() => {
@@ -31,8 +32,45 @@ export default function ClientsGrid() {
       .catch(console.error);
   }, []);
 
-  // Merge mock clients with live Supabase stats
-  const clients = mockClients.map((c) => {
+  // Fetch clients from Supabase
+  useEffect(() => {
+    fetch("/api/clients")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.data && json.data.length > 0) {
+          const mapped: Client[] = json.data.map((row: Record<string, unknown>) => ({
+            id: row.id as string,
+            client_id: row.client_id as string,
+            agency_id: row.agency_id as string,
+            name: row.name as string,
+            email: row.email as string,
+            phone: (row.phone as string) || null,
+            avatar_url: (row.avatar_url as string) || null,
+            avatar_gradient: (row.avatar_gradient as string) || null,
+            status: (row.status as ClientStatus) || "active",
+            liquidity: Number(row.liquidity) || 0,
+            total_pnl: Number(row.total_pnl) || 0,
+            pnl_percentage: Number(row.pnl_percentage) || 0,
+            active_strategies: Number(row.active_strategies) || 0,
+            accounts_count: 0,
+            risk_level: (row.risk_level as "low" | "medium" | "high") || "medium",
+            sparkline_path: "M0,25 Q10,20 20,22 T40,18 T60,22 T80,15 T100,20",
+            sparkline_color: "#3b82f6",
+            broker: (row.broker as string) || "—",
+            joined_at: (row.joined_at as string) || new Date().toISOString(),
+            last_active: (row.last_active as string) || new Date().toISOString(),
+          }));
+          setDbClients(mapped);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  // Use DB clients if available, else fall back to mock
+  const baseClients = dbClients.length > 0 ? dbClients : mockClients;
+
+  // Merge with live Supabase stats
+  const clients = baseClients.map((c) => {
     const stats = liveStats[c.client_id];
     if (stats) {
       return {
@@ -140,7 +178,18 @@ export default function ClientsGrid() {
         />
       )}
       {showAddModal && (
-        <AddClientModal onClose={() => setShowAddModal(false)} />
+        <AddClientModal
+          onClose={() => setShowAddModal(false)}
+          onClientAdded={() => {
+            // Refresh live stats
+            fetch("/api/client-stats")
+              .then((res) => res.json())
+              .then((json) => {
+                if (json.data) setLiveStats(json.data);
+              })
+              .catch(console.error);
+          }}
+        />
       )}
       {showCopySettings && (
         <CopySettingsModal onClose={() => setShowCopySettings(false)} />
@@ -388,8 +437,56 @@ function DeleteConfirmModal({
 }
 
 // ─── Add Client Modal ────────────────────────────────────
-function AddClientModal({ onClose }: { onClose: () => void }) {
+function AddClientModal({
+  onClose,
+  onClientAdded,
+}: {
+  onClose: () => void;
+  onClientAdded: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [maxAccounts, setMaxAccounts] = useState<string>("unlimited");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
   const autoId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  async function handleSubmit() {
+    if (!name.trim() || !email.trim()) {
+      setError("Client name and email are required.");
+      return;
+    }
+    setError("");
+    setSaving(true);
+
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim() || null,
+          max_accounts: maxAccounts === "unlimited" ? null : Number(maxAccounts),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Failed to create client.");
+        setSaving(false);
+        return;
+      }
+      onClientAdded();
+      onClose();
+      // Reload to show new client
+      window.location.reload();
+    } catch {
+      setError("Network error. Please try again.");
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50">
@@ -411,6 +508,11 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           <div className="p-6 space-y-5">
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 text-sm text-red-400">
+                {error}
+              </div>
+            )}
             <div className="flex items-center gap-4">
               <label className="w-36 text-sm text-slate-300 shrink-0">
                 Client Name
@@ -420,6 +522,8 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
                 <input
                   type="text"
                   placeholder="Enter client name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
                 />
               </div>
@@ -446,6 +550,8 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
                 <input
                   type="email"
                   placeholder="Enter email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
                 />
               </div>
@@ -458,17 +564,45 @@ function AddClientModal({ onClose }: { onClose: () => void }) {
                 <input
                   type="tel"
                   placeholder="Enter phone number (optional)"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
                 />
               </div>
             </div>
+            <div className="flex items-center gap-4">
+              <label className="w-36 text-sm text-slate-300 shrink-0">
+                Max Accounts
+                <span className="text-red-500">*</span>
+              </label>
+              <div className="flex-1 relative">
+                <select
+                  value={maxAccounts}
+                  onChange={(e) => setMaxAccounts(e.target.value)}
+                  className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                >
+                  <option value="5">5 Accounts</option>
+                  <option value="10">10 Accounts</option>
+                  <option value="20">20 Accounts</option>
+                  <option value="unlimited">Unlimited</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-4 h-4" />
+              </div>
+            </div>
           </div>
-          <div className="px-6 py-4 border-t border-white/10 flex justify-end">
+          <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium rounded-lg transition-colors border border-white/10"
             >
-              Add Client
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+            >
+              {saving ? "Saving..." : "Add Client"}
             </button>
           </div>
         </div>

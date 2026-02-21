@@ -90,12 +90,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get agency_id from client
+    // Get agency_id and max_accounts from client
     const { data: clientRow } = await supabase
       .from("clients")
-      .select("agency_id")
+      .select("agency_id, max_accounts")
       .eq("id", clientUuid)
       .single();
+
+    // Enforce max accounts limit
+    if (clientRow?.max_accounts) {
+      const { count } = await supabase
+        .from("client_accounts")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", clientUuid);
+
+      if (count !== null && count >= clientRow.max_accounts) {
+        return NextResponse.json(
+          { error: `Account limit reached. This client is limited to ${clientRow.max_accounts} accounts.` },
+          { status: 403 }
+        );
+      }
+    }
 
     const platformAssetClass: Record<string, string> = {
       Tradovate: "Futures",
