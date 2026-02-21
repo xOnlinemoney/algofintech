@@ -101,6 +101,68 @@ export interface Algorithm {
   win_rate: string;   // e.g. "68%"
 }
 
+// ─── Algorithm Detail (Performance page) ─────────────────
+export interface AlgorithmMetrics {
+  total_return: string;
+  win_rate: string;
+  profit_factor: string;
+  max_drawdown: string;
+  sharpe_ratio: string;
+  avg_duration: string;
+}
+
+export interface AlgorithmMonthlyReturn {
+  year: number;
+  months: (string | null)[]; // 12 entries, null = no data
+  ytd: string;
+}
+
+export interface AlgorithmTrade {
+  instrument: string;
+  instrument_symbol: string;
+  instrument_type: string;
+  icon_bg: string;
+  icon_text_color: string;
+  trade_type: "LONG" | "SHORT";
+  entry: string;
+  exit: string;
+  size: string;
+  max_dd: string;
+  pnl: string;
+  pnl_positive: boolean;
+  return_pct: string;
+  return_positive: boolean;
+}
+
+export interface AlgorithmInfo {
+  timeframe: string;
+  min_account: string;
+  instruments: string;
+  trades_per_month: string;
+}
+
+export interface AlgorithmReleaseNote {
+  version: string;
+  date: string;
+  description: string;
+  is_latest: boolean;
+}
+
+export interface AlgorithmEquityChart {
+  labels: string[];
+  data: number[];
+}
+
+export interface AlgorithmDetail {
+  algorithm_id: string; // FK to Algorithm.id
+  metrics: AlgorithmMetrics;
+  monthly_returns: AlgorithmMonthlyReturn[];
+  trades: AlgorithmTrade[];
+  info: AlgorithmInfo;
+  release_notes: AlgorithmReleaseNote[];
+  equity_chart: AlgorithmEquityChart;
+}
+
 // ─── Dashboard Stats (computed / aggregated) ──────────────
 export interface DashboardStats {
   active_clients: number;

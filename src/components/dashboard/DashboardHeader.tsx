@@ -1,7 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { Bell, HelpCircle } from "lucide-react";
+import { getAlgorithmById } from "@/lib/mock-data";
 
 const breadcrumbMap: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -11,6 +13,13 @@ const breadcrumbMap: Record<string, string> = {
 
 export default function DashboardHeader() {
   const pathname = usePathname();
+
+  // Check if we're on an algorithm detail page: /dashboard/algorithms/[id]
+  const algoDetailMatch = pathname.match(/^\/dashboard\/algorithms\/(.+)$/);
+  const isAlgoDetail = !!algoDetailMatch;
+  const algoId = algoDetailMatch?.[1] ?? null;
+  const algorithm = algoId ? getAlgorithmById(algoId) : null;
+
   const pageLabel = breadcrumbMap[pathname] || "Dashboard";
 
   return (
@@ -20,7 +29,20 @@ export default function DashboardHeader() {
           Platform
         </span>
         <span className="text-slate-700">/</span>
-        <span className="text-white font-medium">{pageLabel}</span>
+        {isAlgoDetail && algorithm ? (
+          <>
+            <Link
+              href="/dashboard/algorithms"
+              className="text-slate-500 hover:text-slate-300 cursor-pointer transition-colors"
+            >
+              Algorithms Overview
+            </Link>
+            <span className="text-slate-700">/</span>
+            <span className="text-white font-medium">{algorithm.name}</span>
+          </>
+        ) : (
+          <span className="text-white font-medium">{pageLabel}</span>
+        )}
       </div>
       <div className="flex items-center gap-3">
         <div className="h-8 px-3 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2 text-xs text-slate-300">

@@ -25,6 +25,7 @@ import type {
   Client,
   Strategy,
   Algorithm,
+  AlgorithmDetail,
   DashboardStats,
   ChartData,
 } from "./types";
@@ -309,6 +310,75 @@ export function getCategoryColor(category: string): { bg: string; text: string; 
     default:
       return { bg: "bg-slate-500/20", text: "text-slate-300", border: "border-slate-500/20" };
   }
+}
+
+// ─── Algorithm Detail Data (Performance pages) ──────────────
+// Default detail template — each algorithm gets one via getAlgorithmDetail()
+const defaultAlgorithmDetail: Omit<AlgorithmDetail, "algorithm_id"> = {
+  metrics: {
+    total_return: "+142.5%",
+    win_rate: "68.2%",
+    profit_factor: "2.14",
+    max_drawdown: "8.4%",
+    sharpe_ratio: "1.85",
+    avg_duration: "4h 12m",
+  },
+  monthly_returns: [
+    {
+      year: 2023,
+      months: ["+4.2%", "+3.1%", "-1.2%", "+5.8%", "+2.4%", "+1.9%", "-0.5%", "+6.2%", "+3.3%", "+4.1%", null, null],
+      ytd: "+29.3%",
+    },
+    {
+      year: 2022,
+      months: ["-2.1%", "+1.5%", "+8.4%", "+3.2%", "-4.1%", "+2.8%", "+5.1%", "+1.2%", "-0.8%", "+6.5%", "+2.2%", "+1.9%"],
+      ytd: "+25.8%",
+    },
+  ],
+  trades: [
+    { instrument: "EURUSD", instrument_symbol: "€", instrument_type: "Forex", icon_bg: "bg-blue-500/10", icon_text_color: "text-blue-400", trade_type: "LONG", entry: "Oct 24, 14:30", exit: "Oct 24, 16:45", size: "2.50", max_dd: "-4.2 pips", pnl: "+$320.50", pnl_positive: true, return_pct: "+1.2%", return_positive: true },
+    { instrument: "GBPUSD", instrument_symbol: "£", instrument_type: "Forex", icon_bg: "bg-indigo-500/10", icon_text_color: "text-indigo-400", trade_type: "SHORT", entry: "Oct 24, 09:15", exit: "Oct 24, 10:20", size: "3.00", max_dd: "-8.5 pips", pnl: "+$540.20", pnl_positive: true, return_pct: "+1.8%", return_positive: true },
+    { instrument: "USDJPY", instrument_symbol: "¥", instrument_type: "Forex", icon_bg: "bg-yellow-500/10", icon_text_color: "text-yellow-400", trade_type: "LONG", entry: "Oct 23, 21:05", exit: "Oct 23, 23:30", size: "2.00", max_dd: "-12.1 pips", pnl: "-$180.00", pnl_positive: false, return_pct: "-0.9%", return_positive: false },
+    { instrument: "BTCUSD", instrument_symbol: "₿", instrument_type: "Crypto", icon_bg: "bg-orange-500/10", icon_text_color: "text-orange-400", trade_type: "LONG", entry: "Oct 23, 14:12", exit: "Oct 23, 18:45", size: "0.50", max_dd: "-0.45%", pnl: "+$850.00", pnl_positive: true, return_pct: "+2.4%", return_positive: true },
+    { instrument: "EURGBP", instrument_symbol: "€", instrument_type: "Forex", icon_bg: "bg-blue-500/10", icon_text_color: "text-blue-400", trade_type: "SHORT", entry: "Oct 22, 08:30", exit: "Oct 22, 11:15", size: "1.50", max_dd: "-3.2 pips", pnl: "+$125.40", pnl_positive: true, return_pct: "+0.5%", return_positive: true },
+  ],
+  info: {
+    timeframe: "M5 (5 Minutes)",
+    min_account: "$5,000",
+    instruments: "EURUSD, GBPUSD",
+    trades_per_month: "~145",
+  },
+  release_notes: [
+    { version: "v2.1.0", date: "Oct 24, 2023", description: "Enhanced volatility filter for Asian session. Optimized entry logic for GBP pairs reducing false signals by 12%.", is_latest: true },
+    { version: "v2.0.4", date: "Sep 12, 2023", description: "Fixed trailing stop execution latency. Minor adjustments to risk management parameters.", is_latest: false },
+    { version: "v2.0.0", date: "Aug 01, 2023", description: "Major update: Integrated news filter API to automatically pause trading during high-impact economic events.", is_latest: false },
+  ],
+  equity_chart: {
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    data: [10000, 10420, 10850, 10720, 11340, 11600, 11850, 11790, 12500, 12950, 13450, 14250],
+  },
+};
+
+/**
+ * Get algorithm detail by algorithm ID.
+ * In Supabase, this becomes a join query:
+ *   const { data } = await supabase
+ *     .from("algorithm_details")
+ *     .select("*")
+ *     .eq("algorithm_id", id)
+ *     .single();
+ */
+export function getAlgorithmDetail(algorithmId: string): AlgorithmDetail | null {
+  const algo = mockAlgorithms.find((a) => a.id === algorithmId);
+  if (!algo) return null;
+  return { algorithm_id: algorithmId, ...defaultAlgorithmDetail };
+}
+
+/**
+ * Get algorithm by ID.
+ */
+export function getAlgorithmById(algorithmId: string): (typeof mockAlgorithms)[number] | null {
+  return mockAlgorithms.find((a) => a.id === algorithmId) ?? null;
 }
 
 // ─── Dashboard Stats ──────────────────────────────────────
