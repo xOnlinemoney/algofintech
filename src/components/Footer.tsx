@@ -141,7 +141,7 @@ export default function Footer() {
           <div className="flex gap-6">
             {["Privacy Policy", "Terms of Service", "Cookie Settings", "Sitemap"].map(
               (item, i) => {
-                const linkMap: Record<string, string> = { "Privacy Policy": "/privacy-policy" };
+                const linkMap: Record<string, string> = { "Privacy Policy": "/privacy-policy", "Cookie Settings": "/cookie-policy" };
                 return (
                   <span key={item} className="flex items-center gap-6">
                     {i > 0 && <span className="text-slate-700">|</span>}
