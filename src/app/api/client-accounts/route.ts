@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
           free_margin: 0,
           open_trades: 0,
           asset_class: platform === "Tradovate" ? "Futures" : "Forex",
-          strategy_id: null,
+          algorithm_id: null,
           is_active: false,
           status: "off",
           created_at: new Date().toISOString(),
