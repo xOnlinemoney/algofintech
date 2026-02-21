@@ -186,3 +186,36 @@ export interface ChartTimeframeData {
 }
 
 export type ChartData = Record<string, ChartTimeframeData>;
+
+// ─── Platform Updates ────────────────────────────────────
+export type UpdateCategory =
+  | "New Feature"
+  | "Improvement"
+  | "Bug Fix"
+  | "New Strategy"
+  | "Announcement"
+  | "Integration"
+  | "New Asset Class"
+  | "Security";
+
+export interface PlatformUpdate {
+  id: string;
+  date: string;            // e.g. "Dec 18, 2024"
+  category: UpdateCategory;
+  version?: string;        // e.g. "v2.4.0"
+  title: string;
+  description: string;
+  is_featured?: boolean;
+  /** Optional image for strategy cards */
+  image_url?: string;
+  /** Optional metadata tags shown below description */
+  tags?: { label: string }[];
+  /** Optional CTA */
+  cta?: { label: string; href: string };
+}
+
+export interface UpdateQuarterlyStats {
+  new_features: number;
+  strategies_added: number;
+  bugs_squashed: number;
+}

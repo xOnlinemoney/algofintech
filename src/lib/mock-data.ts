@@ -28,6 +28,8 @@ import type {
   AlgorithmDetail,
   DashboardStats,
   ChartData,
+  PlatformUpdate,
+  UpdateQuarterlyStats,
 } from "./types";
 
 // ─── Agency ───────────────────────────────────────────────
@@ -487,6 +489,126 @@ export function getStatusColor(status: string): {
       return { bg: "bg-red-500/10", text: "text-red-400", dot: "bg-red-500", border: "border-red-500/20" };
     default:
       return { bg: "bg-slate-500/10", text: "text-slate-400", dot: "bg-slate-500", border: "border-slate-500/20" };
+  }
+}
+
+// ─── Platform Updates ─────────────────────────────────────
+// Supabase swap:
+//   const { data } = await supabase
+//     .from("platform_updates")
+//     .select("*")
+//     .order("date", { ascending: false });
+export const mockPlatformUpdates: PlatformUpdate[] = [
+  {
+    id: "upd_001",
+    date: "Dec 18, 2024",
+    category: "New Strategy",
+    title: "New Crypto Strategy: Bitcoin Momentum Scalper",
+    description: "We've just deployed our most advanced high-frequency crypto strategy yet. The Bitcoin Momentum Scalper utilizes proprietary order flow analysis to capitalize on micro-trends during periods of high volatility. Early backtests show a 15% increase in Sharpe ratio compared to previous iterations.",
+    is_featured: true,
+    cta: { label: "Deploy Strategy", href: "#" },
+  },
+  {
+    id: "upd_002",
+    date: "Dec 16, 2024",
+    category: "Improvement",
+    version: "v2.4.0",
+    title: "Platform Performance Improvement",
+    description: "We've optimized the core dashboard rendering engine, resulting in a 40% reduction in load times for client portfolios with large transaction histories. Data fetching is now parallelized for smoother navigation.",
+  },
+  {
+    id: "upd_003",
+    date: "Dec 14, 2024",
+    category: "New Feature",
+    version: "v2.3.5",
+    title: "Enhanced Reporting: Export Client Performance to PDF",
+    description: "You can now generate white-labeled PDF performance reports for individual clients directly from the client overview page. Includes customizable date ranges and metric selection.",
+    cta: { label: "Try it out", href: "#" },
+  },
+  {
+    id: "upd_004",
+    date: "Dec 12, 2024",
+    category: "Bug Fix",
+    version: "v2.3.3",
+    title: "Resolved Commission Calculation Display Issue",
+    description: "Fixed a UI bug where accrued commissions were displaying in the wrong currency symbol for multi-currency accounts. This was a display-only issue; underlying calculations were correct.",
+  },
+  {
+    id: "upd_005",
+    date: "Dec 10, 2024",
+    category: "New Strategy",
+    title: "EUR/USD Range Trader Released",
+    description: "A mean-reversion algorithm designed for low volatility sessions. Ideal for diversifying trend-following portfolios.",
+    image_url: "https://images.unsplash.com/photo-1640906152676-dace6710d24b?w=200&q=80",
+    tags: [{ label: "Risk: Low" }, { label: "Min: $5k" }],
+  },
+  {
+    id: "upd_006",
+    date: "Dec 08, 2024",
+    category: "Announcement",
+    title: "Scheduled Maintenance",
+    description: "We will be performing scheduled database upgrades on Sunday, Dec 22nd from 2:00 AM to 4:00 AM EST. API access may be intermittent during this window.",
+  },
+  {
+    id: "upd_007",
+    date: "Dec 05, 2024",
+    category: "New Feature",
+    version: "v2.3.0",
+    title: "Multi-Currency Account Support Added",
+    description: "You can now hold balances in USD, EUR, GBP, and JPY within a single agency account. Conversions are handled automatically at spot rates with zero markup.",
+  },
+  {
+    id: "upd_008",
+    date: "Dec 02, 2024",
+    category: "Integration",
+    title: "MetaTrader 5 Now Supported",
+    description: "Connect your MT5 accounts directly to AlgoStack. This integration supports both hedging and netting accounts and includes full trade history synchronization.",
+  },
+  {
+    id: "upd_009",
+    date: "Nov 28, 2024",
+    category: "New Asset Class",
+    title: "Futures Trading Now Available",
+    description: "We've expanded our asset coverage to include major index and commodity futures (ES, NQ, CL, GC). Margin requirements and contract specifications are available in the help center.",
+  },
+  {
+    id: "upd_010",
+    date: "Nov 25, 2024",
+    category: "Security",
+    title: "Two-Factor Authentication Improvements",
+    description: "Added support for hardware security keys (YubiKey) and biometric authentication on supported devices for enhanced account security.",
+  },
+];
+
+export const mockQuarterlyStats: UpdateQuarterlyStats = {
+  new_features: 12,
+  strategies_added: 8,
+  bugs_squashed: 24,
+};
+
+/**
+ * Get category color for platform update badges.
+ */
+export function getUpdateCategoryColor(category: string): { bg: string; text: string; border: string; dot: string } {
+  switch (category) {
+    case "New Feature":
+      return { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20", dot: "border-blue-500" };
+    case "Improvement":
+      return { bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/20", dot: "border-purple-500" };
+    case "Bug Fix":
+      return { bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/20", dot: "border-orange-500" };
+    case "New Strategy":
+      return { bg: "bg-green-500/10", text: "text-green-400", border: "border-green-500/20", dot: "border-green-500" };
+    case "Announcement":
+      return { bg: "bg-pink-500/10", text: "text-pink-400", border: "border-pink-500/20", dot: "border-pink-500" };
+    case "Integration":
+      return { bg: "bg-indigo-500/10", text: "text-indigo-400", border: "border-indigo-500/20", dot: "border-indigo-500" };
+    case "New Asset Class":
+      return { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20", dot: "border-emerald-500" };
+    case "Security":
+      return { bg: "bg-cyan-500/10", text: "text-cyan-400", border: "border-cyan-500/20", dot: "border-cyan-500" };
+    default:
+      return { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/20", dot: "border-slate-500" };
   }
 }
 
