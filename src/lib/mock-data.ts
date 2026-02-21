@@ -24,6 +24,7 @@ import type {
   AgencyUser,
   Client,
   Strategy,
+  Algorithm,
   DashboardStats,
   ChartData,
 } from "./types";
@@ -269,6 +270,46 @@ export const mockClients: Client[] = [
     last_active: "2026-02-20T15:45:00Z",
   },
 ];
+
+// ─── Algorithms (Algorithms Overview page — matches HTML 1:1) ──
+export const mockAlgorithms: Algorithm[] = [
+  { id: "algo_001", agency_id: "agency_001", name: "Alpha Scalp FX", description: "High-frequency scalping algorithm targeting major currency pairs during London overlap.", category: "Forex", image_url: "https://images.unsplash.com/photo-1640906152676-dace6710d24b?w=2160&q=80", roi: "+142%", drawdown: "8.4%", win_rate: "68%" },
+  { id: "algo_002", agency_id: "agency_001", name: "BitWave AI", description: "Neural network model optimized for Bitcoin volatility patterns and trend reversals.", category: "Crypto", image_url: "https://images.unsplash.com/photo-1629946832022-c327f74956e0?w=2160&q=80", roi: "+284%", drawdown: "12.1%", win_rate: "54%" },
+  { id: "algo_003", agency_id: "agency_001", name: "Equity Shield", description: "Long-short equity strategy focused on tech sector volatility reduction.", category: "Stocks", image_url: "https://images.unsplash.com/photo-1724525647065-f948fc102e68?w=2160&q=80", roi: "+45%", drawdown: "4.2%", win_rate: "72%" },
+  { id: "algo_004", agency_id: "agency_001", name: "Gold Trend V2", description: "Automated system tracking macro trends in Gold and Silver futures.", category: "Futures", image_url: "https://images.unsplash.com/photo-1640906152676-dace6710d24b?w=2160&q=80", roi: "+88%", drawdown: "9.5%", win_rate: "62%" },
+  { id: "algo_005", agency_id: "agency_001", name: "Euro Impulse", description: "Breakout strategy specifically designed for EUR/USD volatility.", category: "Forex", image_url: "https://images.unsplash.com/photo-1629946832022-c327f74956e0?w=2160&q=80", roi: "+76%", drawdown: "5.8%", win_rate: "65%" },
+  { id: "algo_006", agency_id: "agency_001", name: "Ether Momentum", description: "Captures strong momentum moves in Ethereum cross pairs.", category: "Crypto", image_url: "https://images.unsplash.com/photo-1724525647065-f948fc102e68?w=2160&q=80", roi: "+190%", drawdown: "15.4%", win_rate: "51%" },
+  { id: "algo_007", agency_id: "agency_001", name: "Nasdaq Runner", description: "Intraday trend following on QQQ and tech-heavy constituents.", category: "Stocks", image_url: "https://images.unsplash.com/photo-1640906152676-dace6710d24b?w=2160&q=80", roi: "+62%", drawdown: "7.1%", win_rate: "59%" },
+  { id: "algo_008", agency_id: "agency_001", name: "Oil Swing Pro", description: "Crude oil inventory news trading algorithm with tight risk control.", category: "Futures", image_url: "https://images.unsplash.com/photo-1629946832022-c327f74956e0?w=2160&q=80", roi: "+56%", drawdown: "6.3%", win_rate: "60%" },
+  { id: "algo_009", agency_id: "agency_001", name: "Cable Breakout", description: "GBP/USD breakout system utilizing London open volatility.", category: "Forex", image_url: "https://images.unsplash.com/photo-1724525647065-f948fc102e68?w=2160&q=80", roi: "+92%", drawdown: "10.1%", win_rate: "58%" },
+  { id: "algo_010", agency_id: "agency_001", name: "DeFi Yield Hunter", description: "Arbitrage algorithm working across major decentralized exchanges.", category: "Crypto", image_url: "https://images.unsplash.com/photo-1640906152676-dace6710d24b?w=2160&q=80", roi: "+310%", drawdown: "18.2%", win_rate: "75%" },
+  { id: "algo_011", agency_id: "agency_001", name: "Blue Chip Growth", description: "Conservative growth strategy focusing on S&P 500 dividend payers.", category: "Stocks", image_url: "https://images.unsplash.com/photo-1629946832022-c327f74956e0?w=2160&q=80", roi: "+22%", drawdown: "3.1%", win_rate: "82%" },
+  { id: "algo_012", agency_id: "agency_001", name: "Treasury Bond Arb", description: "Yield curve arbitrage trading on 10-year and 2-year notes.", category: "Futures", image_url: "https://images.unsplash.com/photo-1724525647065-f948fc102e68?w=2160&q=80", roi: "+18%", drawdown: "2.5%", win_rate: "92%" },
+  { id: "algo_013", agency_id: "agency_001", name: "Yen Carrier", description: "Carry trade strategy focused on USD/JPY and EUR/JPY interest differentials.", category: "Forex", image_url: "https://images.unsplash.com/photo-1640906152676-dace6710d24b?w=2160&q=80", roi: "+41%", drawdown: "12.5%", win_rate: "70%" },
+  { id: "algo_014", agency_id: "agency_001", name: "Solana Speed", description: "Scalping algorithm optimized for Solana's block times.", category: "Crypto", image_url: "https://images.unsplash.com/photo-1629946832022-c327f74956e0?w=2160&q=80", roi: "+165%", drawdown: "14.3%", win_rate: "55%" },
+  { id: "algo_015", agency_id: "agency_001", name: "Small Cap Rocket", description: "High volatility breakout strategy for Russell 2000 stocks.", category: "Stocks", image_url: "https://images.unsplash.com/photo-1724525647065-f948fc102e68?w=2160&q=80", roi: "+98%", drawdown: "16.5%", win_rate: "48%" },
+  { id: "algo_016", agency_id: "agency_001", name: "Agri-Commodity Cycle", description: "Seasonal trading model for Wheat, Corn, and Soybeans.", category: "Futures", image_url: "https://images.unsplash.com/photo-1640906152676-dace6710d24b?w=2160&q=80", roi: "+34%", drawdown: "8.8%", win_rate: "65%" },
+  { id: "algo_017", agency_id: "agency_001", name: "Global Macro FX", description: "Long-term trend following based on central bank interest rate policies.", category: "Forex", image_url: "https://images.unsplash.com/photo-1629946832022-c327f74956e0?w=2160&q=80", roi: "+67%", drawdown: "11.2%", win_rate: "55%" },
+  { id: "algo_018", agency_id: "agency_001", name: "Bitcoin Trend Follower", description: "Classic Donchian channel strategy adapted for BTC/USD.", category: "Crypto", image_url: "https://images.unsplash.com/photo-1724525647065-f948fc102e68?w=2160&q=80", roi: "+112%", drawdown: "18.5%", win_rate: "45%" },
+  { id: "algo_019", agency_id: "agency_001", name: "Tech Sector Rotation", description: "Monthly rotation strategy moving between semiconductor and software ETFs.", category: "Stocks", image_url: "https://images.unsplash.com/photo-1640906152676-dace6710d24b?w=2160&q=80", roi: "+38%", drawdown: "6.1%", win_rate: "64%" },
+  { id: "algo_020", agency_id: "agency_001", name: "E-Mini Scalper", description: "Rapid fire execution on S&P 500 E-mini futures order flow.", category: "Futures", image_url: "https://images.unsplash.com/photo-1629946832022-c327f74956e0?w=2160&q=80", roi: "+104%", drawdown: "9.3%", win_rate: "72%" },
+];
+
+// ─── Helper: category badge color ────────────────────────
+export function getCategoryColor(category: string): { bg: string; text: string; border: string } {
+  switch (category) {
+    case "Forex":
+      return { bg: "bg-blue-500/20", text: "text-blue-300", border: "border-blue-500/20" };
+    case "Crypto":
+      return { bg: "bg-purple-500/20", text: "text-purple-300", border: "border-purple-500/20" };
+    case "Stocks":
+      return { bg: "bg-orange-500/20", text: "text-orange-300", border: "border-orange-500/20" };
+    case "Futures":
+      return { bg: "bg-emerald-500/20", text: "text-emerald-300", border: "border-emerald-500/20" };
+    default:
+      return { bg: "bg-slate-500/20", text: "text-slate-300", border: "border-slate-500/20" };
+  }
+}
 
 // ─── Dashboard Stats ──────────────────────────────────────
 export const mockDashboardStats: DashboardStats = {

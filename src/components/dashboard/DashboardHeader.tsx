@@ -6,6 +6,7 @@ import { Bell, HelpCircle } from "lucide-react";
 const breadcrumbMap: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/dashboard/clients": "Clients",
+  "/dashboard/algorithms": "Algorithms Overview",
 };
 
 export default function DashboardHeader() {

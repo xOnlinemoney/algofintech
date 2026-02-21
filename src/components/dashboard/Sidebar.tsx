@@ -108,10 +108,17 @@ export default function Sidebar() {
               </Link>
             );
           })}
-          <button className="flex hover:bg-white/5 hover:border-white/10 hover:text-slate-200 transition-all group cursor-pointer text-xs font-medium text-slate-400 w-full border-white/5 border rounded-md mt-2 py-1.5 px-3 gap-2 items-center justify-center">
-            <LayoutDashboard className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-400 transition-colors" />
+          <Link
+            href="/dashboard/algorithms"
+            className={
+              pathname === "/dashboard/algorithms"
+                ? "flex items-center gap-2.5 text-xs font-medium text-blue-400 bg-blue-500/10 border-blue-500/10 border rounded-md mt-2 py-1.5 px-3 w-full justify-center"
+                : "flex hover:bg-white/5 hover:border-white/10 hover:text-slate-200 transition-all group cursor-pointer text-xs font-medium text-slate-400 w-full border-white/5 border rounded-md mt-2 py-1.5 px-3 gap-2 items-center justify-center"
+            }
+          >
+            <LayoutDashboard className="w-3.5 h-3.5 text-current" />
             View Algorithms
-          </button>
+          </Link>
         </div>
 
         {/* Payments & Commissions */}

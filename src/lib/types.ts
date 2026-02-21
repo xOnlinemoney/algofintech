@@ -86,6 +86,21 @@ export interface ClientStrategy {
   started_at: string;
 }
 
+// ─── Algorithm (Algorithms Overview page) ────────────────
+export type AlgorithmCategory = "Forex" | "Crypto" | "Stocks" | "Futures";
+
+export interface Algorithm {
+  id: string;
+  agency_id: string;
+  name: string;
+  description: string;
+  category: AlgorithmCategory;
+  image_url: string;
+  roi: string;       // e.g. "+142%"
+  drawdown: string;  // e.g. "8.4%"
+  win_rate: string;   // e.g. "68%"
+}
+
 // ─── Dashboard Stats (computed / aggregated) ──────────────
 export interface DashboardStats {
   active_clients: number;
