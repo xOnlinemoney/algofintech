@@ -19,9 +19,9 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
-          <a href="#features" className="hover:text-white transition-colors">
+          <Link href="/features" className="hover:text-white transition-colors">
             Features
-          </a>
+          </Link>
           <a href="#algos" className="hover:text-white transition-colors">
             Algorithms
           </a>
