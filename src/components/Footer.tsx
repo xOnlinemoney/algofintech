@@ -123,9 +123,10 @@ export default function Footer() {
             links={[
               "Become a Partner",
               "Pricing Models",
-              "Partner Portal",
+              "Agency Portal Login",
               "Marketing Assets",
             ]}
+            linkMap={{ "Agency Portal Login": "/agency-login" }}
           />
           <FooterColumn
             title="Company"
