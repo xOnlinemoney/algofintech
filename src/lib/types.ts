@@ -237,3 +237,50 @@ export interface ComingSoonAlgorithm {
   icon_color: string;          // tailwind color key like "indigo", "orange", "blue"
   eta: string;                 // e.g. "Q1 2025"
 }
+
+// ─── Industry News ──────────────────────────────────────
+export type IndustryNewsCategory =
+  | "All News"
+  | "Market Analysis"
+  | "Regulatory Updates"
+  | "Technology"
+  | "Trading Insights"
+  | "Company News"
+  | "Crypto";
+
+export interface IndustryNewsArticle {
+  id: string;
+  title: string;
+  description: string;
+  category: IndustryNewsCategory;
+  image_url: string | null;
+  image_gradient: string | null;   // fallback gradient if no image
+  author_name: string;
+  author_avatar_gradient: string;  // tailwind gradient for avatar
+  published_at: string;            // e.g. "Dec 18, 2024"
+  read_time: string;               // e.g. "5 min read"
+  is_featured: boolean;
+  source?: string;                 // e.g. "Reuters", "Bloomberg"
+}
+
+export interface MarketSnapshotItem {
+  symbol: string;
+  name: string;
+  price: string;
+  change: string;
+  change_positive: boolean;
+}
+
+export interface TrendingArticle {
+  id: string;
+  title: string;
+  category: IndustryNewsCategory;
+  read_time: string;
+}
+
+export interface EditorPick {
+  id: string;
+  title: string;
+  category: IndustryNewsCategory;
+  published_at: string;
+}

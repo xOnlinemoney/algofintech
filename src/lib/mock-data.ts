@@ -32,6 +32,10 @@ import type {
   UpdateQuarterlyStats,
   NewAlgorithmRelease,
   ComingSoonAlgorithm,
+  IndustryNewsArticle,
+  MarketSnapshotItem,
+  TrendingArticle,
+  EditorPick,
 } from "./types";
 
 // ─── Agency ───────────────────────────────────────────────
@@ -686,5 +690,185 @@ export function getRiskColor(risk: string): string {
       return "bg-red-500";
     default:
       return "bg-slate-500";
+  }
+}
+
+// ─── Industry News Articles ──────────────────────────────
+// Supabase swap:
+//   const { data: articles } = await supabase
+//     .from("industry_news")
+//     .select("*")
+//     .eq("agency_id", agencyId)
+//     .order("published_at", { ascending: false });
+export const mockIndustryNewsArticles: IndustryNewsArticle[] = [
+  {
+    id: "news_001",
+    title: "Federal Reserve Signals Potential Rate Cuts in 2025 as Inflation Cools",
+    description: "The Federal Reserve indicated it may begin reducing interest rates in 2025, citing cooling inflation data and improving economic conditions. Markets rallied on the news with major indices hitting new highs.",
+    category: "Market Analysis",
+    image_url: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80",
+    image_gradient: null,
+    author_name: "Sarah Chen",
+    author_avatar_gradient: "from-blue-500 to-indigo-600",
+    published_at: "Dec 18, 2024",
+    read_time: "5 min read",
+    is_featured: true,
+    source: "Reuters",
+  },
+  {
+    id: "news_002",
+    title: "Bitcoin Surges Past $105K as Institutional Adoption Accelerates",
+    description: "Bitcoin reached new all-time highs as major financial institutions announce cryptocurrency custody services and ETF inflows continue to break records.",
+    category: "Crypto",
+    image_url: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=600&q=80",
+    image_gradient: null,
+    author_name: "Marcus Webb",
+    author_avatar_gradient: "from-orange-500 to-amber-600",
+    published_at: "Dec 17, 2024",
+    read_time: "4 min read",
+    is_featured: false,
+    source: "CoinDesk",
+  },
+  {
+    id: "news_003",
+    title: "AI-Powered Trading Algorithms See 340% Growth in Hedge Fund Adoption",
+    description: "A comprehensive study reveals that AI and machine learning-driven trading strategies have seen unprecedented adoption across the hedge fund industry.",
+    category: "Technology",
+    image_url: null,
+    image_gradient: "from-violet-600 to-purple-700",
+    author_name: "David Park",
+    author_avatar_gradient: "from-violet-500 to-purple-600",
+    published_at: "Dec 16, 2024",
+    read_time: "6 min read",
+    is_featured: false,
+  },
+  {
+    id: "news_004",
+    title: "SEC Approves New Framework for Algorithmic Trading Oversight",
+    description: "The Securities and Exchange Commission has finalized new rules governing algorithmic and high-frequency trading, establishing clearer guidelines for risk management.",
+    category: "Regulatory Updates",
+    image_url: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80",
+    image_gradient: null,
+    author_name: "Jennifer Liu",
+    author_avatar_gradient: "from-emerald-500 to-teal-600",
+    published_at: "Dec 15, 2024",
+    read_time: "7 min read",
+    is_featured: false,
+    source: "Bloomberg",
+  },
+  {
+    id: "news_005",
+    title: "EUR/USD Volatility Spikes Amid ECB Policy Divergence",
+    description: "The euro-dollar pair experienced significant swings as the European Central Bank signaled a more dovish stance compared to the Fed's measured approach.",
+    category: "Market Analysis",
+    image_url: null,
+    image_gradient: "from-blue-600 to-cyan-700",
+    author_name: "Thomas Mueller",
+    author_avatar_gradient: "from-blue-500 to-cyan-600",
+    published_at: "Dec 14, 2024",
+    read_time: "4 min read",
+    is_featured: false,
+  },
+  {
+    id: "news_006",
+    title: "Goldman Sachs Launches Next-Gen Quantitative Trading Platform",
+    description: "Goldman Sachs unveils a new quantitative trading platform aimed at providing institutional clients with advanced algorithmic strategies and real-time analytics.",
+    category: "Company News",
+    image_url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&q=80",
+    image_gradient: null,
+    author_name: "Rachel Foster",
+    author_avatar_gradient: "from-pink-500 to-rose-600",
+    published_at: "Dec 13, 2024",
+    read_time: "5 min read",
+    is_featured: false,
+    source: "Financial Times",
+  },
+  {
+    id: "news_007",
+    title: "Momentum Strategies Outperform in Q4 as Market Trends Strengthen",
+    description: "Trend-following and momentum-based algorithmic strategies posted their strongest quarter in three years, with average returns exceeding 18%.",
+    category: "Trading Insights",
+    image_url: null,
+    image_gradient: "from-emerald-600 to-green-700",
+    author_name: "Alex Novak",
+    author_avatar_gradient: "from-emerald-500 to-green-600",
+    published_at: "Dec 12, 2024",
+    read_time: "5 min read",
+    is_featured: false,
+  },
+  {
+    id: "news_008",
+    title: "Japan's Nikkei 225 Hits Record High on BOJ Yield Curve Shift",
+    description: "Japanese equities surged to fresh all-time highs as the Bank of Japan adjusted its yield curve control policy, attracting global capital flows.",
+    category: "Market Analysis",
+    image_url: "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80",
+    image_gradient: null,
+    author_name: "Yuki Tanaka",
+    author_avatar_gradient: "from-red-500 to-orange-600",
+    published_at: "Dec 11, 2024",
+    read_time: "4 min read",
+    is_featured: false,
+    source: "Nikkei Asia",
+  },
+  {
+    id: "news_009",
+    title: "DeFi Protocols Surpass $200B in Total Value Locked",
+    description: "Decentralized finance protocols collectively hit a new milestone in total value locked, driven by renewed interest in yield farming and liquid staking.",
+    category: "Crypto",
+    image_url: null,
+    image_gradient: "from-amber-600 to-orange-700",
+    author_name: "Chris Zhang",
+    author_avatar_gradient: "from-amber-500 to-orange-600",
+    published_at: "Dec 10, 2024",
+    read_time: "6 min read",
+    is_featured: false,
+  },
+];
+
+// ─── Market Snapshot ─────────────────────────────────────
+// Supabase swap:
+//   const { data: snapshot } = await supabase
+//     .from("market_snapshot")
+//     .select("*")
+//     .order("symbol");
+export const mockMarketSnapshot: MarketSnapshotItem[] = [
+  { symbol: "SPX", name: "S&P 500", price: "4,768.37", change: "+1.37%", change_positive: true },
+  { symbol: "NDX", name: "Nasdaq 100", price: "16,831.48", change: "+1.82%", change_positive: true },
+  { symbol: "BTC", name: "Bitcoin", price: "105,234.80", change: "+3.24%", change_positive: true },
+  { symbol: "EUR/USD", name: "Euro/Dollar", price: "1.0891", change: "-0.15%", change_positive: false },
+];
+
+// ─── Trending Articles ───────────────────────────────────
+export const mockTrendingArticles: TrendingArticle[] = [
+  { id: "news_002", title: "Bitcoin Surges Past $105K as Institutional Adoption Accelerates", category: "Crypto", read_time: "4 min" },
+  { id: "news_003", title: "AI-Powered Trading Algorithms See 340% Growth", category: "Technology", read_time: "6 min" },
+  { id: "news_004", title: "SEC Approves New Framework for Algo Trading", category: "Regulatory Updates", read_time: "7 min" },
+  { id: "news_007", title: "Momentum Strategies Outperform in Q4", category: "Trading Insights", read_time: "5 min" },
+  { id: "news_008", title: "Japan's Nikkei 225 Hits Record High", category: "Market Analysis", read_time: "4 min" },
+];
+
+// ─── Editor's Picks ──────────────────────────────────────
+export const mockEditorPicks: EditorPick[] = [
+  { id: "news_003", title: "AI-Powered Trading Algorithms See 340% Growth in Hedge Fund Adoption", category: "Technology", published_at: "Dec 16, 2024" },
+  { id: "news_004", title: "SEC Approves New Framework for Algorithmic Trading Oversight", category: "Regulatory Updates", published_at: "Dec 15, 2024" },
+];
+
+// ─── News Category Colors ────────────────────────────────
+export function getNewsCategoryColor(category: string): { bg: string; text: string; border: string } {
+  switch (category) {
+    case "Market Analysis":
+      return { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20" };
+    case "Regulatory Updates":
+      return { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20" };
+    case "Technology":
+      return { bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/20" };
+    case "Trading Insights":
+      return { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20" };
+    case "Company News":
+      return { bg: "bg-pink-500/10", text: "text-pink-400", border: "border-pink-500/20" };
+    case "Crypto":
+      return { bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/20" };
+    default:
+      return { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/20" };
   }
 }
