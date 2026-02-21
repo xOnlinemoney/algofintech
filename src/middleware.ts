@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
  */
 
 // All paths that belong exclusively to the agency subdomain
-const AGENCY_PATHS = ["/dashboard"];
+const AGENCY_PATHS = ["/dashboard", "/agency-login"];
 
 function isAgencyPath(pathname: string): boolean {
   return AGENCY_PATHS.some(
@@ -51,6 +51,12 @@ export function middleware(request: NextRequest) {
     hostname.startsWith("agency-"); // Vercel preview URLs use dashes
 
   if (isAgencySubdomain) {
+    // Root on agency subdomain → redirect to /dashboard
+    if (pathname === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
     // On agency subdomain — only allow agency paths
     if (isAgencyPath(pathname)) {
       return NextResponse.next();
