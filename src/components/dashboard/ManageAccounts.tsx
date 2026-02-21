@@ -127,7 +127,8 @@ export default function ManageAccounts() {
               onClick={() => setShowAddModal(true)}
               className="flex hover:bg-blue-500 transition-colors text-sm font-medium text-white bg-blue-600 ring-blue-500/50 ring-1 rounded-md py-1.5 px-3 shadow-sm gap-2 items-center"
             >
-              Add Client
+              <Plus className="w-4 h-4" />
+              Add Account
             </button>
             <div className="h-6 w-px bg-white/10 mx-1" />
             <button className="p-1.5 text-slate-400 hover:text-white transition-colors hover:bg-white/5 rounded">
@@ -268,7 +269,13 @@ export default function ManageAccounts() {
 
       {/* Modals */}
       {showAddModal && (
-        <AddClientAccountModal onClose={() => setShowAddModal(false)} />
+        <AddClientAccountModal
+          onClose={() => setShowAddModal(false)}
+          onAdd={(newAccount) => {
+            setAccounts((prev) => [...prev, newAccount]);
+            setShowAddModal(false);
+          }}
+        />
       )}
       {deleteTarget && (
         <DeleteAccountModal
@@ -562,8 +569,63 @@ function StrategyDropdown({
   );
 }
 
-// ─── Add Client Account Modal ───────────────────────────
-function AddClientAccountModal({ onClose }: { onClose: () => void }) {
+// ─── Add Account Modal ──────────────────────────────────
+function AddClientAccountModal({
+  onClose,
+  onAdd,
+}: {
+  onClose: () => void;
+  onAdd: (account: ClientAccount) => void;
+}) {
+  const [platform, setPlatform] = useState("Tradovate");
+  const [accountType, setAccountType] = useState<"Demo" | "Real">("Demo");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const isTradovate = platform === "Tradovate";
+
+  const platformAssetClass: Record<string, string> = {
+    Tradovate: "Futures",
+    "MetaTrader 4": "Forex",
+    "MetaTrader 5": "Forex",
+    Binance: "Crypto",
+    Bybit: "Crypto",
+    Schwab: "Stocks",
+  };
+
+  const handleAdd = () => {
+    if (!accountNumber.trim()) {
+      setError("Account number is required.");
+      return;
+    }
+    if (isTradovate && (!username.trim() || !password.trim())) {
+      setError("Username and password are required for Tradovate.");
+      return;
+    }
+    setError("");
+
+    const newAccount: ClientAccount = {
+      id: `acc_new_${Date.now()}`,
+      account_name: `slave - ${platform.toLowerCase().replace(/\s+/g, "")} - ${accountNumber}`,
+      account_label: `${platform} ${accountType} / ${accountNumber} (USD)`,
+      platform,
+      account_type: accountType,
+      account_number: accountNumber,
+      currency: "USD",
+      balance: 0,
+      credit: 0,
+      equity: 0,
+      free_margin: 0,
+      open_trades: 0,
+      asset_class: platformAssetClass[platform] || "Futures",
+      algorithm_id: null,
+      is_active: false,
+    };
+    onAdd(newAccount);
+  };
+
   return (
     <div className="fixed inset-0 z-50">
       <div
@@ -574,7 +636,7 @@ function AddClientAccountModal({ onClose }: { onClose: () => void }) {
         <div className="bg-[#1a1d24] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
             <h2 className="text-base font-semibold text-white tracking-tight">
-              ADD CLIENT
+              ADD ACCOUNT
             </h2>
             <button
               onClick={onClose}
@@ -584,33 +646,49 @@ function AddClientAccountModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           <div className="p-6 space-y-5">
+            {/* Trading Platform */}
             <div className="flex items-center gap-4">
               <label className="w-36 text-sm text-slate-300 shrink-0">
                 Trading Platform
                 <span className="text-red-500">*</span>
               </label>
               <div className="flex-1 relative">
-                <select className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all">
-                  <option>Tradovate (Beta)</option>
-                  <option>MetaTrader 4</option>
-                  <option>MetaTrader 5</option>
+                <select
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value)}
+                  className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                >
+                  <option value="Tradovate">Tradovate (Beta)</option>
+                  <option value="MetaTrader 4">MetaTrader 4</option>
+                  <option value="MetaTrader 5">MetaTrader 5</option>
+                  <option value="Binance">Binance</option>
+                  <option value="Bybit">Bybit</option>
+                  <option value="Schwab">Schwab</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-4 h-4" />
               </div>
             </div>
+
+            {/* Demo / Real */}
             <div className="flex items-center gap-4">
               <label className="w-36 text-sm text-slate-300 shrink-0">
                 Demo/Real
                 <span className="text-red-500">*</span>
               </label>
               <div className="flex-1 relative">
-                <select className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all">
+                <select
+                  value={accountType}
+                  onChange={(e) => setAccountType(e.target.value as "Demo" | "Real")}
+                  className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                >
                   <option>Demo</option>
                   <option>Real</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-4 h-4" />
               </div>
             </div>
+
+            {/* Account Number */}
             <div className="flex items-center gap-4">
               <label className="w-36 text-sm text-slate-300 shrink-0 flex items-center gap-1">
                 Account
@@ -622,32 +700,67 @@ function AddClientAccountModal({ onClose }: { onClose: () => void }) {
               <div className="flex-1">
                 <input
                   type="text"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
                   placeholder="Account Number (i.e. XXXX123456-1)"
                   className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
                 />
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <label className="w-36 text-sm text-slate-300 shrink-0">
-                Plan
-                <span className="text-red-500">*</span>
-              </label>
-              <div className="flex-1 relative">
-                <select className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all">
-                  <option>Subscription / 1 / 29 day(s)</option>
-                  <option>Subscription / 3 / 90 day(s)</option>
-                  <option>Subscription / 12 / 365 day(s)</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-4 h-4" />
-              </div>
-            </div>
+
+            {/* Tradovate Credentials */}
+            {isTradovate && (
+              <>
+                <div className="flex items-center gap-4">
+                  <label className="w-36 text-sm text-slate-300 shrink-0">
+                    Username
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Tradovate username"
+                      className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <label className="w-36 text-sm text-slate-300 shrink-0">
+                    Password
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex-1">
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Tradovate password"
+                      className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Error */}
+            {error && (
+              <p className="text-xs text-red-400 pl-40">{error}</p>
+            )}
           </div>
-          <div className="px-6 py-4 border-t border-white/10 flex justify-end">
+          <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
             <button
               onClick={onClose}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium rounded-lg transition-colors border border-white/10"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAdd}
               className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
             >
-              Add
+              Add Account
             </button>
           </div>
         </div>
