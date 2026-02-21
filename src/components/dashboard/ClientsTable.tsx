@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon } from "lucide-react";
 import { mockClients, formatCurrencyFull, formatLiquidity, getStatusColor, getRiskColor } from "@/lib/mock-data";
 import type { Client, ClientStatus } from "@/lib/types";
@@ -268,9 +269,12 @@ function ClientCard({
       </div>
 
       {/* Manage Button */}
-      <button className="hover:bg-white/10 hover:text-white transition-colors text-xs font-medium text-slate-300 bg-white/5 w-full border-white/5 border rounded-lg py-2">
+      <Link
+        href={`/dashboard/clients/${client.client_id}`}
+        className="hover:bg-white/10 hover:text-white transition-colors text-xs font-medium text-slate-300 bg-white/5 w-full border-white/5 border rounded-lg py-2 text-center block"
+      >
         Manage Accounts
-      </button>
+      </Link>
     </div>
   );
 }
