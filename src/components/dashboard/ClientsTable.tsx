@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu } from "lucide-react";
-import { mockClients, formatCurrencyFull, formatLiquidity, getStatusColor, getRiskColor } from "@/lib/mock-data";
+import { mockClients, formatCurrencyFull, formatLiquidity, getStatusColor } from "@/lib/mock-data";
 import type { Client, ClientStatus } from "@/lib/types";
 
 // Live stats from Supabase
@@ -207,7 +207,6 @@ function ClientCard({
   onDelete: () => void;
 }) {
   const status = getStatusColor(client.status);
-  const riskDotColor = getRiskColor(client.risk_level);
   const initials = client.name
     .split(" ")
     .map((n) => n[0])
@@ -281,24 +280,6 @@ function ClientCard({
             {formatCurrencyFull(client.total_pnl)}
           </p>
         </div>
-        <div className="space-y-0.5">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-            Risk Level
-          </p>
-          <div className="flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full ${riskDotColor}`}></span>
-            <span className="text-sm text-slate-300">
-              {client.risk_level.charAt(0).toUpperCase() +
-                client.risk_level.slice(1)}
-            </span>
-          </div>
-        </div>
-        <div className="space-y-0.5 text-right">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-            Broker
-          </p>
-          <p className="text-sm text-slate-300">{client.broker}</p>
-        </div>
       </div>
 
       {/* Accounts & Strategies Row */}
@@ -315,48 +296,6 @@ function ClientCard({
             {client.active_strategies}
           </span>
         </div>
-      </div>
-
-      {/* Sparkline */}
-      <div className="h-12 w-full mt-1 relative overflow-hidden rounded bg-white/[0.02]">
-        <svg className="w-full h-full" preserveAspectRatio="none">
-          <defs>
-            <linearGradient
-              id={`grad-${client.id}`}
-              x1="0%"
-              y1="0%"
-              x2="0%"
-              y2="100%"
-            >
-              <stop
-                offset="0%"
-                style={{
-                  stopColor: client.sparkline_color,
-                  stopOpacity: 0.5,
-                }}
-              />
-              <stop
-                offset="100%"
-                style={{
-                  stopColor: client.sparkline_color,
-                  stopOpacity: 0,
-                }}
-              />
-            </linearGradient>
-          </defs>
-          <path
-            d={client.sparkline_path}
-            fill="none"
-            stroke={client.sparkline_color}
-            strokeWidth="1.5"
-            vectorEffect="non-scaling-stroke"
-          />
-          <path
-            d={`${client.sparkline_path} V50 H0 Z`}
-            fill={`url(#grad-${client.id})`}
-            opacity="0.2"
-          />
-        </svg>
       </div>
 
       {/* Manage Button */}
