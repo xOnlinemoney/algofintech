@@ -10,6 +10,7 @@ const breadcrumbMap: Record<string, string> = {
   "/dashboard/clients": "Clients",
   "/dashboard/algorithms": "Algorithms Overview",
   "/dashboard/updates": "Platform Updates",
+  "/dashboard/new-algorithms": "New Algorithms",
 };
 
 export default function DashboardHeader() {

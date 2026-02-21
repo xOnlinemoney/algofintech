@@ -141,7 +141,7 @@ export default function Sidebar() {
           title="News & Updates"
           items={[
             { href: "/dashboard/updates", icon: <Activity className="w-4 h-4 text-slate-500 group-hover:text-slate-400" />, label: "Platform Updates" },
-            { href: "#", icon: <TrendingUp className="w-4 h-4 text-slate-500 group-hover:text-slate-400" />, label: "New Strategies" },
+            { href: "/dashboard/new-algorithms", icon: <TrendingUp className="w-4 h-4 text-slate-500 group-hover:text-slate-400" />, label: "New Algorithms" },
             { href: "#", icon: <Newspaper className="w-4 h-4 text-slate-500 group-hover:text-slate-400" />, label: "Industry News" },
             { href: "#", icon: <Megaphone className="w-4 h-4 text-slate-500 group-hover:text-slate-400" />, label: "Announcements" },
           ]}

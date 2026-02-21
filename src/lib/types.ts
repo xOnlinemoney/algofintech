@@ -219,3 +219,21 @@ export interface UpdateQuarterlyStats {
   strategies_added: number;
   bugs_squashed: number;
 }
+
+// ─── New Algorithm Releases ──────────────────────────────
+export interface NewAlgorithmRelease {
+  algorithm_id: string;       // FK to Algorithm.id — syncs with existing algo
+  released_at: string;        // e.g. "Dec 11, 2024"
+  days_ago_label: string;     // e.g. "1w ago", "45d ago"
+  is_featured: boolean;
+  features: { icon: string; label: string }[]; // e.g. [{icon:"zap", label:"Momentum Based Entry"}]
+}
+
+export interface ComingSoonAlgorithm {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;                // lucide icon name
+  icon_color: string;          // tailwind color key like "indigo", "orange", "blue"
+  eta: string;                 // e.g. "Q1 2025"
+}

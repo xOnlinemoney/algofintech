@@ -30,6 +30,8 @@ import type {
   ChartData,
   PlatformUpdate,
   UpdateQuarterlyStats,
+  NewAlgorithmRelease,
+  ComingSoonAlgorithm,
 } from "./types";
 
 // ─── Agency ───────────────────────────────────────────────
@@ -610,6 +612,54 @@ export function getUpdateCategoryColor(category: string): { bg: string; text: st
     default:
       return { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/20", dot: "border-slate-500" };
   }
+}
+
+// ─── New Algorithm Releases ───────────────────────────────
+// Supabase swap:
+//   const { data } = await supabase
+//     .from("algorithm_releases")
+//     .select("*, algorithm:algorithms(*)")
+//     .order("released_at", { ascending: false });
+export const mockNewAlgorithmReleases: NewAlgorithmRelease[] = [
+  // Featured hero — BitWave AI (algo_002, Crypto, +284%)
+  { algorithm_id: "algo_002", released_at: "Dec 15, 2024", days_ago_label: "3d ago", is_featured: true, features: [{ icon: "zap", label: "Quantum-Inspired Optimization" }, { icon: "bar-chart-2", label: "Sub-millisecond Latency" }, { icon: "clock", label: "1m Timeframe" }] },
+  // Card 1 — Cable Breakout (algo_009, Forex, +92%)
+  { algorithm_id: "algo_009", released_at: "Dec 11, 2024", days_ago_label: "1w ago", is_featured: false, features: [{ icon: "zap", label: "Momentum Based Entry" }, { icon: "bar-chart-2", label: "GBP/USD, EUR/GBP Focus" }, { icon: "clock", label: "15m Timeframe" }] },
+  // Card 2 — Nasdaq Runner (algo_007, Stocks, +62%)
+  { algorithm_id: "algo_007", released_at: "Dec 04, 2024", days_ago_label: "2w ago", is_featured: false, features: [{ icon: "cpu", label: "Neural Network Analysis" }, { icon: "target", label: "NASDAQ-100 Components" }, { icon: "clock", label: "4H Timeframe" }] },
+  // Card 3 — Gold Trend V2 (algo_004, Futures, +88%)
+  { algorithm_id: "algo_004", released_at: "Nov 28, 2024", days_ago_label: "3w ago", is_featured: false, features: [{ icon: "activity", label: "High Volatility Targeting" }, { icon: "layers", label: "GC Futures Only" }, { icon: "clock", label: "5m Timeframe" }] },
+  // Card 4 — DeFi Yield Hunter (algo_010, Crypto, +310%)
+  { algorithm_id: "algo_010", released_at: "Nov 05, 2024", days_ago_label: "45d ago", is_featured: false, features: [{ icon: "trending-up", label: "Trend Following" }, { icon: "coins", label: "Top 10 Altcoins" }] },
+  // Card 5 — Yen Carrier (algo_013, Forex, +41%)
+  { algorithm_id: "algo_013", released_at: "Oct 29, 2024", days_ago_label: "52d ago", is_featured: false, features: [{ icon: "moon", label: "Range Bound Strategy" }, { icon: "refresh-cw", label: "JPY Pairs" }] },
+  // Card 6 — Blue Chip Growth (algo_011, Stocks, +22%)
+  { algorithm_id: "algo_011", released_at: "Oct 21, 2024", days_ago_label: "60d ago", is_featured: false, features: [{ icon: "briefcase", label: "Long Term Hold" }, { icon: "shield", label: "Low Risk Profile" }] },
+  // Card 7 — Oil Swing Pro (algo_008, Futures, +56%)
+  { algorithm_id: "algo_008", released_at: "Oct 06, 2024", days_ago_label: "75d ago", is_featured: false, features: [] },
+  // Card 8 — Bitcoin Trend Follower (algo_018, Crypto, +112%)
+  { algorithm_id: "algo_018", released_at: "Oct 01, 2024", days_ago_label: "80d ago", is_featured: false, features: [] },
+  // Card 9 — Euro Impulse (algo_005, Forex, +76%)
+  { algorithm_id: "algo_005", released_at: "Aug 20, 2024", days_ago_label: "4m ago", is_featured: false, features: [] },
+];
+
+export const mockComingSoonAlgorithms: ComingSoonAlgorithm[] = [
+  { id: "cs_001", name: "Multi-Pair Arbitrage AI", description: "Sophisticated triangular arbitrage system for major forex pairs. Zero-exposure market neutral strategy.", icon: "layers", icon_color: "indigo", eta: "Q1 2025" },
+  { id: "cs_002", name: "Altcoin Season Detector", description: "On-chain analysis tool to detect capital rotation into small-cap cryptocurrencies before the pump.", icon: "gem", icon_color: "orange", eta: "Q1 2025" },
+  { id: "cs_003", name: "Small Cap Growth Hunter", description: "Scans Russell 2000 for high-growth potential stocks with strong earnings momentum.", icon: "trending-up", icon_color: "blue", eta: "Q1 2025" },
+];
+
+/**
+ * Get a new release enriched with algorithm data.
+ */
+export function getEnrichedReleases() {
+  return mockNewAlgorithmReleases
+    .map((r) => {
+      const algo = getAlgorithmById(r.algorithm_id);
+      if (!algo) return null;
+      return { ...r, algorithm: algo };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
 }
 
 // ─── Agency Saved Algorithms (join table mock) ───────────
