@@ -23,6 +23,27 @@ import { mockClients, getCategoryColor, getClientAccounts } from "@/lib/mock-dat
 import { useSavedAlgorithms } from "@/context/SavedAlgorithmsContext";
 import type { Algorithm, ClientAccount } from "@/lib/types";
 
+// ─── Supabase row → ClientAccount mapper ────────────────
+function mapDbRow(row: Record<string, unknown>): ClientAccount {
+  return {
+    id: row.id as string,
+    account_name: (row.account_name as string) || "",
+    account_label: (row.account_label as string) || "",
+    platform: (row.platform as string) || "",
+    account_type: (row.account_type as "Demo" | "Real") || "Demo",
+    account_number: (row.account_number as string) || "",
+    currency: (row.currency as string) || "USD",
+    balance: Number(row.balance) || 0,
+    credit: Number(row.credit) || 0,
+    equity: Number(row.equity) || 0,
+    free_margin: Number(row.free_margin) || 0,
+    open_trades: Number(row.open_trades) || 0,
+    asset_class: (row.asset_class as string) || "",
+    algorithm_id: (row.algorithm_id as string) || null,
+    is_active: Boolean(row.is_active),
+  };
+}
+
 type MainTab = "accounts" | "open-positions" | "closed-positions";
 
 // ─── Algorithm Color Helper (uses same category colors as sidebar) ──
@@ -50,15 +71,41 @@ export default function ManageAccounts() {
   // Get only the algorithms saved by the agency owner (shown in sidebar)
   const { savedAlgorithms } = useSavedAlgorithms();
 
-  const [accounts, setAccounts] = useState<ClientAccount[]>(
-    getClientAccounts(slug)
-  );
+  const [accounts, setAccounts] = useState<ClientAccount[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<MainTab>("accounts");
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ClientAccount | null>(null);
   const [copySettingsTarget, setCopySettingsTarget] =
     useState<ClientAccount | null>(null);
   const [searchAccount, setSearchAccount] = useState("");
+
+  // ─── Load accounts from Supabase on mount ───────────
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAccounts() {
+      try {
+        const res = await fetch(
+          `/api/client-accounts?client_id=${encodeURIComponent(slug)}`
+        );
+        const json = await res.json();
+        if (!cancelled && json.data && json.data.length > 0) {
+          setAccounts(json.data.map(mapDbRow));
+        } else if (!cancelled) {
+          // Fall back to mock data if Supabase is empty
+          setAccounts(getClientAccounts(slug));
+        }
+      } catch {
+        if (!cancelled) {
+          setAccounts(getClientAccounts(slug));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadAccounts();
+    return () => { cancelled = true; };
+  }, [slug]);
 
   const filteredAccounts = accounts.filter(
     (a) =>
@@ -72,6 +119,19 @@ export default function ManageAccounts() {
         a.id === accountId ? { ...a, is_active: !a.is_active } : a
       )
     );
+    // Persist toggle to Supabase
+    const account = accounts.find((a) => a.id === accountId);
+    if (account) {
+      fetch("/api/client-accounts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: accountId,
+          is_active: !account.is_active,
+          status: !account.is_active ? "active" : "off",
+        }),
+      }).catch(console.error);
+    }
   };
 
   const handleStrategyChange = (
@@ -83,11 +143,29 @@ export default function ManageAccounts() {
         a.id === accountId ? { ...a, algorithm_id: algorithmId } : a
       )
     );
+    // Persist strategy change to Supabase
+    fetch("/api/client-accounts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        account_id: accountId,
+        algorithm_id: algorithmId,
+      }),
+    }).catch(console.error);
   };
 
-  const handleDeleteAccount = (accountId: string) => {
+  const handleDeleteAccount = async (accountId: string) => {
     setAccounts((prev) => prev.filter((a) => a.id !== accountId));
     setDeleteTarget(null);
+    // Persist delete to Supabase
+    try {
+      await fetch(
+        `/api/client-accounts?account_id=${encodeURIComponent(accountId)}`,
+        { method: "DELETE" }
+      );
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
   };
 
   return (
@@ -270,6 +348,7 @@ export default function ManageAccounts() {
       {/* Modals */}
       {showAddModal && (
         <AddClientAccountModal
+          clientDisplayId={slug}
           onClose={() => setShowAddModal(false)}
           onAdd={(newAccount) => {
             setAccounts((prev) => [...prev, newAccount]);
@@ -571,9 +650,11 @@ function StrategyDropdown({
 
 // ─── Add Account Modal ──────────────────────────────────
 function AddClientAccountModal({
+  clientDisplayId,
   onClose,
   onAdd,
 }: {
+  clientDisplayId: string;
   onClose: () => void;
   onAdd: (account: ClientAccount) => void;
 }) {
@@ -583,6 +664,7 @@ function AddClientAccountModal({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const isTradovate = platform === "Tradovate";
 
@@ -595,7 +677,7 @@ function AddClientAccountModal({
     Schwab: "Stocks",
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!accountNumber.trim()) {
       setError("Account number is required.");
       return;
@@ -605,25 +687,58 @@ function AddClientAccountModal({
       return;
     }
     setError("");
+    setSaving(true);
 
-    const newAccount: ClientAccount = {
-      id: `acc_new_${Date.now()}`,
-      account_name: `slave - ${platform.toLowerCase().replace(/\s+/g, "")} - ${accountNumber}`,
-      account_label: `${platform} ${accountType} / ${accountNumber} (USD)`,
-      platform,
-      account_type: accountType,
-      account_number: accountNumber,
-      currency: "USD",
-      balance: 0,
-      credit: 0,
-      equity: 0,
-      free_margin: 0,
-      open_trades: 0,
-      asset_class: platformAssetClass[platform] || "Futures",
-      algorithm_id: null,
-      is_active: false,
-    };
-    onAdd(newAccount);
+    try {
+      // POST to Supabase via API route
+      const res = await fetch("/api/client-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_display_id: clientDisplayId,
+          platform,
+          account_type: accountType,
+          account_number: accountNumber,
+          username: isTradovate ? username : undefined,
+          password: isTradovate ? password : undefined,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.data) {
+        // Use the Supabase-returned row (has real UUID id)
+        onAdd(mapDbRow(json.data));
+      } else {
+        // Fallback: add locally with temp id
+        const newAccount: ClientAccount = {
+          id: `acc_new_${Date.now()}`,
+          account_name: `slave - ${platform.toLowerCase().replace(/\s+/g, "")} - ${accountNumber}`,
+          account_label: `${platform} ${accountType} / ${accountNumber} (USD)`,
+          platform,
+          account_type: accountType,
+          account_number: accountNumber,
+          currency: "USD",
+          balance: 0,
+          credit: 0,
+          equity: 0,
+          free_margin: 0,
+          open_trades: 0,
+          asset_class: platformAssetClass[platform] || "Futures",
+          algorithm_id: null,
+          is_active: false,
+        };
+        onAdd(newAccount);
+        console.error("API error, added locally:", json.error);
+      }
+    } catch (err) {
+      console.error("Failed to save account:", err);
+      setError("Failed to save. Please try again.");
+      setSaving(false);
+      return;
+    }
+
+    setSaving(false);
   };
 
   return (
@@ -758,9 +873,10 @@ function AddClientAccountModal({
             </button>
             <button
               onClick={handleAdd}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+              disabled={saving}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add Account
+              {saving ? "Saving..." : "Add Account"}
             </button>
           </div>
         </div>

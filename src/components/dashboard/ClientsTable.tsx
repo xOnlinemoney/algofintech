@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu } from "lucide-react";
 import { mockClients, formatCurrencyFull, formatLiquidity, getStatusColor, getRiskColor } from "@/lib/mock-data";
 import type { Client, ClientStatus } from "@/lib/types";
+
+// Live stats from Supabase
+type ClientStats = Record<
+  string,
+  { accounts_count: number; active_strategies: number; liquidity: number }
+>;
 
 // ─── Main Component ──────────────────────────────────────
 export default function ClientsGrid() {
@@ -13,9 +19,31 @@ export default function ClientsGrid() {
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCopySettings, setShowCopySettings] = useState(false);
+  const [liveStats, setLiveStats] = useState<ClientStats>({});
 
-  // Future: replace mockClients with Supabase query
-  const clients = mockClients;
+  // Fetch live account stats from Supabase
+  useEffect(() => {
+    fetch("/api/client-stats")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.data) setLiveStats(json.data);
+      })
+      .catch(console.error);
+  }, []);
+
+  // Merge mock clients with live Supabase stats
+  const clients = mockClients.map((c) => {
+    const stats = liveStats[c.client_id];
+    if (stats) {
+      return {
+        ...c,
+        accounts_count: stats.accounts_count,
+        active_strategies: stats.active_strategies,
+        liquidity: stats.liquidity,
+      };
+    }
+    return c;
+  });
 
   // Filter
   const filtered = clients.filter((c) => {
