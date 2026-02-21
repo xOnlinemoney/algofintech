@@ -5,8 +5,6 @@ import Link from "next/link";
 import {
   LayoutDashboard,
   Users,
-  DollarSign,
-  CreditCard,
   Activity,
   TrendingUp,
   Newspaper,
@@ -125,16 +123,6 @@ export default function Sidebar() {
             View Algorithms
           </Link>
         </div>
-
-        {/* Payments & Commissions */}
-        <NavSection
-          title="Payments & Commissions"
-          items={[
-            { href: "#", icon: <DollarSign className="w-4 h-4 text-slate-500 group-hover:text-slate-400" />, label: "Commission Earnings" },
-            { href: "#", icon: <CreditCard className="w-4 h-4 text-slate-500 group-hover:text-slate-400" />, label: "Payment Management" },
-          ]}
-          pathname={pathname}
-        />
 
         {/* News & Updates */}
         <NavSection
