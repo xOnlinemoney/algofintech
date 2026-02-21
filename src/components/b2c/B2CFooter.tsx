@@ -45,7 +45,7 @@ export default function B2CFooter() {
           </div>
 
           <FooterColumn title="Algorithms" links={["Crypto Algos", "Futures Trading", "Forex Strategies", "Stock Equities"]} />
-          <FooterColumn title="Platform" links={["How It Works", "Supported Brokers", "Security", "API Documentation"]} />
+          <FooterColumn title="Platform" links={["How It Works", "Supported Brokers", "Security", "API Documentation"]} linkMap={{ "API Documentation": "/api-docs" }} />
           <FooterColumn title="Resources" links={["Help Center", "Getting Started Guide", "Risk Management", "FAQ"]} />
           <FooterColumn title="Company" links={["About Us", "Careers", "Press & Media", "Contact Support"]} />
         </div>
@@ -99,13 +99,13 @@ function SocialIcon({ icon }: { icon: React.ReactNode }) {
   );
 }
 
-function FooterColumn({ title, links }: { title: string; links: string[] }) {
+function FooterColumn({ title, links, linkMap = {} }: { title: string; links: string[]; linkMap?: Record<string, string> }) {
   return (
     <div>
       <h4 className="text-white font-semibold mb-6">{title}</h4>
       <ul className="space-y-3 text-sm">
         {links.map((link) => (
-          <li key={link}><a href="#" className="hover:text-white transition-colors">{link}</a></li>
+          <li key={link}><a href={linkMap[link] || "#"} className="hover:text-white transition-colors">{link}</a></li>
         ))}
       </ul>
     </div>

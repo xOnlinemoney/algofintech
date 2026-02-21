@@ -116,6 +116,7 @@ export default function Footer() {
               "API Documentation",
               "White-Label Solutions",
             ]}
+            linkMap={{ "API Documentation": "/api-docs" }}
           />
           <FooterColumn
             title="Partnership"
@@ -239,9 +240,11 @@ function SocialIcon({ icon }: { icon: React.ReactNode }) {
 function FooterColumn({
   title,
   links,
+  linkMap = {},
 }: {
   title: string;
   links: string[];
+  linkMap?: Record<string, string>;
 }) {
   return (
     <div>
@@ -249,7 +252,7 @@ function FooterColumn({
       <ul className="space-y-3 text-sm">
         {links.map((link) => (
           <li key={link}>
-            <a href="#" className="hover:text-white transition-colors">
+            <a href={linkMap[link] || "#"} className="hover:text-white transition-colors">
               {link}
             </a>
           </li>
