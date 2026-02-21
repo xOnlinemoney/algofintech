@@ -131,6 +131,7 @@ export default function Footer() {
           <FooterColumn
             title="Company"
             links={["About Us", "Careers", "Press & Media", "Contact Support"]}
+            linkMap={{ "Careers": "/careers" }}
           />
         </div>
 
