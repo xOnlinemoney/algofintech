@@ -284,3 +284,39 @@ export interface EditorPick {
   category: IndustryNewsCategory;
   published_at: string;
 }
+
+// ─── Announcements ──────────────────────────────────────
+export type AnnouncementPriority = "Critical" | "Important" | "General" | "Maintenance";
+
+export interface Announcement {
+  id: string;
+  title: string;
+  description: string;
+  priority: AnnouncementPriority;
+  category_label: string;        // e.g. "Security Alert", "Policy Update", "Maintenance"
+  icon: string;                  // lucide icon name
+  published_at: string;          // e.g. "Dec 20, 2:30 PM EST"
+  time_ago?: string;             // e.g. "45 minutes ago", "2 hours ago"
+  is_unread: boolean;
+  is_banner?: boolean;           // if true, show as critical top banner
+  attachment?: { label: string; href: string };
+  affected_system?: string;      // e.g. "Execution API"
+  cta?: { label: string; href: string };
+}
+
+export interface PreviousAnnouncement {
+  id: string;
+  title: string;
+  priority: AnnouncementPriority;
+  published_at: string;          // e.g. "Dec 14"
+}
+
+export interface UpcomingScheduleItem {
+  id: string;
+  title: string;
+  month: string;                 // e.g. "Dec"
+  day: string;                   // e.g. "22"
+  time: string;                  // e.g. "2:00 AM - 4:00 AM EST"
+  time_color: string;            // tailwind text color
+  subtitle: string;              // e.g. "Platform Offline"
+}

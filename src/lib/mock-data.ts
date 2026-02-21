@@ -36,6 +36,9 @@ import type {
   MarketSnapshotItem,
   TrendingArticle,
   EditorPick,
+  Announcement,
+  PreviousAnnouncement,
+  UpcomingScheduleItem,
 } from "./types";
 
 // ─── Agency ───────────────────────────────────────────────
@@ -870,5 +873,125 @@ export function getNewsCategoryColor(category: string): { bg: string; text: stri
       return { bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/20" };
     default:
       return { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/20" };
+  }
+}
+
+// ─── Announcements ───────────────────────────────────────
+// Supabase swap:
+//   const { data: announcements } = await supabase
+//     .from("announcements")
+//     .select("*")
+//     .eq("agency_id", agencyId)
+//     .order("published_at", { ascending: false });
+export const mockAnnouncements: Announcement[] = [
+  {
+    id: "ann_001",
+    title: "Scheduled Maintenance: Platform Offline",
+    description: "The trading platform will be offline for critical infrastructure upgrades on December 22, 2:00 AM - 4:00 AM EST. Please close all open positions before this window.",
+    priority: "Critical",
+    category_label: "System Maintenance",
+    icon: "siren",
+    published_at: "Dec 20, 2024",
+    time_ago: "1 day ago",
+    is_unread: true,
+    is_banner: true,
+  },
+  {
+    id: "ann_002",
+    title: "Password Reset Required for Enhanced Protection",
+    description: "We have deployed new encryption standards for user accounts. As a precautionary measure, all agency administrators are required to reset their passwords upon next login. 2FA sessions will also be refreshed.",
+    priority: "Critical",
+    category_label: "Security Alert",
+    icon: "shield-alert",
+    published_at: "Dec 20, 2:30 PM EST",
+    time_ago: "45 minutes ago",
+    is_unread: true,
+    cta: { label: "Read full announcement", href: "#" },
+  },
+  {
+    id: "ann_003",
+    title: "Emergency Market Closure: Trading Suspended Due to Exchange Issues",
+    description: "Trading on NYSE Arca symbols has been temporarily suspended due to technical issues at the primary exchange. Orders will be queued until further notice.",
+    priority: "Critical",
+    category_label: "Market Operations",
+    icon: "octagon-alert",
+    published_at: "Dec 19, 9:15 AM EST",
+    is_unread: false,
+    affected_system: "Execution API",
+  },
+  {
+    id: "ann_004",
+    title: "New Commission Structure Effective January 1, 2025",
+    description: "We are updating our commission tiers for high-volume agencies. The new structure introduces deeper discounts for volumes exceeding $10M/month. Please review the attached PDF for full details.",
+    priority: "Important",
+    category_label: "Policy Update",
+    icon: "file-text",
+    published_at: "Dec 19, 2024",
+    time_ago: "2 hours ago",
+    is_unread: true,
+    attachment: { label: "Download Rate Card 2025.pdf", href: "#" },
+    cta: { label: "Read details", href: "#" },
+  },
+  {
+    id: "ann_005",
+    title: "Routine Database Optimization",
+    description: "Minimal disruption expected. Historical data queries may be slower than usual during this window. Real-time execution services will remain fully operational.",
+    priority: "Maintenance",
+    category_label: "Maintenance",
+    icon: "wrench",
+    published_at: "Dec 28, 1-3am EST",
+    time_ago: "Scheduled",
+    is_unread: true,
+  },
+  {
+    id: "ann_006",
+    title: "Milestone Achievement: 10,000 Active Client Accounts!",
+    description: "We are thrilled to announce that our platform now supports over 10,000 active institutional accounts. Thank you for your continued trust and partnership.",
+    priority: "General",
+    category_label: "Celebration",
+    icon: "party-popper",
+    published_at: "Dec 18, 2024",
+    is_unread: false,
+  },
+  {
+    id: "ann_007",
+    title: "Welcome to Q4 2024: Platform Usage Statistics & Achievements",
+    description: "A quarterly review of platform performance, new feature adoption rates, and our roadmap for early 2025.",
+    priority: "General",
+    category_label: "Informational",
+    icon: "megaphone",
+    published_at: "Dec 15, 2024",
+    is_unread: false,
+    cta: { label: "Read blog post", href: "#" },
+  },
+];
+
+export const mockPreviousAnnouncements: PreviousAnnouncement[] = [
+  { id: "ann_prev_001", title: "Updated Terms of Service: Review Required by December 31", priority: "Important", published_at: "Dec 14" },
+  { id: "ann_prev_002", title: "Mobile App Update Deployment: Version 4.2", priority: "Maintenance", published_at: "Dec 12" },
+  { id: "ann_prev_003", title: "New Tutorial Video Series Released: Onboarding Made Easy", priority: "General", published_at: "Dec 10" },
+  { id: "ann_prev_004", title: "Critical Bug Fix Deployed: Please Refresh Your Dashboard", priority: "Critical", published_at: "Dec 08" },
+  { id: "ann_prev_005", title: "Year-End Reporting Deadline: December 28, 2024", priority: "Important", published_at: "Dec 05" },
+];
+
+export const mockUpcomingSchedule: UpcomingScheduleItem[] = [
+  { id: "sched_001", title: "System Maintenance", month: "Dec", day: "22", time: "2:00 AM - 4:00 AM EST", time_color: "text-red-400", subtitle: "Platform Offline" },
+  { id: "sched_002", title: "Holiday Closure", month: "Dec", day: "25", time: "All Day", time_color: "text-blue-400", subtitle: "Support Team Unavailable" },
+  { id: "sched_003", title: "Server Migration", month: "Jan", day: "05", time: "1:00 AM - 2:00 AM EST", time_color: "text-orange-400", subtitle: "Brief Intermittent Downtime" },
+  { id: "sched_004", title: "API V3.0 Launch", month: "Jan", day: "15", time: "12:00 PM EST", time_color: "text-green-400", subtitle: "New Endpoints Available" },
+];
+
+// ─── Announcement Priority Colors ────────────────────────
+export function getAnnouncementPriorityColor(priority: string): { bg: string; text: string; border: string; dot: string; leftBorder: string; iconBg: string } {
+  switch (priority) {
+    case "Critical":
+      return { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/10", dot: "bg-red-500", leftBorder: "border-l-red-500", iconBg: "bg-red-500/10 text-red-500 border-red-500/10" };
+    case "Important":
+      return { bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/10", dot: "bg-orange-500", leftBorder: "border-l-orange-500", iconBg: "bg-orange-500/10 text-orange-500 border-orange-500/10" };
+    case "Maintenance":
+      return { bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/10", dot: "bg-purple-500", leftBorder: "border-l-purple-500", iconBg: "bg-purple-500/10 text-purple-500 border-purple-500/10" };
+    case "General":
+    default:
+      return { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/10", dot: "bg-blue-500", leftBorder: "border-l-blue-500", iconBg: "bg-blue-500/10 text-blue-500 border-blue-500/10" };
   }
 }
