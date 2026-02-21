@@ -46,7 +46,7 @@ export default function B2CFooter() {
 
           <FooterColumn title="Algorithms" links={["Crypto Algos", "Futures Trading", "Forex Strategies", "Stock Equities"]} />
           <FooterColumn title="Platform" links={["How It Works", "Supported Brokers", "Security", "API Documentation"]} linkMap={{ "Security": "/security", "API Documentation": "/api-docs" }} />
-          <FooterColumn title="Resources" links={["Help Center", "Getting Started Guide", "Risk Management", "FAQ"]} />
+          <FooterColumn title="Resources" links={["Help Center", "Getting Started Guide", "Risk Management", "FAQ"]} linkMap={{ "Help Center": "/help-center" }} />
           <FooterColumn title="Company" links={["About Us", "Careers", "Press & Media", "Contact Support"]} />
         </div>
 
