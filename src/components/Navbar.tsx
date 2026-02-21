@@ -22,9 +22,9 @@ export default function Navbar() {
           <Link href="/features" className="hover:text-white transition-colors">
             Features
           </Link>
-          <a href="#algos" className="hover:text-white transition-colors">
+          <Link href="/algorithms" className="hover:text-white transition-colors">
             Algorithms
-          </a>
+          </Link>
           <a href="#pricing" className="hover:text-white transition-colors">
             Pricing
           </a>
