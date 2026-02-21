@@ -54,12 +54,15 @@ export default function B2CFooter() {
         <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-600 mb-12">
           <div>&copy; 2025 AlgoFinTech Inc. All rights reserved.</div>
           <div className="flex gap-6">
-            {["Privacy Policy", "Terms of Service", "Cookie Settings"].map((item, i) => (
-              <span key={item} className="flex items-center gap-6">
-                {i > 0 && <span className="text-slate-700">|</span>}
-                <a href="#" className="hover:text-slate-400 transition-colors">{item}</a>
-              </span>
-            ))}
+            {["Privacy Policy", "Terms of Service", "Cookie Settings"].map((item, i) => {
+              const linkMap: Record<string, string> = { "Privacy Policy": "/privacy-policy" };
+              return (
+                <span key={item} className="flex items-center gap-6">
+                  {i > 0 && <span className="text-slate-700">|</span>}
+                  <a href={linkMap[item] || "#"} className="hover:text-slate-400 transition-colors">{item}</a>
+                </span>
+              );
+            })}
           </div>
         </div>
 

@@ -140,14 +140,17 @@ export default function Footer() {
           <div>&copy; 2025 AlgoStack Inc. All rights reserved.</div>
           <div className="flex gap-6">
             {["Privacy Policy", "Terms of Service", "Cookie Settings", "Sitemap"].map(
-              (item, i) => (
-                <span key={item} className="flex items-center gap-6">
-                  {i > 0 && <span className="text-slate-700">|</span>}
-                  <a href="#" className="hover:text-slate-400 transition-colors">
-                    {item}
-                  </a>
-                </span>
-              )
+              (item, i) => {
+                const linkMap: Record<string, string> = { "Privacy Policy": "/privacy-policy" };
+                return (
+                  <span key={item} className="flex items-center gap-6">
+                    {i > 0 && <span className="text-slate-700">|</span>}
+                    <a href={linkMap[item] || "#"} className="hover:text-slate-400 transition-colors">
+                      {item}
+                    </a>
+                  </span>
+                );
+              }
             )}
           </div>
         </div>
