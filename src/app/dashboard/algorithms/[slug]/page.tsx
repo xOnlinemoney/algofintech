@@ -1,21 +1,21 @@
 import { notFound } from "next/navigation";
 import AlgorithmDetailView from "@/components/dashboard/AlgorithmDetail";
-import { getAlgorithmById, getAlgorithmDetail, mockAlgorithms } from "@/lib/mock-data";
+import { getAlgorithmBySlug, getAlgorithmDetail, mockAlgorithms } from "@/lib/mock-data";
 import type { Metadata } from "next";
 
 // ─── Static params for SSG ──────────────────────────────
 export function generateStaticParams() {
-  return mockAlgorithms.map((algo) => ({ id: algo.id }));
+  return mockAlgorithms.map((algo) => ({ slug: algo.slug }));
 }
 
 // ─── Dynamic metadata ───────────────────────────────────
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const algo = getAlgorithmById(id);
+  const { slug } = await params;
+  const algo = getAlgorithmBySlug(slug);
   return {
     title: algo ? `AlgoFinTech - ${algo.name}` : "AlgoFinTech - Algorithm",
     description: algo?.description ?? "Algorithm performance details.",
@@ -26,11 +26,11 @@ export async function generateMetadata({
 export default async function AlgorithmPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = await params;
-  const algorithm = getAlgorithmById(id);
-  const detail = getAlgorithmDetail(id);
+  const { slug } = await params;
+  const algorithm = getAlgorithmBySlug(slug);
+  const detail = algorithm ? getAlgorithmDetail(algorithm.id) : null;
 
   if (!algorithm || !detail) {
     notFound();

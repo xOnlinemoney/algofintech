@@ -174,7 +174,7 @@ function AlgorithmCard({
 
         {/* CTA button */}
         <Link
-          href={`/dashboard/algorithms/${algo.id}`}
+          href={`/dashboard/algorithms/${algo.slug}`}
           className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-lg text-xs font-medium text-white transition-all flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:border-blue-500 group-hover:shadow-lg group-hover:shadow-blue-900/20"
         >
           See Performance

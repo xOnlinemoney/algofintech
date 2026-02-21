@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Bell, HelpCircle } from "lucide-react";
-import { getAlgorithmById } from "@/lib/mock-data";
+import { getAlgorithmBySlug } from "@/lib/mock-data";
 
 const breadcrumbMap: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -14,11 +14,11 @@ const breadcrumbMap: Record<string, string> = {
 export default function DashboardHeader() {
   const pathname = usePathname();
 
-  // Check if we're on an algorithm detail page: /dashboard/algorithms/[id]
+  // Check if we're on an algorithm detail page: /dashboard/algorithms/[slug]
   const algoDetailMatch = pathname.match(/^\/dashboard\/algorithms\/(.+)$/);
   const isAlgoDetail = !!algoDetailMatch;
-  const algoId = algoDetailMatch?.[1] ?? null;
-  const algorithm = algoId ? getAlgorithmById(algoId) : null;
+  const algoSlug = algoDetailMatch?.[1] ?? null;
+  const algorithm = algoSlug ? getAlgorithmBySlug(algoSlug) : null;
 
   const pageLabel = breadcrumbMap[pathname] || "Dashboard";
 

@@ -91,6 +91,7 @@ export type AlgorithmCategory = "Forex" | "Crypto" | "Stocks" | "Futures";
 
 export interface Algorithm {
   id: string;
+  slug: string;      // URL-friendly path: "forex-alpha-scalp-fx"
   agency_id: string;
   name: string;
   description: string;
