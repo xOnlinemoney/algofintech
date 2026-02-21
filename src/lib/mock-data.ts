@@ -297,18 +297,18 @@ export const mockAlgorithms: Algorithm[] = [
 ];
 
 // ─── Helper: category badge color ────────────────────────
-export function getCategoryColor(category: string): { bg: string; text: string; border: string } {
+export function getCategoryColor(category: string): { bg: string; text: string; border: string; dot: string } {
   switch (category) {
     case "Forex":
-      return { bg: "bg-blue-500/20", text: "text-blue-300", border: "border-blue-500/20" };
+      return { bg: "bg-blue-500/20", text: "text-blue-300", border: "border-blue-500/20", dot: "bg-blue-500" };
     case "Crypto":
-      return { bg: "bg-purple-500/20", text: "text-purple-300", border: "border-purple-500/20" };
+      return { bg: "bg-purple-500/20", text: "text-purple-300", border: "border-purple-500/20", dot: "bg-purple-500" };
     case "Stocks":
-      return { bg: "bg-orange-500/20", text: "text-orange-300", border: "border-orange-500/20" };
+      return { bg: "bg-orange-500/20", text: "text-orange-300", border: "border-orange-500/20", dot: "bg-orange-500" };
     case "Futures":
-      return { bg: "bg-emerald-500/20", text: "text-emerald-300", border: "border-emerald-500/20" };
+      return { bg: "bg-emerald-500/20", text: "text-emerald-300", border: "border-emerald-500/20", dot: "bg-emerald-500" };
     default:
-      return { bg: "bg-slate-500/20", text: "text-slate-300", border: "border-slate-500/20" };
+      return { bg: "bg-slate-500/20", text: "text-slate-300", border: "border-slate-500/20", dot: "bg-slate-500" };
   }
 }
 
@@ -489,6 +489,19 @@ export function getStatusColor(status: string): {
       return { bg: "bg-slate-500/10", text: "text-slate-400", dot: "bg-slate-500", border: "border-slate-500/20" };
   }
 }
+
+// ─── Agency Saved Algorithms (join table mock) ───────────
+// Supabase swap:
+//   const { data } = await supabase
+//     .from("agency_saved_algorithms")
+//     .select("algorithm_id")
+//     .eq("agency_id", agencyId);
+//   const savedIds = data.map(r => r.algorithm_id);
+export const mockAgencySavedAlgorithmIds: string[] = [
+  "algo_001", // Alpha Scalp FX
+  "algo_005", // Gold Trend Pro
+  "algo_009", // Neural Net Equity
+];
 
 // ─── Helper: risk level color ─────────────────────────────
 export function getRiskColor(risk: string): string {

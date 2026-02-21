@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Plus, LayoutGrid } from "lucide-react";
+import { Search, Plus, LayoutGrid, Trash2 } from "lucide-react";
 import { mockAlgorithms, getCategoryColor } from "@/lib/mock-data";
+import { useSavedAlgorithms } from "@/context/SavedAlgorithmsContext";
 import type { AlgorithmCategory } from "@/lib/types";
 
 const FILTER_TABS: ("All" | AlgorithmCategory)[] = [
@@ -17,6 +18,7 @@ const FILTER_TABS: ("All" | AlgorithmCategory)[] = [
 export default function AlgorithmsGrid() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"All" | AlgorithmCategory>("All");
+  const { isSaved, addAlgorithm, removeAlgorithm } = useSavedAlgorithms();
 
   const filtered = useMemo(() => {
     let list = mockAlgorithms;
@@ -83,7 +85,7 @@ export default function AlgorithmsGrid() {
       {/* Strategy Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 pb-8">
         {filtered.map((algo) => (
-          <AlgorithmCard key={algo.id} algo={algo} />
+          <AlgorithmCard key={algo.id} algo={algo} isSaved={isSaved(algo.id)} onToggle={() => isSaved(algo.id) ? removeAlgorithm(algo.id) : addAlgorithm(algo.id)} />
         ))}
 
         {filtered.length === 0 && (
@@ -103,8 +105,12 @@ export default function AlgorithmsGrid() {
 // ─── Individual Algorithm Card ───────────────────────────
 function AlgorithmCard({
   algo,
+  isSaved,
+  onToggle,
 }: {
   algo: (typeof mockAlgorithms)[number];
+  isSaved: boolean;
+  onToggle: () => void;
 }) {
   const badge = getCategoryColor(algo.category);
 
@@ -120,10 +126,18 @@ function AlgorithmCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#13161C] to-transparent opacity-60"></div>
 
-        {/* Add button */}
+        {/* Add / Remove button */}
         <div className="absolute top-2 right-2">
-          <button className="h-7 w-7 rounded-md bg-black/40 hover:bg-blue-600 text-white backdrop-blur-md border border-white/10 flex items-center justify-center transition-colors">
-            <Plus className="w-3.5 h-3.5" />
+          <button
+            onClick={onToggle}
+            title={isSaved ? "Remove from sidebar" : "Add to sidebar"}
+            className={
+              isSaved
+                ? "h-7 w-7 rounded-md bg-red-600/80 hover:bg-red-600 text-white backdrop-blur-md border border-red-500/30 flex items-center justify-center transition-colors"
+                : "h-7 w-7 rounded-md bg-black/40 hover:bg-blue-600 text-white backdrop-blur-md border border-white/10 flex items-center justify-center transition-colors"
+            }
+          >
+            {isSaved ? <Trash2 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
           </button>
         </div>
 

@@ -18,13 +18,14 @@ import {
   Settings,
   Cpu,
 } from "lucide-react";
-import { mockAgencyUser, mockStrategies } from "@/lib/mock-data";
+import { mockAgencyUser, getCategoryColor } from "@/lib/mock-data";
+import { useSavedAlgorithms } from "@/context/SavedAlgorithmsContext";
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   const user = mockAgencyUser;
-  const strategies = mockStrategies;
+  const { savedAlgorithms } = useSavedAlgorithms();
 
   return (
     <aside className="w-64 bg-[#0B0E14] border-r border-white/5 flex flex-col shrink-0">
@@ -87,23 +88,27 @@ export default function Sidebar() {
           <div className="text-[10px] uppercase flex font-semibold text-slate-500 tracking-wider mb-2 px-2 items-center justify-between">
             Algorithms
           </div>
-          {strategies.map((s) => {
-            const dotColor =
-              s.status === "active"
-                ? "bg-green-500"
-                : s.status === "paused"
-                ? "bg-yellow-500"
-                : "bg-slate-600";
+          {savedAlgorithms.length === 0 && (
+            <p className="text-[11px] text-slate-600 px-2 py-1">
+              No algorithms added yet.
+            </p>
+          )}
+          {savedAlgorithms.map((algo) => {
+            const badge = getCategoryColor(algo.category);
             return (
               <Link
-                key={s.id}
-                href="#"
-                className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors text-sm font-medium group"
+                key={algo.id}
+                href={`/dashboard/algorithms/${algo.slug}`}
+                className={
+                  pathname === `/dashboard/algorithms/${algo.slug}`
+                    ? "flex items-center gap-2.5 px-2 py-1.5 rounded-md text-blue-400 bg-blue-500/10 border border-blue-500/10 text-sm font-medium group"
+                    : "flex items-center gap-2.5 px-2 py-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors text-sm font-medium group"
+                }
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`}></span>
-                <span className="flex-1">{s.name}</span>
-                <span className="text-[9px] text-slate-600 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
-                  {s.asset_tag}
+                <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}></span>
+                <span className="flex-1 truncate">{algo.name}</span>
+                <span className={`text-[9px] ${badge.text} bg-white/5 px-1.5 py-0.5 rounded border border-white/5 uppercase`}>
+                  {algo.category.slice(0, 3)}
                 </span>
               </Link>
             );
