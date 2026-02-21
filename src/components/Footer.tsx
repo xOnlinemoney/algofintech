@@ -106,7 +106,9 @@ export default function Footer() {
               "Futures Scalping",
               "Forex Mean Reversion",
               "Stock Equities",
+              "Strategy Development",
             ]}
+            linkMap={{ "Strategy Development": "/strategy-development" }}
           />
           <FooterColumn
             title="Platform"
