@@ -19,8 +19,9 @@ import {
   Check,
   Search,
 } from "lucide-react";
-import { mockClients, mockStrategies } from "@/lib/mock-data";
-import type { Strategy } from "@/lib/types";
+import { mockClients, getCategoryColor } from "@/lib/mock-data";
+import { useSavedAlgorithms } from "@/context/SavedAlgorithmsContext";
+import type { Algorithm } from "@/lib/types";
 
 // ─── Types ──────────────────────────────────────────────
 interface ClientAccount {
@@ -37,7 +38,7 @@ interface ClientAccount {
   free_margin: number;
   open_trades: number;
   asset_class: string;
-  strategy_id: string | null;
+  algorithm_id: string | null;
   is_active: boolean;
 }
 
@@ -60,7 +61,7 @@ function getMockAccounts(clientName: string): ClientAccount[] {
       free_margin: 197363.4,
       open_trades: 0,
       asset_class: "Futures",
-      strategy_id: null,
+      algorithm_id: null,
       is_active: false,
     },
     {
@@ -77,7 +78,7 @@ function getMockAccounts(clientName: string): ClientAccount[] {
       free_margin: 48250.0,
       open_trades: 3,
       asset_class: "Futures",
-      strategy_id: "strat_001",
+      algorithm_id: "algo_001",
       is_active: true,
     },
     {
@@ -94,7 +95,7 @@ function getMockAccounts(clientName: string): ClientAccount[] {
       free_margin: 10000.0,
       open_trades: 0,
       asset_class: "Forex",
-      strategy_id: "strat_002",
+      algorithm_id: "algo_005",
       is_active: true,
     },
     {
@@ -111,7 +112,7 @@ function getMockAccounts(clientName: string): ClientAccount[] {
       free_margin: 24500.0,
       open_trades: 1,
       asset_class: "Forex",
-      strategy_id: null,
+      algorithm_id: null,
       is_active: false,
     },
     {
@@ -128,7 +129,7 @@ function getMockAccounts(clientName: string): ClientAccount[] {
       free_margin: 78000.0,
       open_trades: 5,
       asset_class: "Crypto",
-      strategy_id: "strat_003",
+      algorithm_id: "algo_009",
       is_active: true,
     },
     {
@@ -145,50 +146,21 @@ function getMockAccounts(clientName: string): ClientAccount[] {
       free_margin: 130000.0,
       open_trades: 2,
       asset_class: "Stocks",
-      strategy_id: "strat_001",
+      algorithm_id: "algo_001",
       is_active: true,
     },
   ];
 }
 
-// ─── Strategy Color Helper ──────────────────────────────
-function getStrategyColor(strategy: Strategy | undefined): {
+// ─── Algorithm Color Helper (uses same category colors as sidebar) ──
+function getAlgoDropdownColor(category: string): {
   dot: string;
   bg: string;
   border: string;
   text: string;
 } {
-  if (!strategy) return { dot: "", bg: "", border: "", text: "" };
-  switch (strategy.color) {
-    case "indigo":
-      return {
-        dot: "bg-green-500",
-        bg: "bg-green-500/10",
-        border: "border-green-500/20",
-        text: "text-green-400",
-      };
-    case "yellow":
-      return {
-        dot: "bg-yellow-500",
-        bg: "bg-yellow-500/10",
-        border: "border-yellow-500/20",
-        text: "text-yellow-400",
-      };
-    case "blue":
-      return {
-        dot: "bg-slate-600",
-        bg: "bg-slate-500/10",
-        border: "border-slate-500/20",
-        text: "text-slate-400",
-      };
-    default:
-      return {
-        dot: "bg-slate-600",
-        bg: "bg-slate-500/10",
-        border: "border-slate-500/20",
-        text: "text-slate-400",
-      };
-  }
+  const c = getCategoryColor(category);
+  return { dot: c.dot, bg: c.bg, border: c.border, text: c.text };
 }
 
 // ─── Main Component ─────────────────────────────────────
@@ -201,6 +173,9 @@ export default function ManageAccounts() {
     (c) => c.client_id.toLowerCase() === slug?.toLowerCase()
   );
   const clientName = client?.name || "Unknown Client";
+
+  // Get only the algorithms saved by the agency owner (shown in sidebar)
+  const { savedAlgorithms } = useSavedAlgorithms();
 
   const [accounts, setAccounts] = useState<ClientAccount[]>(
     getMockAccounts(clientName)
@@ -228,11 +203,11 @@ export default function ManageAccounts() {
 
   const handleStrategyChange = (
     accountId: string,
-    strategyId: string | null
+    algorithmId: string | null
   ) => {
     setAccounts((prev) =>
       prev.map((a) =>
-        a.id === accountId ? { ...a, strategy_id: strategyId } : a
+        a.id === accountId ? { ...a, algorithm_id: algorithmId } : a
       )
     );
   };
@@ -388,7 +363,7 @@ export default function ManageAccounts() {
                     <AccountRow
                       key={account.id}
                       account={account}
-                      strategies={mockStrategies}
+                      algorithms={savedAlgorithms}
                       onToggle={handleToggle}
                       onStrategyChange={handleStrategyChange}
                       onCopySettings={() => setCopySettingsTarget(account)}
@@ -475,23 +450,23 @@ function SortIcon() {
 // ─── Account Row ────────────────────────────────────────
 function AccountRow({
   account,
-  strategies,
+  algorithms,
   onToggle,
   onStrategyChange,
   onCopySettings,
   onDelete,
 }: {
   account: ClientAccount;
-  strategies: Strategy[];
+  algorithms: Algorithm[];
   onToggle: (id: string) => void;
-  onStrategyChange: (id: string, strategyId: string | null) => void;
+  onStrategyChange: (id: string, algorithmId: string | null) => void;
   onCopySettings: () => void;
   onDelete: () => void;
 }) {
-  const selectedStrategy = strategies.find(
-    (s) => s.id === account.strategy_id
+  const selectedAlgo = algorithms.find(
+    (a) => a.id === account.algorithm_id
   );
-  const stratColor = getStrategyColor(selectedStrategy);
+  const algoColor = selectedAlgo ? getAlgoDropdownColor(selectedAlgo.category) : { dot: "", bg: "", border: "", text: "" };
 
   return (
     <tr className="hover:bg-white/5 group border-b border-white/5 transition-colors">
@@ -560,9 +535,9 @@ function AccountRow({
       {/* Strategy Dropdown */}
       <td className="text-xs text-slate-400 py-3 px-4">
         <StrategyDropdown
-          selectedStrategy={selectedStrategy}
-          strategies={strategies}
-          onSelect={(stratId) => onStrategyChange(account.id, stratId)}
+          selectedAlgo={selectedAlgo}
+          algorithms={algorithms}
+          onSelect={(algoId) => onStrategyChange(account.id, algoId)}
         />
       </td>
 
@@ -614,19 +589,21 @@ function ToggleSwitch({
   );
 }
 
-// ─── Strategy Dropdown ──────────────────────────────────
+// ─── Strategy Dropdown (shows only agency's saved algorithms) ──
 function StrategyDropdown({
-  selectedStrategy,
-  strategies,
+  selectedAlgo,
+  algorithms,
   onSelect,
 }: {
-  selectedStrategy: Strategy | undefined;
-  strategies: Strategy[];
-  onSelect: (stratId: string | null) => void;
+  selectedAlgo: Algorithm | undefined;
+  algorithms: Algorithm[];
+  onSelect: (algoId: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const stratColor = getStrategyColor(selectedStrategy);
+  const algoColor = selectedAlgo
+    ? getAlgoDropdownColor(selectedAlgo.category)
+    : { dot: "", bg: "", border: "", text: "" };
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -638,36 +615,22 @@ function StrategyDropdown({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const stratDotColors: Record<string, string> = {
-    indigo: "bg-green-500",
-    yellow: "bg-yellow-500",
-    blue: "bg-slate-600",
-    slate: "bg-slate-600",
-  };
-
-  const stratTagMap: Record<string, string> = {
-    strat_001: "BTC",
-    strat_002: "XAU",
-    strat_003: "NAS",
-    strat_004: "MIX",
-  };
-
   return (
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 px-2 py-1 rounded transition-colors text-xs min-w-[140px] justify-between ${
-          selectedStrategy
-            ? `${stratColor.bg} border ${stratColor.border} ${stratColor.text}`
+          selectedAlgo
+            ? `${algoColor.bg} border ${algoColor.border} ${algoColor.text}`
             : "bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-slate-200"
         }`}
       >
-        {selectedStrategy ? (
+        {selectedAlgo ? (
           <span className="flex items-center gap-2">
             <span
-              className={`w-1.5 h-1.5 rounded-full ${stratColor.dot}`}
+              className={`w-1.5 h-1.5 rounded-full ${algoColor.dot}`}
             />
-            <span>{selectedStrategy.name}</span>
+            <span>{selectedAlgo.name}</span>
           </span>
         ) : (
           <span>Assign a Strategy</span>
@@ -676,27 +639,38 @@ function StrategyDropdown({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-[#1a1d24] border border-white/10 rounded-lg shadow-xl z-50 min-w-[180px] overflow-hidden">
-          <div className="p-1">
-            {strategies.map((strat) => (
-              <button
-                key={strat.id}
-                onClick={() => {
-                  onSelect(strat.id);
-                  setOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-white/10 rounded transition-colors text-left"
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${stratDotColors[strat.color] || "bg-slate-600"}`}
-                />
-                {strat.name}
-                <span className="text-[9px] text-slate-600 bg-white/5 px-1.5 py-0.5 rounded border border-white/5 ml-auto">
-                  {stratTagMap[strat.id] || strat.asset_tag}
-                </span>
-              </button>
-            ))}
-          </div>
+        <div className="absolute top-full left-0 mt-1 bg-[#1a1d24] border border-white/10 rounded-lg shadow-xl z-50 min-w-[200px] overflow-hidden">
+          {algorithms.length === 0 ? (
+            <div className="p-3 text-xs text-slate-500 text-center">
+              No algorithms saved yet.
+              <br />
+              Add algorithms from the sidebar.
+            </div>
+          ) : (
+            <div className="p-1">
+              {algorithms.map((algo) => {
+                const color = getAlgoDropdownColor(algo.category);
+                return (
+                  <button
+                    key={algo.id}
+                    onClick={() => {
+                      onSelect(algo.id);
+                      setOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-white/10 rounded transition-colors text-left"
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${color.dot}`}
+                    />
+                    {algo.name}
+                    <span className={`text-[9px] ${color.text} bg-white/5 px-1.5 py-0.5 rounded border border-white/5 ml-auto uppercase`}>
+                      {algo.category.slice(0, 3)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div className="border-t border-white/5 p-1">
             <button
               onClick={() => {
