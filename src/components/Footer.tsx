@@ -91,12 +91,6 @@ export default function Footer() {
               <SocialIcon icon={<Twitter className="w-4 h-4" />} />
               <SocialIcon icon={<Youtube className="w-4 h-4" />} />
             </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-              <span className="text-[10px] font-medium text-blue-400">
-                Trusted by 500+ Agency Partners
-              </span>
-            </div>
           </div>
 
           <FooterColumn
