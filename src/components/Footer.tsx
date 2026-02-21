@@ -107,8 +107,9 @@ export default function Footer() {
               "Forex Mean Reversion",
               "Stock Equities",
               "Strategy Development",
+              "Earn with your Algo",
             ]}
-            linkMap={{ "Strategy Development": "/strategy-development" }}
+            linkMap={{ "Strategy Development": "/strategy-development", "Earn with your Algo": "/earn-with-algo" }}
           />
           <FooterColumn
             title="Platform"
