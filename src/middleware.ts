@@ -16,8 +16,17 @@ import { NextRequest, NextResponse } from "next/server";
 // All paths that belong exclusively to the agency subdomain
 const AGENCY_PATHS = ["/dashboard", "/agency-login"];
 
+// All paths that belong exclusively to the client subdomain
+const CLIENT_PATHS = ["/client-dashboard"];
+
 function isAgencyPath(pathname: string): boolean {
   return AGENCY_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
+  );
+}
+
+function isClientPath(pathname: string): boolean {
+  return CLIENT_PATHS.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
   );
 }
@@ -44,11 +53,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Determine if this is the agency subdomain
-  // Matches: agency.example.com, agency.example.co.uk
+  // Determine subdomain
   const isAgencySubdomain =
     hostname.startsWith("agency.") ||
     hostname.startsWith("agency-"); // Vercel preview URLs use dashes
+
+  const isClientSubdomain =
+    hostname.startsWith("client.") ||
+    hostname.startsWith("client-"); // Vercel preview URLs use dashes
 
   if (isAgencySubdomain) {
     // Root on agency subdomain → redirect to /dashboard
@@ -66,12 +78,32 @@ export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.host = mainDomain;
     return NextResponse.redirect(url);
+  } else if (isClientSubdomain) {
+    // Root on client subdomain → redirect to /client-dashboard
+    if (pathname === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/client-dashboard";
+      return NextResponse.redirect(url);
+    }
+    // On client subdomain — only allow client paths
+    if (isClientPath(pathname)) {
+      return NextResponse.next();
+    }
+    // Redirect non-client paths to main domain
+    const mainDomain = hostname.replace(/^client[-.]/, "");
+    const url = request.nextUrl.clone();
+    url.host = mainDomain;
+    return NextResponse.redirect(url);
   } else {
-    // On main domain — block agency paths
+    // On main domain — block agency and client paths
     if (isAgencyPath(pathname)) {
-      // Redirect to agency subdomain
       const url = request.nextUrl.clone();
       url.host = `agency.${hostname}`;
+      return NextResponse.redirect(url);
+    }
+    if (isClientPath(pathname)) {
+      const url = request.nextUrl.clone();
+      url.host = `client.${hostname}`;
       return NextResponse.redirect(url);
     }
     return NextResponse.next();
