@@ -118,132 +118,7 @@ interface PerformanceData {
   risk: RiskData;
 }
 
-/* ========== Mock Data ========== */
-const MOCK_DATA: PerformanceData = {
-  summary: {
-    net_pnl: 2450.0,
-    total_return: 24.5,
-    win_rate: 68,
-    win_count: 114,
-    loss_count: 54,
-    profit_factor: 2.1,
-    max_drawdown: 8.5,
-    max_drawdown_date: "Nov 15, 2024",
-    total_trades: 236,
-    closed_trades: 168,
-    open_trades: 3,
-    avg_trade: 14.58,
-    avg_win: 42.50,
-    avg_loss: 22.30,
-    best_trade: 285.00,
-    worst_trade: -47.00,
-    win_streak: 12,
-    loss_streak: 4,
-    avg_duration: "2h 15m",
-    trading_days: 45,
-    sharpe_ratio: 1.8,
-    sortino_ratio: 2.4,
-    starting_balance: 10000,
-    ending_balance: 12450,
-  },
-  equity_curve: [
-    { date: "Start", balance: 10000 },
-    { date: "Nov 20", balance: 10150 },
-    { date: "Nov 22", balance: 10080 },
-    { date: "Nov 24", balance: 10320 },
-    { date: "Nov 26", balance: 10450 },
-    { date: "Nov 28", balance: 10280 },
-    { date: "Nov 30", balance: 10520 },
-    { date: "Dec 2", balance: 10680 },
-    { date: "Dec 4", balance: 10920 },
-    { date: "Dec 6", balance: 11100 },
-    { date: "Dec 8", balance: 11350 },
-    { date: "Dec 10", balance: 11280 },
-    { date: "Dec 12", balance: 11650 },
-    { date: "Dec 14", balance: 11890 },
-    { date: "Dec 16", balance: 12150 },
-    { date: "Dec 18", balance: 12450 },
-  ],
-  pnl_distribution: {
-    buckets: [
-      { label: "< -$50", count: 8 },
-      { label: "-$50 to -$25", count: 18 },
-      { label: "-$25 to $0", count: 28 },
-      { label: "$0 to $25", count: 85 },
-      { label: "$25 to $50", count: 52 },
-      { label: "$50 to $100", count: 32 },
-      { label: "> $100", count: 13 },
-    ],
-    max_bucket_label: "$0-$25 profit range",
-    max_bucket_pct: 45,
-  },
-  win_rate_trend: [
-    { label: "Week 1", rate: 62 },
-    { label: "Week 2", rate: 65 },
-    { label: "Week 3", rate: 72 },
-    { label: "Week 4", rate: 68 },
-  ],
-  day_performance: [
-    { day: "Sun", avgPnl: 0 },
-    { day: "Mon", avgPnl: 32 },
-    { day: "Tue", avgPnl: 28 },
-    { day: "Wed", avgPnl: 45 },
-    { day: "Thu", avgPnl: 38 },
-    { day: "Fri", avgPnl: -8 },
-    { day: "Sat", avgPnl: 15 },
-  ],
-  best_day: { day: "Wednesday", avgPnl: 45 },
-  hour_performance: [
-    { hour: "6AM", avgPnl: -5 }, { hour: "7AM", avgPnl: 8 }, { hour: "8AM", avgPnl: 35 },
-    { hour: "9AM", avgPnl: 48 }, { hour: "10AM", avgPnl: 52 }, { hour: "11AM", avgPnl: 42 },
-    { hour: "12PM", avgPnl: 38 }, { hour: "1PM", avgPnl: 22 }, { hour: "2PM", avgPnl: 15 },
-    { hour: "3PM", avgPnl: 8 }, { hour: "4PM", avgPnl: -12 }, { hour: "5PM", avgPnl: -8 },
-    { hour: "6PM", avgPnl: 5 }, { hour: "7PM", avgPnl: 12 }, { hour: "8PM", avgPnl: 8 },
-  ],
-  best_window: { label: "8AM - 12PM EST", pct: 75 },
-  account_breakdown: [
-    {
-      id: "1", platform: "MetaTrader 5", platform_short: "MT5", platform_color: "#262626",
-      platform_text_color: "#ffffff", account_label: "MT5 - OANDA", trade_count: 147,
-      pnl: 1650.0, return_pct: 16.5, win_rate: 68, is_active: true, contribution: 67,
-    },
-    {
-      id: "2", platform: "Binance", platform_short: "BN", platform_color: "#FCD535",
-      platform_text_color: "#000000", account_label: "Binance", trade_count: 89,
-      pnl: 800.0, return_pct: 41.0, win_rate: 72, is_active: true, contribution: 33,
-    },
-  ],
-  best_account: { label: "Binance", return_pct: 41.0 },
-  algo_performance: [
-    { name: "Gold Scalper", color: "#eab308", category: "Forex", pnl: 1240, trades: 147, win_rate: 68 },
-    { name: "BTC Trend Follower", color: "#f97316", category: "Crypto", pnl: 1210, trades: 89, win_rate: 72 },
-  ],
-  asset_breakdown: [
-    { category: "Forex", pnl: 1240, pct: 50.6 },
-    { category: "Crypto", pnl: 1210, pct: 49.4 },
-  ],
-  top_symbols: [
-    { symbol: "BTC/USDT", pnl: 890.00, trades: 42, win_rate: 74 },
-    { symbol: "EUR/USD", pnl: 625.00, trades: 58, win_rate: 69 },
-    { symbol: "XAUUSD", pnl: 485.00, trades: 47, win_rate: 66 },
-    { symbol: "ETH/USDT", pnl: 320.00, trades: 31, win_rate: 68 },
-    { symbol: "GBP/USD", pnl: 130.00, trades: 42, win_rate: 62 },
-  ],
-  calendar: [
-    { date: "2024-12-02", pnl: 45 }, { date: "2024-12-03", pnl: 127 }, { date: "2024-12-04", pnl: -23 },
-    { date: "2024-12-05", pnl: 68 }, { date: "2024-12-06", pnl: 32 }, { date: "2024-12-09", pnl: 156 },
-    { date: "2024-12-10", pnl: 185 }, { date: "2024-12-11", pnl: 78 }, { date: "2024-12-12", pnl: -42 },
-    { date: "2024-12-13", pnl: 28 }, { date: "2024-12-16", pnl: 112 }, { date: "2024-12-17", pnl: 45 },
-    { date: "2024-12-18", pnl: 285 }, { date: "2024-12-19", pnl: 67 }, { date: "2024-12-20", pnl: 21 },
-  ],
-  risk: {
-    max_drawdown: 8.5,
-    max_drawdown_date: "Nov 15, 2024",
-    current_drawdown: 0.0,
-    risk_reward: "1:2.1",
-    var_95: 450,
-  },
-};
+/* ========== Empty default data for new clients ========== */
 
 /* ========== Helper Components ========== */
 function fmt(n: number, prefix = "$") {
@@ -658,10 +533,10 @@ export default function PerformancePage() {
       if (json?.data?.summary) {
         setData(json.data);
       } else {
-        setData(MOCK_DATA);
+        setData(null);
       }
     } catch {
-      setData(MOCK_DATA);
+      setData(null);
     } finally {
       setLoading(false);
       lastFetch.current = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -670,10 +545,29 @@ export default function PerformancePage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4">
+            <BarChart3 className="w-8 h-8 text-slate-500" />
+          </div>
+          <h2 className="text-lg font-semibold text-white mb-2">No Performance Data Yet</h2>
+          <p className="text-sm text-slate-500 mb-6">
+            Connect a trading account and start trading to see your performance analytics here.
+          </p>
+          <a href="/client-dashboard/accounts" className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
+            Connect Account
+          </a>
+        </div>
       </div>
     );
   }

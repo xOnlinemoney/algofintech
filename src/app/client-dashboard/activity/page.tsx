@@ -91,9 +91,9 @@ type PageData = {
   };
 };
 
-// ─── Mock Data ───────────────────────────────────────────
-const MOCK: PageData = {
-  summary: { total_trades: 236, open_count: 3, closed_count: 233, win_count: 114, loss_count: 54, win_rate: 68, total_pnl: 2450, total_pnl_pct: 24.5, avg_profit: 14.58, best_trade: 285, worst_trade: -47 },
+// ─── Empty default data for new clients ──────────────────
+const EMPTY_DATA: PageData = {
+  summary: { total_trades: 0, open_count: 0, closed_count: 0, win_count: 0, loss_count: 0, win_rate: 0, total_pnl: 0, total_pnl_pct: 0, avg_profit: 0, best_trade: 0, worst_trade: 0 },
   trades: [],
   filters: { accounts: [], symbols: [], algorithms: [] },
 };
@@ -327,8 +327,8 @@ export default function TradingActivityPage() {
         const res = await fetch("/api/client-trading-activity");
         const json = await res.json();
         if (json.data) setData(json.data);
-        else setData(MOCK);
-      } catch { setData(MOCK); }
+        else setData(EMPTY_DATA);
+      } catch { setData(EMPTY_DATA); }
       finally { setLoading(false); }
     }
     load();
@@ -353,7 +353,7 @@ export default function TradingActivityPage() {
     );
   }
 
-  const d = data || MOCK;
+  const d = data || EMPTY_DATA;
   const s = d.summary;
 
   // Filter trades
