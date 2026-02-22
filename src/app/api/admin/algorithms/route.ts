@@ -150,23 +150,35 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
-    // Build the insert object
+    // Build the insert object — only columns that exist in the algorithms table
+    // Note: risk_level is stored inside info JSONB, not a top-level column
+    const info = body.info || {};
+    if (body.risk_level) {
+      info.risk_level = body.risk_level;
+    }
+
     const insert: any = {
       name: body.name,
       slug: body.slug,
       description: body.description || "",
       category: body.category || "Forex",
-      status: body.status || "draft",
-      risk_level: body.risk_level || "medium",
+      status: body.status || "active",
       image_url: body.image_url || null,
       roi: body.roi || "0%",
       drawdown: body.drawdown || "0%",
       win_rate: body.win_rate || "0%",
-      info: body.info || {},
+      info: info,
       metrics: body.metrics || {},
       equity_chart: body.equity_chart || { labels: [], data: [] },
       monthly_returns: body.monthly_returns || [],
     };
+
+    // Ensure status is valid for the DB constraint — map draft/beta to allowed values
+    // or attempt insert as-is (the constraint may have been updated)
+    const allowedStatuses = ["active", "paused", "deprecated", "draft", "beta"];
+    if (!allowedStatuses.includes(insert.status)) {
+      insert.status = "active";
+    }
 
     const { data, error } = await supabase
       .from("algorithms")

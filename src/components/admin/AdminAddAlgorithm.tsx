@@ -160,7 +160,7 @@ export default function AdminAddAlgorithm() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(`Error: ${err.error || "Failed to save algorithm"}`);
+        alert(`Error: ${err.error || "Failed to save algorithm"}${err.details ? `\n\nDetails: ${err.details}` : ""}`);
         setSaving(false);
         return;
       }
