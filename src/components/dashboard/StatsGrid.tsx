@@ -1,32 +1,29 @@
-import { TrendingUp } from "lucide-react";
+import { Users, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
 
 const stats = [
   {
     label: "Active Clients",
-    value: "847",
-    change: "+24",
-    changeLabel: "this month",
-    changeType: "up" as const,
+    value: "0",
+    icon: Users,
+    sublabel: "No clients yet",
   },
   {
     label: "Total AUM",
-    value: "$2.4B",
-    change: "+18.3%",
-    changeLabel: "vs last quarter",
-    changeType: "up" as const,
+    value: "$0",
+    icon: DollarSign,
+    sublabel: "Assets under management",
   },
   {
     label: "P&L",
-    value: "+$42.8M",
-    change: "+12.7%",
-    changeLabel: "YTD",
-    changeType: "up" as const,
+    value: "$0",
+    icon: TrendingUp,
+    sublabel: "Profit & Loss",
   },
   {
     label: "Active Positions",
-    value: "1,284",
-    changeTags: ["892 Long", "392 Short"],
-    changeType: "neutral" as const,
+    value: "0",
+    icon: BarChart3,
+    sublabel: "No open positions",
   },
 ];
 
@@ -38,31 +35,17 @@ export default function StatsGrid() {
           key={stat.label}
           className="p-5 rounded-xl border border-white/5 bg-[#13161C] hover:border-white/10 transition-colors"
         >
-          <div className="text-slate-500 text-xs font-medium uppercase tracking-wider mb-2">
-            {stat.label}
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-slate-500 text-xs font-medium uppercase tracking-wider">
+              {stat.label}
+            </div>
+            <stat.icon className="w-4 h-4 text-slate-600" />
           </div>
           <div className="text-2xl font-semibold text-white tracking-tight mb-2">
             {stat.value}
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            {stat.changeType === "up" && (
-              <>
-                <span className="text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium text-xs">
-                  <TrendingUp className="w-3 h-3" />
-                  {stat.change}
-                </span>
-                <span className="text-slate-500 text-xs">{stat.changeLabel}</span>
-              </>
-            )}
-            {stat.changeTags &&
-              stat.changeTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-slate-400 bg-white/5 px-1.5 py-0.5 rounded font-medium text-xs"
-                >
-                  {tag}
-                </span>
-              ))}
+          <div className="text-xs text-slate-500">
+            {stat.sublabel}
           </div>
         </div>
       ))}

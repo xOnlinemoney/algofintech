@@ -1,7 +1,8 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -15,15 +16,48 @@ import {
   Search,
   Settings,
   Cpu,
+  LogOut,
 } from "lucide-react";
-import { mockAgencyUser, getCategoryColor } from "@/lib/mock-data";
+import { getCategoryColor } from "@/lib/mock-data";
 import { useSavedAlgorithms } from "@/context/SavedAlgorithmsContext";
+
+interface AgencySession {
+  agency_id: string;
+  agency_name: string;
+  agency_slug: string;
+  user_name: string;
+  user_email: string;
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
-
-  const user = mockAgencyUser;
+  const router = useRouter();
   const { savedAlgorithms } = useSavedAlgorithms();
+  const [session, setSession] = useState<AgencySession | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("agency_session");
+      if (stored) {
+        setSession(JSON.parse(stored));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function handleLogout() {
+    localStorage.removeItem("agency_session");
+    router.push("/agency-login");
+  }
+
+  const agencyName = session?.agency_name || "My Agency";
+  const userName = session?.user_name || "Agency User";
+  const userInitials = userName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2);
 
   return (
     <aside className="w-64 bg-[#0B0E14] border-r border-white/5 flex flex-col shrink-0">
@@ -34,11 +68,11 @@ export default function Sidebar() {
             <Cpu className="w-3.5 h-3.5" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm text-slate-200 tracking-tight leading-none group-hover:text-white transition-colors">
-              Algo FinTech
+            <div className="font-semibold text-sm text-slate-200 tracking-tight leading-none group-hover:text-white transition-colors truncate">
+              {agencyName}
             </div>
             <div className="text-[10px] text-slate-600 font-medium leading-tight mt-0.5 group-hover:text-slate-500">
-              Pro Environment
+              Agency Dashboard
             </div>
           </div>
           <ChevronDown className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400" />
@@ -147,29 +181,32 @@ export default function Sidebar() {
         />
       </div>
 
-      {/* User Profile */}
-      <div className="p-3 border-t border-white/5 mt-auto">
+      {/* User Profile + Logout */}
+      <div className="p-3 border-t border-white/5 mt-auto space-y-1">
         <button className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-white/5 transition-colors text-left group">
           <div className="relative">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs ring-1 ring-white/10">
-              {user.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
+              {userInitials}
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#0B0E14] rounded-full flex items-center justify-center">
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-white truncate">{user.name}</div>
-            <div className="text-[10px] text-slate-500 truncate flex items-center gap-1">
-              {user.plan_label}
-              <span className="inline-block w-0.5 h-0.5 rounded-full bg-slate-500"></span>
-              {user.aum_display}
+            <div className="text-xs font-semibold text-white truncate">{userName}</div>
+            <div className="text-[10px] text-slate-500 truncate">
+              {agencyName}
             </div>
           </div>
           <Settings className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400" />
+        </button>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-2 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-left group"
+        >
+          <LogOut className="w-4 h-4 text-slate-500 group-hover:text-red-400 transition-colors" />
+          <span className="text-xs font-medium text-slate-500 group-hover:text-red-400 transition-colors">Log Out</span>
         </button>
       </div>
     </aside>

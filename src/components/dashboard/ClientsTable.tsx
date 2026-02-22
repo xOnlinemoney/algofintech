@@ -67,8 +67,8 @@ export default function ClientsGrid() {
       .catch(console.error);
   }, []);
 
-  // Use DB clients if available, else fall back to mock
-  const baseClients = dbClients.length > 0 ? dbClients : mockClients;
+  // Use DB clients only — no mock fallback for real agencies
+  const baseClients = dbClients;
 
   // Merge with live Supabase stats
   const clients = baseClients.map((c) => {

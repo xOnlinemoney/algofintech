@@ -97,6 +97,16 @@ export default function AgencySignupPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // Store agency session for the dashboard
+        try {
+          localStorage.setItem("agency_session", JSON.stringify({
+            agency_id: data.agency?.id || "",
+            agency_name: data.agency?.name || "",
+            agency_slug: data.agency?.slug || "",
+            user_name: `${firstName.trim()} ${lastName.trim()}`,
+            user_email: email.trim(),
+          }));
+        } catch { /* ignore */ }
         // Redirect to agency dashboard
         window.location.href = "/dashboard";
       } else {
