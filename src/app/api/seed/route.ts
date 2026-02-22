@@ -210,7 +210,7 @@ export async function GET() {
 
       const { error } = await supabase
         .from("algorithms")
-        .insert({ ...algo, agency_id: agencyId });
+        .insert(algo);
 
       if (error) {
         log.push(`Algorithm ${algo.slug} FAILED: ${error.message}`);
