@@ -12,17 +12,6 @@ function getSupabase() {
 
 export const dynamic = "force-dynamic";
 
-// Deterministic hash for consistent counts per algorithm
-function hashCode(s: string): number {
-  let hash = 0;
-  for (let i = 0; i < s.length; i++) {
-    const char = s.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
 export async function GET() {
   try {
     const supabase = getSupabase();
@@ -33,6 +22,7 @@ export async function GET() {
       );
     }
 
+    // Fetch all algorithms
     const { data: algorithms, error } = await supabase
       .from("algorithms")
       .select("*")
@@ -46,27 +36,53 @@ export async function GET() {
       );
     }
 
-    const list = (algorithms || []).map((algo) => {
-      // Compute realistic agencies/clients counts based on status
-      const h = hashCode(algo.slug || algo.id);
-      let agenciesCount = 0;
-      let clientsCount = 0;
+    // Fetch agency counts per algorithm from agency_saved_algorithms
+    const { data: agencySaved } = await supabase
+      .from("agency_saved_algorithms")
+      .select("algorithm_id, agency_id");
 
-      if (algo.status === "active") {
-        agenciesCount = 10 + (h % 35); // 10-44
-        clientsCount = 150 + (h % 1100); // 150-1249
-      } else if (algo.status === "beta") {
-        agenciesCount = 3 + (h % 8); // 3-10
-        clientsCount = 40 + (h % 80); // 40-119
+    // Build a map: algorithm_id -> count of distinct agencies
+    const agencyCountMap: Record<string, number> = {};
+    if (agencySaved) {
+      const agencySetMap: Record<string, Set<string>> = {};
+      for (const row of agencySaved) {
+        if (!agencySetMap[row.algorithm_id]) {
+          agencySetMap[row.algorithm_id] = new Set();
+        }
+        agencySetMap[row.algorithm_id].add(row.agency_id);
       }
-      // deprecated = 0, 0
+      for (const [algoId, agencySet] of Object.entries(agencySetMap)) {
+        agencyCountMap[algoId] = agencySet.size;
+      }
+    }
 
-      return {
-        ...algo,
-        agencies_count: agenciesCount,
-        clients_count: clientsCount,
-      };
-    });
+    // Fetch client counts per algorithm from client_accounts
+    const { data: clientAccounts } = await supabase
+      .from("client_accounts")
+      .select("algorithm_id, client_id")
+      .not("algorithm_id", "is", null);
+
+    // Build a map: algorithm_id -> count of distinct clients
+    const clientCountMap: Record<string, number> = {};
+    if (clientAccounts) {
+      const clientSetMap: Record<string, Set<string>> = {};
+      for (const row of clientAccounts) {
+        if (!clientSetMap[row.algorithm_id]) {
+          clientSetMap[row.algorithm_id] = new Set();
+        }
+        clientSetMap[row.algorithm_id].add(row.client_id);
+      }
+      for (const [algoId, clientSet] of Object.entries(clientSetMap)) {
+        clientCountMap[algoId] = clientSet.size;
+      }
+    }
+
+    // Merge counts into algorithm data
+    const list = (algorithms || []).map((algo) => ({
+      ...algo,
+      agencies_count: agencyCountMap[algo.id] || 0,
+      clients_count: clientCountMap[algo.id] || 0,
+    }));
 
     const summary = {
       total: list.length,
