@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 const AGENCY_PATHS = ["/dashboard", "/agency-login"];
 
 // All paths that belong exclusively to the client subdomain
-const CLIENT_PATHS = ["/client-dashboard", "/client-login"];
+const CLIENT_PATHS = ["/client-dashboard", "/client-login", "/client-signup"];
 
 // All paths that belong exclusively to the admin subdomain
 const ADMIN_PATHS = ["/admin-login"];
