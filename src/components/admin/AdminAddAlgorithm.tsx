@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -68,6 +68,8 @@ export default function AdminAddAlgorithm() {
   const [shortDescription, setShortDescription] = useState("");
   const [detailedDescription, setDetailedDescription] = useState("");
   const [masterAccount, setMasterAccount] = useState("");
+  const [masterAccounts, setMasterAccounts] = useState<any[]>([]);
+  const [loadingMasters, setLoadingMasters] = useState(true);
   const [assetClass, setAssetClass] = useState("Forex");
   const [tradingSymbols, setTradingSymbols] = useState("");
   const [riskProfile, setRiskProfile] = useState("Medium");
@@ -92,6 +94,18 @@ export default function AdminAddAlgorithm() {
   const [minBalance, setMinBalance] = useState("");
   const [copyDelay, setCopyDelay] = useState("");
   const [riskDisclaimer, setRiskDisclaimer] = useState("");
+
+  const fetchMasterAccounts = useCallback(async () => {
+    setLoadingMasters(true);
+    try {
+      const res = await fetch("/api/admin/master-accounts");
+      const data = await res.json();
+      if (data.accounts) setMasterAccounts(data.accounts);
+    } catch { /* ignore */ }
+    finally { setLoadingMasters(false); }
+  }, []);
+
+  useEffect(() => { fetchMasterAccounts(); }, [fetchMasterAccounts]);
 
   async function handleSave(asDraft: boolean) {
     if (!name.trim()) {
@@ -327,12 +341,27 @@ export default function AdminAddAlgorithm() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="col-span-1 md:col-span-2">
-                    <label className="block text-xs font-medium text-slate-400 mb-1.5">Master Trader Algo Account <span className="text-red-500">*</span></label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-medium text-slate-400">Master Trader Algo Account <span className="text-red-500">*</span></label>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => fetchMasterAccounts()} title="Refresh master accounts" className="text-slate-500 hover:text-blue-400 transition-colors p-1 rounded hover:bg-white/5">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loadingMasters ? "animate-spin" : ""}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>
+                        </button>
+                        <a href="/dashboard/master-accounts" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-500/5">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                          New Master Trading Account
+                        </a>
+                      </div>
+                    </div>
                     <select value={masterAccount} onChange={(e) => setMasterAccount(e.target.value)} className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 appearance-none cursor-pointer shadow-sm" style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: "right 0.5rem center", backgroundRepeat: "no-repeat", backgroundSize: "1.5em 1.5em" }}>
-                      <option value="" disabled>Select an account...</option>
-                      <option>MT4 - 882910 (Gold Scalper Main)</option>
-                      <option>MT5 - 102938 (Aggressive Setup)</option>
-                      <option>cTrader - 99281 (Safe Mode)</option>
+                      <option value="" disabled>
+                        {loadingMasters ? "Loading accounts..." : masterAccounts.length === 0 ? "No master accounts — create one first" : "Select an account..."}
+                      </option>
+                      {masterAccounts.map((ma: any) => (
+                        <option key={ma.id} value={ma.id}>
+                          {(ma.platform || "").toUpperCase()} - {ma.login || "N/A"} ({ma.nickname || ma.broker || "Unnamed"})
+                        </option>
+                      ))}
                     </select>
                     <span className="block mt-1.5 text-[10px] text-slate-500">This account will be copy-traded by client accounts in real-time</span>
                   </div>

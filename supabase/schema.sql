@@ -316,6 +316,29 @@ CREATE TABLE IF NOT EXISTS algorithm_submissions (
 );
 
 
+-- ─── 14. MASTER ACCOUNTS ──────────────────────────────────────
+-- Master trading accounts used as copy-trading sources for algorithms
+CREATE TABLE IF NOT EXISTS master_accounts (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  platform          TEXT NOT NULL DEFAULT 'mt5',       -- mt4, mt5, ctrader, dxtrade, binance, coinbase
+  broker            TEXT,                               -- IC Markets, Pepperstone, etc.
+  server            TEXT,                               -- e.g. ICMarkets-Server
+  login             TEXT,                               -- account ID / login number
+  password_encrypted TEXT,                              -- encrypted password (encrypt in production!)
+  account_type      TEXT NOT NULL DEFAULT 'live' CHECK (account_type IN ('demo', 'live')),
+  nickname          TEXT,                               -- friendly name
+  status            TEXT NOT NULL DEFAULT 'connected' CHECK (status IN ('connected', 'disconnected', 'paused', 'error')),
+  settings          JSONB DEFAULT '{}',                 -- {connection_timeout, max_retries, auto_reconnect, notes}
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_master_accounts_platform ON master_accounts(platform);
+CREATE INDEX idx_master_accounts_status ON master_accounts(status);
+
+CREATE TRIGGER trg_master_accounts_updated_at BEFORE UPDATE ON master_accounts FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS) — Enable for production
 -- ============================================================
