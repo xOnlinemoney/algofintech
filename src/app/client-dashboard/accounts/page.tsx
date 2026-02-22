@@ -1013,9 +1013,12 @@ export default function ClientAccountsPage() {
         const session = JSON.parse(stored);
         if (session.client_id) {
           setClientId(session.client_id);
+          return;
         }
       }
     } catch { /* ignore */ }
+    // No client_id found — stop loading so we don't spin forever
+    setLoading(false);
   }, []);
 
   // Fetch accounts when clientId is available

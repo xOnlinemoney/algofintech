@@ -89,13 +89,74 @@ export async function POST(req: NextRequest) {
       if (agency) agencyName = agency.name;
     }
 
+    // 3. Ensure a record exists in the clients table so accounts work
+    let clientDisplayId = keyRecord.client_id || null;
+
+    if (!clientDisplayId) {
+      // Generate a display ID like "CL-1234"
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      clientDisplayId = `CL-${randomNum}`;
+
+      // Create the clients record
+      const { data: newClient, error: clientErr } = await supabase
+        .from("clients")
+        .insert([
+          {
+            client_id: clientDisplayId,
+            name: `${first_name} ${last_name}`,
+            email: email,
+            agency_id: keyRecord.agency_id || null,
+            status: "active",
+          },
+        ])
+        .select("id, client_id")
+        .single();
+
+      if (!clientErr && newClient) {
+        // Link the software key to this new client record
+        await supabase
+          .from("software_keys")
+          .update({ client_id: newClient.client_id })
+          .eq("id", keyRecord.id);
+        clientDisplayId = newClient.client_id;
+      }
+    } else {
+      // Verify the client_id actually exists in the clients table
+      const { data: existingClient } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("client_id", clientDisplayId)
+        .single();
+
+      if (!existingClient) {
+        // Create the missing clients record
+        const { data: newClient } = await supabase
+          .from("clients")
+          .insert([
+            {
+              client_id: clientDisplayId,
+              name: `${first_name} ${last_name}`,
+              email: email,
+              agency_id: keyRecord.agency_id || null,
+              status: "active",
+            },
+          ])
+          .select("id, client_id")
+          .single();
+
+        if (newClient) {
+          clientDisplayId = newClient.client_id;
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       client: {
         name: `${first_name} ${last_name}`,
         email: email,
         agency_name: agencyName,
-        client_id: keyRecord.client_id || null,
+        client_id: clientDisplayId,
       },
       message: "Client signup successful!",
     });

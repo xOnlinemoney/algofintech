@@ -103,10 +103,10 @@ export default function ClientSignupPage() {
           localStorage.setItem(
             "client_session",
             JSON.stringify({
-              client_id: data.client_id || "",
-              client_name: `${firstName.trim()} ${lastName.trim()}`,
-              client_email: email.trim(),
-              agency_name: data.agency_name || "",
+              client_id: data.client?.client_id || "",
+              client_name: data.client?.name || `${firstName.trim()} ${lastName.trim()}`,
+              client_email: data.client?.email || email.trim(),
+              agency_name: data.client?.agency_name || "",
             })
           );
         } catch {

@@ -78,13 +78,74 @@ export async function POST(req: NextRequest) {
       if (agency) agencyName = agency.name;
     }
 
+    // Ensure a record exists in the clients table so accounts work
+    let clientDisplayId = matchingKey.client_id || null;
+
+    if (!clientDisplayId) {
+      // Generate a display ID like "CL-1234"
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      clientDisplayId = `CL-${randomNum}`;
+
+      // Create the clients record
+      const { data: newClient, error: clientErr } = await supabase
+        .from("clients")
+        .insert([
+          {
+            client_id: clientDisplayId,
+            name: meta.signup_name || "",
+            email: meta.signup_email || normalizedEmail,
+            agency_id: matchingKey.agency_id || null,
+            status: "active",
+          },
+        ])
+        .select("id, client_id")
+        .single();
+
+      if (!clientErr && newClient) {
+        // Link the software key to this new client record
+        await supabase
+          .from("software_keys")
+          .update({ client_id: newClient.client_id })
+          .eq("id", matchingKey.id);
+        clientDisplayId = newClient.client_id;
+      }
+    } else {
+      // Verify the client_id actually exists in the clients table
+      const { data: existingClient } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("client_id", clientDisplayId)
+        .single();
+
+      if (!existingClient) {
+        // Create the missing clients record
+        const { data: newClient } = await supabase
+          .from("clients")
+          .insert([
+            {
+              client_id: clientDisplayId,
+              name: meta.signup_name || "",
+              email: meta.signup_email || normalizedEmail,
+              agency_id: matchingKey.agency_id || null,
+              status: "active",
+            },
+          ])
+          .select("id, client_id")
+          .single();
+
+        if (newClient) {
+          clientDisplayId = newClient.client_id;
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       client: {
         name: meta.signup_name || "",
         email: meta.signup_email || "",
         agency_name: agencyName,
-        client_id: matchingKey.client_id || null,
+        client_id: clientDisplayId,
       },
     });
   } catch (err) {
