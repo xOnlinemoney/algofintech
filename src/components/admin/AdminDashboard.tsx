@@ -407,7 +407,7 @@ export default function AdminDashboard() {
           <NavItem icon={Users} label="All Clients" />
 
           <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Algorithms</div>
-          <NavItem icon={Cpu} label="Algorithm Library" />
+          <NavItem icon={Cpu} label="Algorithm Library" href="/dashboard/algorithms" />
           <NavItem icon={LineChart} label="Performance" />
 
           <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Finance</div>
