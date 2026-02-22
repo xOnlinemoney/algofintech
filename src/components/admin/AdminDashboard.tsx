@@ -117,16 +117,18 @@ function NavItem({
   active,
   badge,
   badgeColor,
+  href,
 }: {
   icon: React.ElementType;
   label: string;
   active?: boolean;
   badge?: string;
   badgeColor?: string;
+  href?: string;
 }) {
   return (
     <a
-      href="#"
+      href={href || "#"}
       className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors group ${
         active
           ? "text-white bg-blue-500/10 border border-blue-500/10"
@@ -394,10 +396,10 @@ export default function AdminDashboard() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-          <NavItem icon={LayoutDashboard} label="Dashboard" active />
+          <NavItem icon={LayoutDashboard} label="Dashboard" active href="/dashboard" />
 
           <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Agency Management</div>
-          <NavItem icon={Building2} label="All Agencies" />
+          <NavItem icon={Building2} label="All Agencies" href="/dashboard/agencies" />
           <NavItem icon={UserPlus} label="Pending Invitations" />
           <NavItem icon={Ban} label="Suspended" badge={String(data?.clients.suspended || 0)} />
 
