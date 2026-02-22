@@ -719,7 +719,7 @@ export default function AdminAgencies() {
                                       </div>
                                     </div>
                                     <div className="flex items-end justify-end gap-2">
-                                      <button className="text-xs px-3 py-1.5 bg-[#13161C] border border-white/10 hover:border-white/20 rounded text-slate-300 transition-colors">View Details</button>
+                                      <a href={`/dashboard/agencies/${agency.id}`} className="text-xs px-3 py-1.5 bg-[#13161C] border border-white/10 hover:border-white/20 rounded text-slate-300 transition-colors inline-block">View Details</a>
                                       <button className="text-xs px-3 py-1.5 bg-[#13161C] border border-white/10 hover:border-white/20 rounded text-slate-300 transition-colors">Message</button>
                                     </div>
                                   </div>
