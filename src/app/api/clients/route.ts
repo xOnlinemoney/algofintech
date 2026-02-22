@@ -10,25 +10,34 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-// ─── GET: Fetch all clients for the agency ──────────────
-export async function GET() {
+// ─── GET: Fetch clients for a specific agency ──────────────
+export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabase();
     if (!supabase) {
       return NextResponse.json({ error: "Supabase not configured." }, { status: 503 });
     }
 
-    const { data, error } = await supabase
+    // Filter by agency_id if provided — otherwise return empty
+    const agencyId = req.nextUrl.searchParams.get("agency_id");
+
+    let query = supabase
       .from("clients")
       .select("*")
       .order("created_at", { ascending: true });
+
+    if (agencyId) {
+      query = query.eq("agency_id", agencyId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Supabase query error:", error);
       return NextResponse.json({ error: "Failed to fetch clients." }, { status: 500 });
     }
 
-    return NextResponse.json({ data }, { status: 200 });
+    return NextResponse.json({ data: data || [] }, { status: 200 });
   } catch (err) {
     console.error("API error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
@@ -52,24 +61,28 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, email, phone, max_accounts } = body;
+    const { name, email, phone, max_accounts, agency_id } = body;
 
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
     }
 
-    // Get the agency (use first agency — Algo FinTech)
-    const { data: agency, error: agencyErr } = await supabase
-      .from("agencies")
-      .select("id")
-      .eq("slug", "algofintech")
-      .single();
+    // Use the agency_id passed from the client, or fall back to looking up by slug
+    let resolvedAgencyId = agency_id;
+    if (!resolvedAgencyId) {
+      const { data: agency, error: agencyErr } = await supabase
+        .from("agencies")
+        .select("id")
+        .eq("slug", "algofintech")
+        .single();
 
-    if (agencyErr || !agency) {
-      return NextResponse.json(
-        { error: "Agency not found. Please run /api/seed first." },
-        { status: 404 }
-      );
+      if (agencyErr || !agency) {
+        return NextResponse.json(
+          { error: "Agency not found. Please provide agency_id." },
+          { status: 404 }
+        );
+      }
+      resolvedAgencyId = agency.id;
     }
 
     // Generate a unique display ID (CL-XXXX)
@@ -81,7 +94,7 @@ export async function POST(req: NextRequest) {
         .from("clients")
         .select("id")
         .eq("client_id", clientId)
-        .eq("agency_id", agency.id)
+        .eq("agency_id", resolvedAgencyId)
         .single();
       if (!existing) break;
       attempts++;
@@ -116,7 +129,7 @@ export async function POST(req: NextRequest) {
 
     const row = {
       client_id: clientId,
-      agency_id: agency.id,
+      agency_id: resolvedAgencyId,
       name,
       email,
       phone: phone || null,
@@ -150,7 +163,7 @@ export async function POST(req: NextRequest) {
     await supabase.from("software_keys").insert([
       {
         client_id: data.id,
-        agency_id: agency.id,
+        agency_id: resolvedAgencyId,
         license_key: softwareKey,
         status: "active",
       },

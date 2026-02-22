@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu, KeyRound, Copy } from "lucide-react";
-import { mockClients, formatCurrencyFull, formatLiquidity, getStatusColor } from "@/lib/mock-data";
+import { formatCurrencyFull, formatLiquidity, getStatusColor } from "@/lib/mock-data";
 import type { Client, ClientStatus } from "@/lib/types";
 
 // Live stats from Supabase
@@ -32,9 +32,19 @@ export default function ClientsGrid() {
       .catch(console.error);
   }, []);
 
-  // Fetch clients from Supabase
+  // Fetch clients from Supabase — scoped to the logged-in agency
   useEffect(() => {
-    fetch("/api/clients")
+    let agencyId = "";
+    try {
+      const raw = localStorage.getItem("agency_session");
+      if (raw) {
+        const session = JSON.parse(raw);
+        agencyId = session.agency_id || "";
+      }
+    } catch { /* ignore */ }
+
+    const url = agencyId ? `/api/clients?agency_id=${agencyId}` : "/api/clients";
+    fetch(url)
       .then((res) => res.json())
       .then((json) => {
         if (json.data && json.data.length > 0) {
@@ -426,6 +436,16 @@ function AddClientModal({
     setSaving(true);
 
     try {
+      // Get agency_id from session
+      let agencyId = "";
+      try {
+        const raw = localStorage.getItem("agency_session");
+        if (raw) {
+          const session = JSON.parse(raw);
+          agencyId = session.agency_id || "";
+        }
+      } catch { /* ignore */ }
+
       const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -434,6 +454,7 @@ function AddClientModal({
           email: email.trim(),
           phone: phone.trim() || null,
           max_accounts: maxAccounts === "unlimited" ? null : Number(maxAccounts),
+          agency_id: agencyId || undefined,
         }),
       });
       const json = await res.json();

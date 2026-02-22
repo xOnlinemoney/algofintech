@@ -30,7 +30,20 @@ export async function GET() {
       log.push("Added metadata JSONB column to software_keys (or already exists).");
     }
 
-    // ── Migration 2: Update algorithms status constraint ──
+    // ── Migration 2: Add settings JSONB column to agencies ──
+    const { error: settingsErr } = await supabase.rpc("exec_sql", {
+      query: `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'::jsonb;`,
+    });
+
+    if (settingsErr) {
+      log.push(`settings column migration error: ${settingsErr.message}`);
+      log.push("--- You may need to run this SQL manually in Supabase SQL Editor: ---");
+      log.push(`ALTER TABLE agencies ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'::jsonb;`);
+    } else {
+      log.push("Added settings JSONB column to agencies (or already exists).");
+    }
+
+    // ── Migration 3: Update algorithms status constraint ──
     const { error: dropError } = await supabase.rpc("exec_sql", {
       query: `ALTER TABLE algorithms DROP CONSTRAINT IF EXISTS algorithms_status_check;`,
     });
