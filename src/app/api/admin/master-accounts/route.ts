@@ -1,5 +1,16 @@
 import { NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key || url === "https://your-project.supabase.co") return null;
+  return createClient(url, key);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +21,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const supabase = getSupabase();
+    if (!supabase) {
+      return NextResponse.json({ accounts: [] }, { status: 200 });
+    }
+
     const { data, error } = await supabase
       .from("master_accounts")
       .select("*")
@@ -17,7 +32,7 @@ export async function GET() {
 
     if (error) {
       // If table doesn't exist yet, return empty array
-      if (error.code === "42P01" || error.message?.includes("does not exist")) {
+      if (error.code === "42P01" || error.message?.includes("does not exist") || error.message?.includes("relation")) {
         return NextResponse.json({ accounts: [] }, { status: 200 });
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -37,13 +52,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const supabase = getSupabase();
+    if (!supabase) {
+      return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+    }
 
     const insert: any = {
       platform: body.platform || "mt5",
       broker: body.broker || null,
       server: body.server || null,
       login: body.login || null,
-      password_encrypted: body.password || null, // In production, encrypt this
+      password_encrypted: body.password || null,
       account_type: body.account_type || "live",
       nickname: body.nickname || null,
       status: body.status || "connected",
@@ -57,62 +75,19 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      // If table doesn't exist, create it first
-      if (error.code === "42P01" || error.message?.includes("does not exist")) {
-        // Try to create the table
-        const createResult = await createMasterAccountsTable(supabase);
-        if (!createResult.success) {
-          return NextResponse.json(
-            { error: "Master accounts table does not exist. Please create it in Supabase SQL Editor.", details: createResult.error },
-            { status: 500 }
-          );
-        }
-        // Retry insert
-        const { data: retryData, error: retryError } = await supabase
-          .from("master_accounts")
-          .insert(insert)
-          .select()
-          .single();
-        if (retryError) {
-          return NextResponse.json({ error: retryError.message }, { status: 500 });
-        }
-        return NextResponse.json({ account: retryData }, { status: 201 });
-      }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: error.message,
+          details: error.message?.includes("does not exist") || error.message?.includes("relation")
+            ? "The master_accounts table does not exist yet. Please run the SQL from supabase/schema.sql (section 14) in your Supabase SQL Editor."
+            : undefined,
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ account: data }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Helper: attempt to create the table via Supabase REST             */
-/* ------------------------------------------------------------------ */
-async function createMasterAccountsTable(supabase: any) {
-  try {
-    // Use the Supabase SQL execution via rpc if available
-    const sql = `
-      CREATE TABLE IF NOT EXISTS master_accounts (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        platform TEXT NOT NULL DEFAULT 'mt5',
-        broker TEXT,
-        server TEXT,
-        login TEXT,
-        password_encrypted TEXT,
-        account_type TEXT NOT NULL DEFAULT 'live' CHECK (account_type IN ('demo', 'live')),
-        nickname TEXT,
-        status TEXT NOT NULL DEFAULT 'connected' CHECK (status IN ('connected', 'disconnected', 'paused', 'error')),
-        settings JSONB DEFAULT '{}',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      );
-    `;
-    const { error } = await supabase.rpc("exec_sql", { sql_query: sql });
-    if (error) return { success: false, error: error.message };
-    return { success: true, error: null };
-  } catch (e: any) {
-    return { success: false, error: e.message };
   }
 }
