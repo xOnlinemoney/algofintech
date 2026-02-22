@@ -177,18 +177,103 @@ function TierBadge({ plan }: { plan: string }) {
 }
 
 // ─── Invite Modal ───────────────────────────────────────
-function InviteModal({ onClose }: { onClose: () => void }) {
+function InviteModal({ onClose, onAgencyCreated }: { onClose: () => void; onAgencyCreated: () => void }) {
   const [step, setStep] = useState(1);
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [keyCopied, setKeyCopied] = useState(false);
+
+  // Form state
+  const [agencyName, setAgencyName] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [internalNotes, setInternalNotes] = useState("");
+  const [soldBy, setSoldBy] = useState("");
+  const [selectedTier, setSelectedTier] = useState("pro");
+  const [linkExpiration, setLinkExpiration] = useState("30 days");
+
+  // Result
+  const [generatedKey, setGeneratedKey] = useState("");
+  const [createdAgencyName, setCreatedAgencyName] = useState("");
+
+  const SOLD_BY_OPTIONS = [
+    { value: "", label: "Select a person..." },
+    { value: "Test 888", label: "Test 888" },
+    { value: "Brett A", label: "Brett A" },
+  ];
+
+  const TIER_INFO: Record<string, { label: string; price: string }> = {
+    starter: { label: "Starter", price: "$5,000" },
+    pro: { label: "Growth", price: "$15,000" },
+    enterprise: { label: "Enterprise", price: "$25k+" },
+  };
+
+  function validateStep1(): boolean {
+    const errs: Record<string, string> = {};
+    if (!agencyName.trim()) errs.agencyName = "Agency name is required.";
+    if (!contactName.trim()) errs.contactName = "Contact name is required.";
+    if (!contactEmail.trim()) errs.contactEmail = "Contact email is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) errs.contactEmail = "Invalid email format.";
+    if (!contactPhone.trim()) errs.contactPhone = "Phone number is required.";
+    if (!soldBy) errs.soldBy = "Sold By is required.";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   function handleNext() {
-    if (step < 3) setStep(step + 1);
-    else setSuccess(true);
+    if (step === 1) { if (!validateStep1()) return; setStep(2); }
+    else if (step === 2) { setStep(3); }
+    else if (step === 3) { handleSubmit(); }
   }
 
   function handleBack() {
-    if (step > 1) setStep(step - 1);
+    if (step > 1) { setStep(step - 1); setErrors({}); }
     else onClose();
+  }
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setErrors({});
+    try {
+      const res = await fetch("/api/admin/agencies/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agency_name: agencyName.trim(),
+          contact_name: contactName.trim(),
+          contact_email: contactEmail.trim(),
+          contact_phone: contactPhone.trim() || null,
+          website_url: websiteUrl.trim() || null,
+          internal_notes: internalNotes.trim() || null,
+          sold_by: soldBy,
+          plan: selectedTier,
+          link_expiration: linkExpiration,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setGeneratedKey(data.license_key);
+        setCreatedAgencyName(data.agency.name);
+        setSuccess(true);
+        onAgencyCreated();
+      } else {
+        setErrors({ submit: data.error || "Failed to create agency." });
+      }
+    } catch {
+      setErrors({ submit: "Network error. Please try again." });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function copyKey() {
+    navigator.clipboard.writeText(generatedKey).then(() => {
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
+    });
   }
 
   return (
@@ -201,7 +286,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 shrink-0 rounded-t-xl">
               <div>
                 <h3 className="text-xl font-semibold text-white tracking-tight">Invite New Agency Partner</h3>
-                <p className="mt-1 text-sm text-slate-400">Create a custom payment link to onboard a new agency</p>
+                <p className="mt-1 text-sm text-slate-400">Create a custom invitation to onboard a new agency</p>
               </div>
               <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1 rounded-md hover:bg-white/5">
                 <X className="w-5 h-5" />
@@ -218,15 +303,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
                   const isCurrent = s === step && !success;
                   return (
                     <div key={s} className={`flex flex-col items-center gap-2 bg-[#1a1a1a] px-3 z-10 relative ${!isCurrent && !isComplete ? "opacity-50" : ""}`}>
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-4 border-[#1a1a1a] ${
-                          isComplete
-                            ? "bg-emerald-500 text-white"
-                            : isCurrent
-                            ? "bg-blue-600 text-white"
-                            : "bg-slate-700 text-slate-400"
-                        }`}
-                      >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-4 border-[#1a1a1a] ${isComplete ? "bg-emerald-500 text-white" : isCurrent ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-400"}`}>
                         {isComplete ? <Check className="w-3.5 h-3.5" /> : s}
                       </div>
                       <span className={`text-[10px] font-medium uppercase tracking-wider absolute -bottom-6 whitespace-nowrap ${isComplete ? "text-emerald-500" : isCurrent ? "text-blue-400" : "text-slate-500"}`}>
@@ -241,46 +318,70 @@ function InviteModal({ onClose }: { onClose: () => void }) {
             {/* Content */}
             {!success ? (
               <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
+                {errors.submit && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">{errors.submit}</div>
+                )}
+
                 {step === 1 && (
                   <div className="grid grid-cols-2 gap-6">
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-slate-300 mb-1.5">Agency/Company Name <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <Building className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                        <input type="text" placeholder="e.g., TradePro Solutions LLC" className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+                        <input type="text" placeholder="e.g., TradePro Solutions LLC" value={agencyName} onChange={(e) => setAgencyName(e.target.value)}
+                          className={`w-full bg-[#0f0f0f] border ${errors.agencyName ? "border-red-500" : "border-[#333333]"} rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500`} />
                       </div>
+                      {errors.agencyName && <p className="text-red-400 text-xs mt-1">{errors.agencyName}</p>}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-1.5">Primary Contact Name <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                        <input type="text" placeholder="e.g., John Smith" className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+                        <input type="text" placeholder="e.g., John Smith" value={contactName} onChange={(e) => setContactName(e.target.value)}
+                          className={`w-full bg-[#0f0f0f] border ${errors.contactName ? "border-red-500" : "border-[#333333]"} rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500`} />
                       </div>
+                      {errors.contactName && <p className="text-red-400 text-xs mt-1">{errors.contactName}</p>}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-1.5">Contact Email <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                        <input type="email" placeholder="e.g., john@tradepro.com" className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+                        <input type="email" placeholder="e.g., john@tradepro.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)}
+                          className={`w-full bg-[#0f0f0f] border ${errors.contactEmail ? "border-red-500" : "border-[#333333]"} rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500`} />
                       </div>
+                      {errors.contactEmail && <p className="text-red-400 text-xs mt-1">{errors.contactEmail}</p>}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-1.5">Phone Number</label>
+                      <label className="block text-sm font-medium text-slate-300 mb-1.5">Phone Number <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                        <input type="tel" placeholder="+1 (555) 123-4567" className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+                        <input type="tel" placeholder="+1 (555) 123-4567" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)}
+                          className={`w-full bg-[#0f0f0f] border ${errors.contactPhone ? "border-red-500" : "border-[#333333]"} rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500`} />
+                      </div>
+                      {errors.contactPhone && <p className="text-red-400 text-xs mt-1">{errors.contactPhone}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-1.5">Website URL <span className="text-xs text-slate-500 font-normal ml-1">(Optional)</span></label>
+                      <div className="relative">
+                        <Globe className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                        <input type="url" placeholder="https://tradepro.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)}
+                          className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-1.5">Website URL</label>
-                      <div className="relative">
-                        <Globe className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                        <input type="url" placeholder="https://tradepro.com" className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
-                      </div>
+                      <label className="block text-sm font-medium text-slate-300 mb-1.5">Sold By <span className="text-red-500">*</span></label>
+                      <select value={soldBy} onChange={(e) => setSoldBy(e.target.value)}
+                        className={`w-full bg-[#0f0f0f] border ${errors.soldBy ? "border-red-500" : "border-[#333333]"} rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 appearance-none`}>
+                        {SOLD_BY_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value} className="bg-[#0f0f0f]">{opt.label}</option>
+                        ))}
+                      </select>
+                      {errors.soldBy && <p className="text-red-400 text-xs mt-1">{errors.soldBy}</p>}
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-slate-300 mb-1.5">Internal Notes <span className="text-xs text-slate-500 font-normal ml-1">(Private)</span></label>
-                      <textarea rows={3} placeholder="Add any internal notes about this agency..." className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 px-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none" />
+                      <label className="block text-sm font-medium text-slate-300 mb-1.5">Internal Notes <span className="text-xs text-slate-500 font-normal ml-1">(Optional / Private)</span></label>
+                      <textarea rows={3} placeholder="Add any internal notes about this agency..." value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)}
+                        className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 px-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none" />
                     </div>
                   </div>
                 )}
@@ -291,53 +392,39 @@ function InviteModal({ onClose }: { onClose: () => void }) {
                       <label className="block text-sm font-medium text-slate-300">Select Partnership Tier <span className="text-red-500">*</span></label>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {[
-                          { key: "starter", label: "Starter", price: "$5,000", color: "white/5", borderColor: "white/5", features: ["Essential branding", "Up to 10 algorithms", "Core assets (Forex)"] },
-                          { key: "pro", label: "Growth", price: "$15,000", color: "blue-500/10", borderColor: "blue-500/30", recommended: true, features: ["Advanced branding", "Up to 25 algorithms", "Mobile Apps included"] },
-                          { key: "enterprise", label: "Enterprise", price: "$25k+", color: "purple-500/10", borderColor: "white/5", features: ["Custom UI/UX", "All algorithms", "Dedicated Infrastructure"] },
+                          { key: "starter", label: "Starter", price: "$5,000", features: ["Essential branding", "Up to 10 algorithms", "Core assets (Forex)"] },
+                          { key: "pro", label: "Growth", price: "$15,000", recommended: true, features: ["Advanced branding", "Up to 25 algorithms", "Mobile Apps included"] },
+                          { key: "enterprise", label: "Enterprise", price: "$25k+", features: ["Custom UI/UX", "All algorithms", "Dedicated Infrastructure"] },
                         ].map((tier) => (
-                          <label key={tier.key} className={`relative flex flex-col p-4 bg-[#0f0f0f] border border-[#333333] rounded-xl cursor-pointer hover:border-blue-500/50 transition-all`}>
-                            <input type="radio" name="tier" className="peer sr-only" defaultChecked={tier.key === "pro"} />
-                            <div className="absolute inset-0 border-2 border-transparent peer-checked:border-blue-500 rounded-xl pointer-events-none" />
-                            {tier.recommended && (
-                              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shadow-sm">Recommended</div>
-                            )}
+                          <label key={tier.key}
+                            className={`relative flex flex-col p-4 bg-[#0f0f0f] border rounded-xl cursor-pointer hover:border-blue-500/50 transition-all ${selectedTier === tier.key ? "border-blue-500" : "border-[#333333]"}`}
+                            onClick={() => setSelectedTier(tier.key)}>
+                            <input type="radio" name="tier" className="sr-only" checked={selectedTier === tier.key} onChange={() => setSelectedTier(tier.key)} />
+                            <div className={`absolute inset-0 border-2 rounded-xl pointer-events-none ${selectedTier === tier.key ? "border-blue-500" : "border-transparent"}`} />
+                            {tier.recommended && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shadow-sm">Recommended</div>}
                             <div className="flex justify-between items-start mb-2">
-                              <span className={`px-2 py-0.5 rounded-md bg-${tier.color} border border-${tier.borderColor} text-[10px] font-semibold uppercase tracking-wide ${tier.key === "enterprise" ? "text-purple-400" : tier.key === "pro" ? "text-blue-400" : "text-slate-300"}`}>{tier.label}</span>
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide ${tier.key === "enterprise" ? "bg-purple-500/10 border border-white/5 text-purple-400" : tier.key === "pro" ? "bg-blue-500/10 border border-blue-500/30 text-blue-400" : "bg-white/5 border border-white/5 text-slate-300"}`}>{tier.label}</span>
                             </div>
                             <div className="text-2xl font-bold text-white mb-0.5">{tier.price}</div>
                             <div className="text-[10px] text-slate-500 mb-4">Setup Fee</div>
                             <ul className="space-y-2 text-xs text-slate-400">
                               {tier.features.map((f) => (
-                                <li key={f} className="flex items-center gap-2">
-                                  <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                  {f}
-                                </li>
+                                <li key={f} className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />{f}</li>
                               ))}
                             </ul>
                           </label>
                         ))}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1.5">Link Expiration</label>
-                        <select className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 appearance-none">
-                          <option>30 days (Recommended)</option>
-                          <option>7 days</option>
-                          <option>14 days</option>
-                          <option>Never expires</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1.5">Auto-Activate</label>
-                        <div className="flex items-center justify-between bg-[#0f0f0f] border border-[#333333] rounded-lg p-2.5">
-                          <span className="text-sm text-slate-400">Activate on payment</span>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" defaultChecked />
-                            <div className="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600" />
-                          </label>
-                        </div>
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-1.5">Link Expiration</label>
+                      <select value={linkExpiration} onChange={(e) => setLinkExpiration(e.target.value)}
+                        className="w-full bg-[#0f0f0f] border border-[#333333] rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 appearance-none">
+                        <option value="30 days">30 days (Recommended)</option>
+                        <option value="7 days">7 days</option>
+                        <option value="14 days">14 days</option>
+                        <option value="Never">Never expires</option>
+                      </select>
                     </div>
                   </div>
                 )}
@@ -350,28 +437,29 @@ function InviteModal({ onClose }: { onClose: () => void }) {
                         Invitation Summary
                       </h4>
                       <div className="grid grid-cols-2 gap-y-4 text-sm">
-                        <div><div className="text-xs text-slate-500">Agency</div><div className="font-medium text-slate-200">New Agency Partner</div></div>
-                        <div><div className="text-xs text-slate-500">Selected Tier</div><div className="font-medium text-blue-400">Growth ($15,000)</div></div>
-                        <div><div className="text-xs text-slate-500">Link Expires</div><div className="font-medium text-slate-200">30 days</div></div>
-                        <div><div className="text-xs text-slate-500">Auto-Activate</div><div className="font-medium text-emerald-400">Yes</div></div>
+                        <div><div className="text-xs text-slate-500">Agency</div><div className="font-medium text-slate-200">{agencyName}</div></div>
+                        <div><div className="text-xs text-slate-500">Selected Tier</div><div className="font-medium text-blue-400">{TIER_INFO[selectedTier]?.label} ({TIER_INFO[selectedTier]?.price})</div></div>
+                        <div><div className="text-xs text-slate-500">Contact</div><div className="font-medium text-slate-200">{contactName}</div><div className="text-xs text-slate-400">{contactEmail}</div></div>
+                        <div><div className="text-xs text-slate-500">Phone</div><div className="font-medium text-slate-200">{contactPhone || "—"}</div></div>
+                        <div><div className="text-xs text-slate-500">Sold By</div><div className="font-medium text-slate-200">{soldBy}</div></div>
+                        <div><div className="text-xs text-slate-500">Link Expires</div><div className="font-medium text-slate-200">{linkExpiration}</div></div>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Payment Link</label>
-                      <div className="flex gap-2">
-                        <div className="flex-1 bg-[#0b0b0b] border border-[#333333] rounded-lg py-2.5 px-3 text-sm text-slate-400 font-mono truncate">
-                          https://algofintech.com/invite/pay/ak_{Math.random().toString(36).slice(2, 12)}
-                        </div>
-                        <button className="bg-[#1f2937] hover:bg-[#374151] text-white p-2.5 rounded-lg border border-white/5 transition-colors">
-                          <ExternalLink className="w-4 h-4" />
-                        </button>
+                    <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-5">
+                      <h4 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                        <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        Agency License Key
+                      </h4>
+                      <p className="text-xs text-slate-400 mb-3">A unique license key (AFT8-XXXX-XXXX-XXXX) will be generated when you send the invitation. Share this key with the agency so they can sign up.</p>
+                      <div className="flex gap-2 items-center bg-[#0b0b0b] border border-[#333333] rounded-lg p-3">
+                        <div className="flex-1 text-sm text-slate-500 font-mono">Key will be generated on submission...</div>
                       </div>
                     </div>
                     <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
                       <input type="checkbox" defaultChecked className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600" />
                       <div>
                         <label className="font-medium text-white text-sm">Send Invitation Email</label>
-                        <p className="text-xs text-slate-400 mt-1">Automatically send a branded email with the payment link and onboarding instructions.</p>
+                        <p className="text-xs text-slate-400 mt-1">Automatically send a branded email with the license key and onboarding instructions.</p>
                       </div>
                     </div>
                   </div>
@@ -382,8 +470,20 @@ function InviteModal({ onClose }: { onClose: () => void }) {
                 <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
                   <Check className="w-8 h-8 text-emerald-500" />
                 </div>
-                <h3 className="text-2xl font-semibold text-white mb-2">Invitation Sent Successfully!</h3>
-                <p className="text-slate-400 mb-8 max-w-sm">The invitation has been created with the payment link.</p>
+                <h3 className="text-2xl font-semibold text-white mb-2">Agency Created Successfully!</h3>
+                <p className="text-slate-400 mb-6 max-w-sm"><span className="font-medium text-white">{createdAgencyName}</span> has been added to your agencies list.</p>
+                <div className="w-full max-w-md bg-[#0f0f0f] border border-emerald-500/30 rounded-xl p-5 mb-6">
+                  <div className="text-xs text-slate-500 uppercase tracking-wider mb-2 font-semibold">Agency License Key</div>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 bg-[#0b0b0b] border border-[#333333] rounded-lg py-3 px-4 text-lg text-emerald-400 font-mono font-bold tracking-wide text-center">
+                      {generatedKey}
+                    </div>
+                    <button onClick={copyKey} className={`p-3 rounded-lg border transition-colors ${keyCopied ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" : "bg-[#1f2937] hover:bg-[#374151] border-white/5 text-white"}`}>
+                      {keyCopied ? <Check className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-2">{keyCopied ? "Copied to clipboard!" : "Click to copy — send this key to the agency partner for signup."}</p>
+                </div>
                 <button onClick={onClose} className="bg-[#1f2937] hover:bg-[#374151] border border-white/10 text-white font-medium py-2.5 px-6 rounded-lg transition-colors text-sm">
                   Return to Agencies
                 </button>
@@ -397,12 +497,15 @@ function InviteModal({ onClose }: { onClose: () => void }) {
                   {step === 1 ? "Cancel" : "Back"}
                 </button>
                 <button
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_0_15px_rgba(59,130,246,0.4)] flex items-center gap-2"
+                  className={`px-5 py-2.5 text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_0_15px_rgba(59,130,246,0.4)] flex items-center gap-2 ${submitting ? "bg-blue-800 cursor-wait" : "bg-blue-600 hover:bg-blue-500"}`}
                   onClick={handleNext}
+                  disabled={submitting}
                 >
-                  {step === 1 && <>Next: Configuration <ChevronRight className="w-4 h-4" /></>}
-                  {step === 2 && <>Next: Review & Send <ChevronRight className="w-4 h-4" /></>}
-                  {step === 3 && <>Send Invitation <Send className="w-4 h-4" /></>}
+                  {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating...</>) : (
+                    <>{step === 1 && <>Next: Configuration <ChevronRight className="w-4 h-4" /></>}
+                      {step === 2 && <>Next: Review & Send <ChevronRight className="w-4 h-4" /></>}
+                      {step === 3 && <>Send Invitation <Send className="w-4 h-4" /></>}</>
+                  )}
                 </button>
               </div>
             )}
@@ -421,7 +524,7 @@ export default function AdminAgencies() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
-  useEffect(() => {
+  function refreshAgencies() {
     fetch("/api/admin/agencies")
       .then((r) => r.json())
       .then((d) => {
@@ -429,6 +532,10 @@ export default function AdminAgencies() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    refreshAgencies();
   }, []);
 
   const filteredAgencies = (data?.agencies || []).filter((a) =>
@@ -758,7 +865,7 @@ export default function AdminAgencies() {
       </main>
 
       {/* Invite Modal */}
-      {showInviteModal && <InviteModal onClose={() => setShowInviteModal(false)} />}
+      {showInviteModal && <InviteModal onClose={() => setShowInviteModal(false)} onAgencyCreated={refreshAgencies} />}
     </div>
   );
 }
