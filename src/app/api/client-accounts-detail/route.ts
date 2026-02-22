@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+
+export const dynamic = "force-dynamic";
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -10,42 +12,50 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = getSupabase();
   if (!supabase) {
     return NextResponse.json({ data: null, error: "No Supabase" });
   }
 
   try {
-    // Get the client dashboard to find the client_id
-    const { data: dashboard, error } = await supabase
-      .from("client_dashboards")
-      .select("*")
-      .limit(1)
+    // Get client_id (display ID like "CL-7829") from query params
+    const clientDisplayId = req.nextUrl.searchParams.get("client_id");
+    if (!clientDisplayId) {
+      return NextResponse.json({ data: null, error: "client_id is required" });
+    }
+
+    // Look up the client UUID from the display ID
+    const { data: clientRow } = await supabase
+      .from("clients")
+      .select("id, agency_id")
+      .eq("client_id", clientDisplayId)
       .single();
 
-    if (error || !dashboard) {
-      return NextResponse.json({ data: null });
+    if (!clientRow) {
+      // Client not found in clients table — return empty
+      return NextResponse.json({
+        data: {
+          summary: {
+            total_accounts: 0,
+            combined_balance: 0,
+            total_daily_pnl: 0,
+            active_count: 0,
+            total_count: 0,
+          },
+          accounts: [],
+        },
+      });
     }
 
-    const clientId = dashboard.client_id;
-    if (!clientId) {
-      return NextResponse.json({ data: null, error: "No linked client" });
-    }
+    const clientUuid = clientRow.id;
 
-    // Fetch accounts from the shared client_accounts table
+    // Fetch accounts from client_accounts table
     const { data: accounts } = await supabase
       .from("client_accounts")
       .select("*")
-      .eq("client_id", clientId)
+      .eq("client_id", clientUuid)
       .order("created_at", { ascending: true });
-
-    // Fetch algos linked to this dashboard (for showing which algos run on which accounts)
-    const { data: algos } = await supabase
-      .from("client_dashboard_algos")
-      .select("*")
-      .eq("dashboard_id", dashboard.id)
-      .order("created_at");
 
     const platformColors: Record<
       string,
@@ -79,7 +89,7 @@ export async function GET() {
         const equity = Number(a.equity) || balance;
         const freeMargin = Number(a.free_margin) || equity * 0.9;
         const dailyPnl = equity - balance;
-        const weeklyPnl = dailyPnl * 4.5; // approximation for display
+        const weeklyPnl = dailyPnl * 4.5;
 
         return {
           id: a.id,
@@ -108,24 +118,10 @@ export async function GET() {
               : 0,
           open_trades: Number(a.open_trades) || 0,
           connected_at: a.created_at,
-          // Assign algos round-robin to accounts for display
           algos: [] as { name: string; status: string }[],
         };
       }
     );
-
-    // Distribute algos across accounts for display
-    if (algos && algos.length > 0 && detailedAccounts.length > 0) {
-      algos.forEach(
-        (algo: Record<string, unknown>, idx: number) => {
-          const accountIdx = idx % detailedAccounts.length;
-          detailedAccounts[accountIdx].algos.push({
-            name: algo.name as string,
-            status: "active",
-          });
-        }
-      );
-    }
 
     // Calculate summary
     const totalBalance = detailedAccounts.reduce(
@@ -152,7 +148,8 @@ export async function GET() {
         accounts: detailedAccounts,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error("client-accounts-detail error:", err);
     return NextResponse.json({ data: null });
   }
 }

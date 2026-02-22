@@ -152,25 +152,131 @@ const PLATFORMS = [
   },
 ];
 
+// Map platform IDs to their full names for the API
+const PLATFORM_NAMES: Record<string, string> = {
+  mt5: "MetaTrader 5",
+  mt4: "MetaTrader 4",
+  binance: "Binance",
+  coinbase: "Coinbase",
+  ibkr: "Interactive Brokers",
+};
+
 function ConnectModal({
   open,
   onClose,
+  onAccountAdded,
 }: {
   open: boolean;
   onClose: () => void;
+  onAccountAdded: () => void;
 }) {
   const [view, setView] = useState<"selection" | string>("selection");
   const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState("");
+
+  // Form fields
+  const [broker, setBroker] = useState("OANDA");
+  const [loginId, setLoginId] = useState("");
+  const [server, setServer] = useState("");
+  const [password, setPassword] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [secretKey, setSecretKey] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [apiToken, setApiToken] = useState("");
 
   if (!open) return null;
 
-  function handleConnect() {
+  function resetForm() {
+    setView("selection");
+    setBroker("OANDA");
+    setLoginId("");
+    setServer("");
+    setPassword("");
+    setApiKey("");
+    setSecretKey("");
+    setAccountId("");
+    setApiToken("");
+    setError("");
+  }
+
+  async function handleConnect() {
     setConnecting(true);
-    setTimeout(() => {
-      setConnecting(false);
-      setView("selection");
+    setError("");
+
+    try {
+      // Get client_id from session
+      const sessionStr = localStorage.getItem("client_session");
+      if (!sessionStr) {
+        setError("Not logged in. Please log in again.");
+        setConnecting(false);
+        return;
+      }
+      const session = JSON.parse(sessionStr);
+      const clientDisplayId = session.client_id;
+
+      if (!clientDisplayId) {
+        setError("Client ID not found in session.");
+        setConnecting(false);
+        return;
+      }
+
+      // Build the request body based on platform
+      const platformName = PLATFORM_NAMES[view] || view;
+      let accountNumber = "";
+      let accountType = "Live";
+      let username = "";
+      let pwd = "";
+
+      if (view === "mt5" || view === "mt4") {
+        if (!loginId.trim()) { setError("Login ID is required."); setConnecting(false); return; }
+        accountNumber = loginId.trim();
+        accountType = "Live";
+        username = loginId.trim();
+        pwd = password;
+      } else if (view === "binance") {
+        if (!apiKey.trim()) { setError("API Key is required."); setConnecting(false); return; }
+        accountNumber = apiKey.trim().slice(-8) || apiKey.trim();
+        accountType = "Spot Trading";
+        username = apiKey.trim();
+        pwd = secretKey;
+      } else if (view === "ibkr") {
+        if (!accountId.trim()) { setError("Account ID is required."); setConnecting(false); return; }
+        accountNumber = accountId.trim();
+        accountType = "Live";
+        username = accountId.trim();
+        pwd = apiToken;
+      }
+
+      const res = await fetch("/api/client-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_display_id: clientDisplayId,
+          platform: platformName,
+          account_type: accountType,
+          account_number: accountNumber,
+          username,
+          password: pwd,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        setError(json.error || "Failed to connect account.");
+        setConnecting(false);
+        return;
+      }
+
+      // Success — refresh the accounts list
+      resetForm();
       onClose();
-    }, 1500);
+      onAccountAdded();
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setConnecting(false);
+    }
   }
 
   const selectedPlatform = PLATFORMS.find((p) => p.id === view);
@@ -271,7 +377,11 @@ function ConnectModal({
                       Broker Name
                     </label>
                     <div className="relative">
-                      <select className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 appearance-none">
+                      <select
+                        value={broker}
+                        onChange={(e) => setBroker(e.target.value)}
+                        className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 appearance-none"
+                      >
                         <option>OANDA</option>
                         <option>IC Markets</option>
                         <option>Pepperstone</option>
@@ -289,6 +399,8 @@ function ConnectModal({
                       <input
                         type="text"
                         placeholder="12345678"
+                        value={loginId}
+                        onChange={(e) => setLoginId(e.target.value)}
                         className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
                       />
                     </div>
@@ -299,6 +411,8 @@ function ConnectModal({
                       <input
                         type="text"
                         placeholder="Broker-Server-Live"
+                        value={server}
+                        onChange={(e) => setServer(e.target.value)}
                         className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
                       />
                     </div>
@@ -310,6 +424,8 @@ function ConnectModal({
                     <input
                       type="password"
                       placeholder="••••••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
                     />
                   </div>
@@ -334,6 +450,8 @@ function ConnectModal({
                     <input
                       type="text"
                       placeholder="Paste your API Key here"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
                       className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-yellow-500 placeholder-slate-600"
                     />
                   </div>
@@ -344,6 +462,8 @@ function ConnectModal({
                     <input
                       type="password"
                       placeholder="Paste your Secret Key here"
+                      value={secretKey}
+                      onChange={(e) => setSecretKey(e.target.value)}
                       className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-yellow-500 placeholder-slate-600"
                     />
                   </div>
@@ -375,6 +495,8 @@ function ConnectModal({
                     <input
                       type="text"
                       placeholder="U1234567"
+                      value={accountId}
+                      onChange={(e) => setAccountId(e.target.value)}
                       className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
                     />
                   </div>
@@ -385,6 +507,8 @@ function ConnectModal({
                     <input
                       type="password"
                       placeholder="Paste your API token"
+                      value={apiToken}
+                      onChange={(e) => setApiToken(e.target.value)}
                       className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
                     />
                   </div>
@@ -398,6 +522,13 @@ function ConnectModal({
                 </>
               )}
             </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="mx-6 mb-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                {error}
+              </div>
+            )}
 
             {/* Modal Footer */}
             <div className="p-6 pt-0 flex justify-end gap-3">
@@ -872,23 +1003,42 @@ export default function ClientAccountsPage() {
   const [data, setData] = useState<PageData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [clientId, setClientId] = useState("");
 
+  // Get client_id from session
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/client-accounts-detail");
-        const json = await res.json();
-        if (json.data) {
-          setData(json.data);
+    try {
+      const stored = localStorage.getItem("client_session");
+      if (stored) {
+        const session = JSON.parse(stored);
+        if (session.client_id) {
+          setClientId(session.client_id);
         }
-      } catch {
-        // No data — keep empty
-      } finally {
-        setLoading(false);
       }
-    }
-    load();
+    } catch { /* ignore */ }
   }, []);
+
+  // Fetch accounts when clientId is available
+  useEffect(() => {
+    if (!clientId) return;
+    loadAccounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId]);
+
+  async function loadAccounts() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/client-accounts-detail?client_id=${clientId}`);
+      const json = await res.json();
+      if (json.data) {
+        setData(json.data);
+      }
+    } catch {
+      // No data — keep empty
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function handleDisconnect(accountId: string) {
     setData((prev) => {
@@ -923,7 +1073,7 @@ export default function ClientAccountsPage() {
 
   return (
     <>
-      <ConnectModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <ConnectModal open={modalOpen} onClose={() => setModalOpen(false)} onAccountAdded={loadAccounts} />
 
       <div className="p-4 lg:p-8">
         {/* Page Header */}
