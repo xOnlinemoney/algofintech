@@ -101,7 +101,7 @@ export async function GET() {
         roi: algo.roi || metrics.total_return || metrics.roi || "0%",
         drawdown: algo.drawdown || metrics.max_drawdown || metrics.drawdown || "0%",
         win_rate: algo.win_rate || metrics.win_rate || "0%",
-        sharpe_ratio: algo.sharpe_ratio ?? metrics.sharpe_ratio ?? metrics.profit_factor ?? 0,
+        sharpe_ratio: Number(algo.sharpe_ratio ?? metrics.sharpe_ratio ?? metrics.profit_factor ?? 0) || 0,
         // Risk & pairs — check top-level first, then info/metrics JSONB
         risk_level: algo.risk_level || info.risk_level || metrics.risk_level || "medium",
         pairs: algo.pairs || info.instruments || info.pairs || algo.category || "",
@@ -173,11 +173,20 @@ export async function POST(request: Request) {
       monthly_returns: body.monthly_returns || [],
     };
 
-    // Ensure status is valid for the DB constraint — map draft/beta to allowed values
-    // or attempt insert as-is (the constraint may have been updated)
-    const allowedStatuses = ["active", "paused", "deprecated", "draft", "beta"];
-    if (!allowedStatuses.includes(insert.status)) {
-      insert.status = "active";
+    // The DB constraint only allows: 'active', 'paused', 'deprecated'
+    // Map draft/beta to DB-compatible values, store true status in info JSONB
+    const dbAllowed = ["active", "paused", "deprecated"];
+    if (!dbAllowed.includes(insert.status)) {
+      // Store the intended status in info for display purposes
+      insert.info = { ...insert.info, intended_status: insert.status };
+      // Map to DB-compatible: draft → paused, beta → active
+      if (insert.status === "draft") {
+        insert.status = "paused";
+      } else if (insert.status === "beta") {
+        insert.status = "active";
+      } else {
+        insert.status = "active";
+      }
     }
 
     const { data, error } = await supabase

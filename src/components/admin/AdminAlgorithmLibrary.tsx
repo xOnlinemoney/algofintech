@@ -516,12 +516,12 @@ export default function AdminAlgorithmLibrary() {
                                 </div>
                                 <div>
                                   <div className="text-slate-500 text-[10px] uppercase">Sharpe</div>
-                                  <div className="text-white font-medium">{algo.sharpe_ratio?.toFixed(1) || "—"}</div>
+                                  <div className="text-white font-medium">{algo.sharpe_ratio != null ? Number(algo.sharpe_ratio).toFixed(1) : "—"}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-4 text-right text-slate-300 font-medium">{algo.agencies_count.toLocaleString()}</td>
-                            <td className="px-4 py-4 text-right text-slate-300 font-medium">{algo.clients_count.toLocaleString()}</td>
+                            <td className="px-4 py-4 text-right text-slate-300 font-medium">{(algo.agencies_count || 0).toLocaleString()}</td>
+                            <td className="px-4 py-4 text-right text-slate-300 font-medium">{(algo.clients_count || 0).toLocaleString()}</td>
                             <td className="px-4 py-4 text-xs text-slate-500">{timeAgo(algo.last_updated || algo.created_at)}</td>
                             <td className="px-4 py-4 text-right">
                               <button className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
