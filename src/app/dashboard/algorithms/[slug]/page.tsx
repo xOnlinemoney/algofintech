@@ -1,12 +1,7 @@
-import { notFound } from "next/navigation";
-import AlgorithmDetailView from "@/components/dashboard/AlgorithmDetail";
-import { getAlgorithmBySlug, getAlgorithmDetail, mockAlgorithms } from "@/lib/mock-data";
+import AlgorithmDetailClient from "@/components/dashboard/AlgorithmDetailClient";
 import type { Metadata } from "next";
 
-// ─── Static params for SSG ──────────────────────────────
-export function generateStaticParams() {
-  return mockAlgorithms.map((algo) => ({ slug: algo.slug }));
-}
+export const dynamic = "force-dynamic";
 
 // ─── Dynamic metadata ───────────────────────────────────
 export async function generateMetadata({
@@ -15,10 +10,14 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const algo = getAlgorithmBySlug(slug);
+  // Convert slug to readable name for title
+  const name = slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
   return {
-    title: algo ? `AlgoFinTech - ${algo.name}` : "AlgoFinTech - Algorithm",
-    description: algo?.description ?? "Algorithm performance details.",
+    title: `AlgoFinTech - ${name}`,
+    description: "Algorithm performance details.",
   };
 }
 
@@ -29,18 +28,12 @@ export default async function AlgorithmPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const algorithm = getAlgorithmBySlug(slug);
-  const detail = algorithm ? getAlgorithmDetail(algorithm.id) : null;
-
-  if (!algorithm || !detail) {
-    notFound();
-  }
 
   return (
     <div className="px-6 pb-6">
       {/* Chart.js CDN */}
       <script src="https://cdn.jsdelivr.net/npm/chart.js" async />
-      <AlgorithmDetailView algorithm={algorithm} detail={detail} />
+      <AlgorithmDetailClient slug={slug} />
     </div>
   );
 }

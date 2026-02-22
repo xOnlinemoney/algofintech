@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, Plus, LayoutGrid, Trash2 } from "lucide-react";
-import { mockAlgorithms, getCategoryColor } from "@/lib/mock-data";
+import { Search, Plus, LayoutGrid, Trash2, Loader2 } from "lucide-react";
+import { getCategoryColor } from "@/lib/mock-data";
 import { useSavedAlgorithms } from "@/context/SavedAlgorithmsContext";
 import type { AlgorithmCategory } from "@/lib/types";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 const FILTER_TABS: ("All" | AlgorithmCategory)[] = [
   "All",
@@ -15,13 +17,43 @@ const FILTER_TABS: ("All" | AlgorithmCategory)[] = [
   "Futures",
 ];
 
+interface AlgorithmItem {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  category: AlgorithmCategory;
+  image_url: string;
+  roi: string;
+  drawdown: string;
+  win_rate: string;
+}
+
 export default function AlgorithmsGrid() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"All" | AlgorithmCategory>("All");
   const { isSaved, addAlgorithm, removeAlgorithm } = useSavedAlgorithms();
+  const [algorithms, setAlgorithms] = useState<AlgorithmItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch algorithms from Supabase via API
+  useEffect(() => {
+    fetch("/api/agency/algorithms")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.algorithms) {
+          setAlgorithms(data.algorithms);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch algorithms:", err);
+        setLoading(false);
+      });
+  }, []);
 
   const filtered = useMemo(() => {
-    let list = mockAlgorithms;
+    let list = algorithms;
     if (activeFilter !== "All") {
       list = list.filter((a) => a.category === activeFilter);
     }
@@ -35,7 +67,7 @@ export default function AlgorithmsGrid() {
       );
     }
     return list;
-  }, [search, activeFilter]);
+  }, [search, activeFilter, algorithms]);
 
   return (
     <div className="flex flex-col max-w-[1600px] mx-auto gap-6">
@@ -82,22 +114,32 @@ export default function AlgorithmsGrid() {
         </div>
       </div>
 
-      {/* Strategy Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 pb-8">
-        {filtered.map((algo) => (
-          <AlgorithmCard key={algo.id} algo={algo} isSaved={isSaved(algo.id)} onToggle={() => isSaved(algo.id) ? removeAlgorithm(algo.id) : addAlgorithm(algo.id)} />
-        ))}
+      {/* Loading State */}
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
+          <p className="text-sm text-slate-400">Loading algorithms...</p>
+        </div>
+      )}
 
-        {filtered.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
-            <LayoutGrid className="w-10 h-10 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">No algorithms found.</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Try adjusting your search or filter.
-            </p>
-          </div>
-        )}
-      </div>
+      {/* Strategy Grid */}
+      {!loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 pb-8">
+          {filtered.map((algo) => (
+            <AlgorithmCard key={algo.id} algo={algo} isSaved={isSaved(algo.id)} onToggle={() => isSaved(algo.id) ? removeAlgorithm(algo.id) : addAlgorithm(algo.id)} />
+          ))}
+
+          {filtered.length === 0 && (
+            <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
+              <LayoutGrid className="w-10 h-10 text-slate-600 mb-3" />
+              <p className="text-sm text-slate-400">No algorithms found.</p>
+              <p className="text-xs text-slate-600 mt-1">
+                Try adjusting your search or filter.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -108,7 +150,7 @@ function AlgorithmCard({
   isSaved,
   onToggle,
 }: {
-  algo: (typeof mockAlgorithms)[number];
+  algo: AlgorithmItem;
   isSaved: boolean;
   onToggle: () => void;
 }) {

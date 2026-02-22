@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { Algorithm } from "@/lib/types";
-import { mockAgencySavedAlgorithmIds, getAlgorithmById } from "@/lib/mock-data";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface SavedAlgorithmsContextValue {
   savedIds: Set<string>;
@@ -21,9 +22,22 @@ export function SavedAlgorithmsProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [savedIds, setSavedIds] = useState<Set<string>>(
-    () => new Set(mockAgencySavedAlgorithmIds)
-  );
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
+  const [allAlgorithms, setAllAlgorithms] = useState<Algorithm[]>([]);
+
+  // Fetch algorithms from Supabase on mount
+  useEffect(() => {
+    fetch("/api/agency/algorithms")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.algorithms) {
+          setAllAlgorithms(data.algorithms);
+        }
+      })
+      .catch((err) => {
+        console.error("SavedAlgorithmsContext: Failed to fetch algorithms", err);
+      });
+  }, []);
 
   const addAlgorithm = useCallback((id: string) => {
     setSavedIds((prev) => {
@@ -46,10 +60,10 @@ export function SavedAlgorithmsProvider({
     [savedIds]
   );
 
-  // Resolve full algorithm objects for sidebar display
+  // Resolve full algorithm objects for sidebar display from fetched data
   const savedAlgorithms: Algorithm[] = Array.from(savedIds)
-    .map((id) => getAlgorithmById(id))
-    .filter((a): a is Algorithm => a !== null);
+    .map((id) => allAlgorithms.find((a) => a.id === id))
+    .filter((a): a is Algorithm => a !== undefined);
 
   return (
     <SavedAlgorithmsContext.Provider
