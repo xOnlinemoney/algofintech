@@ -490,7 +490,7 @@ export default function AdminAlgorithmLibrary() {
                                   <CatIcon className="w-5 h-5" />
                                 </div>
                                 <div>
-                                  <div className="font-semibold text-white group-hover:text-blue-400 transition-colors cursor-pointer">{algo.name}</div>
+                                  <a href={`/dashboard/algorithms/${algo.id}`} className="font-semibold text-white group-hover:text-blue-400 transition-colors cursor-pointer hover:underline">{algo.name}</a>
                                   <div className="flex items-center gap-2 mt-1">
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400 font-medium">{algo.category}</span>
                                     <span className="text-[10px] text-slate-500">{algo.pairs || ""}</span>
