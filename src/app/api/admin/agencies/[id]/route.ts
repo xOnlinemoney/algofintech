@@ -37,7 +37,17 @@ export async function GET(
       return NextResponse.json({ error: "Agency not found." }, { status: 404 });
     }
 
-    // 2. Fetch all clients for this agency
+    // 2. Fetch license key(s) for this agency
+    const { data: softwareKeys } = await supabase
+      .from("software_keys")
+      .select("*")
+      .eq("agency_id", id)
+      .order("created_at", { ascending: false });
+
+    const agencyKey = (softwareKeys || [])[0] || null;
+    const keyMetadata = agencyKey?.metadata || {};
+
+    // 3. Fetch all clients for this agency
     const { data: clients } = await supabase
       .from("clients")
       .select("*")
@@ -167,6 +177,11 @@ export async function GET(
           slug: agency.slug,
           plan: agency.plan || "starter",
           created_at: agency.created_at,
+          license_key: agencyKey?.license_key || null,
+          contact_email: keyMetadata.contact_email || agency.contact_email || null,
+          contact_phone: keyMetadata.contact_phone || agency.contact_phone || null,
+          sold_by: keyMetadata.sold_by || agency.sold_by || null,
+          contact_name: keyMetadata.contact_name || null,
         },
         stats: {
           totalClients,

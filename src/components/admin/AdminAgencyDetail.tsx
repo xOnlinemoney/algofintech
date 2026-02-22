@@ -41,6 +41,11 @@ interface AgencyInfo {
   slug: string;
   plan: string;
   created_at: string;
+  license_key?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  sold_by?: string | null;
+  contact_name?: string | null;
 }
 
 interface AgencyStats {
@@ -530,6 +535,34 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
                         <div>
                           <div className="text-slate-500 mb-1">Subdomain</div>
                           <div className="text-blue-400 font-medium">{agency.slug}.algofintech.com</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 mb-1">Email</div>
+                          <div className="text-slate-300 font-medium flex items-center gap-1.5">
+                            {agency.contact_email ? (
+                              <><Mail className="w-3 h-3 text-blue-400" />{agency.contact_email}</>
+                            ) : (
+                              <span className="text-slate-600 italic">Not available</span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 mb-1">Phone</div>
+                          <div className="text-slate-300 font-medium">
+                            {agency.contact_phone || <span className="text-slate-600 italic">Not available</span>}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 mb-1">Sold By</div>
+                          <div className="text-slate-300 font-medium">
+                            {agency.sold_by || <span className="text-slate-600 italic">Not available</span>}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 mb-1">License Key</div>
+                          <div className="text-emerald-400 font-mono font-medium tracking-wide">
+                            {agency.license_key || <span className="text-slate-600 italic">No key assigned</span>}
+                          </div>
                         </div>
                       </div>
 
