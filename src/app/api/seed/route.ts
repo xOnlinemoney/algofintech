@@ -156,7 +156,23 @@ export async function GET() {
       }
     }
 
-    // ─── 4. Seed Algorithms ──────────────────────────────
+    // ─── 4. Create algorithms table if needed & Seed ─────
+    try {
+      await supabase.rpc("exec_sql", {
+        query: `CREATE TABLE IF NOT EXISTS algorithms (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          agency_id UUID REFERENCES agencies(id) ON DELETE CASCADE,
+          name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, description TEXT, category TEXT,
+          status TEXT DEFAULT 'active', risk_level TEXT, roi TEXT, drawdown TEXT, win_rate TEXT,
+          sharpe_ratio DECIMAL(5,2), pairs TEXT, agencies_count INT DEFAULT 0, clients_count INT DEFAULT 0,
+          last_updated TIMESTAMPTZ DEFAULT NOW(), created_at TIMESTAMPTZ DEFAULT NOW()
+        );`
+      });
+      log.push("Algorithms table ensured via RPC");
+    } catch {
+      log.push("RPC exec_sql not available — table must exist or be created in Supabase dashboard");
+    }
+
     const ALGORITHMS = [
       { slug: "forex-alpha-scalp-fx", name: "Alpha Scalp FX", description: "High-frequency scalping algorithm targeting major currency pairs during London overlap.", category: "Forex", roi: "+142%", drawdown: "8.4%", win_rate: "68%", status: "active", risk_level: "high", sharpe_ratio: 1.85, pairs: "XAUUSD", agencies_count: 42, clients_count: 1204 },
       { slug: "crypto-bitwave-ai", name: "BitWave AI", description: "Neural network model optimized for Bitcoin volatility patterns and trend reversals.", category: "Crypto", roi: "+284%", drawdown: "12.1%", win_rate: "54%", status: "active", risk_level: "high", sharpe_ratio: 2.10, pairs: "BTC/USD", agencies_count: 38, clients_count: 980 },
