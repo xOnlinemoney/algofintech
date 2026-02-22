@@ -19,6 +19,9 @@ const AGENCY_PATHS = ["/dashboard", "/agency-login"];
 // All paths that belong exclusively to the client subdomain
 const CLIENT_PATHS = ["/client-dashboard", "/client-login"];
 
+// All paths that belong exclusively to the admin subdomain
+const ADMIN_PATHS = ["/admin-login"];
+
 function isAgencyPath(pathname: string): boolean {
   return AGENCY_PATHS.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
@@ -27,6 +30,12 @@ function isAgencyPath(pathname: string): boolean {
 
 function isClientPath(pathname: string): boolean {
   return CLIENT_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
+  );
+}
+
+function isAdminPath(pathname: string): boolean {
+  return ADMIN_PATHS.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
   );
 }
@@ -62,7 +71,27 @@ export function middleware(request: NextRequest) {
     hostname.startsWith("client.") ||
     hostname.startsWith("client-"); // Vercel preview URLs use dashes
 
-  if (isAgencySubdomain) {
+  const isAdminSubdomain =
+    hostname.startsWith("admin.") ||
+    hostname.startsWith("admin-"); // Vercel preview URLs use dashes
+
+  if (isAdminSubdomain) {
+    // Root on admin subdomain → redirect to /admin-login
+    if (pathname === "/") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin-login";
+      return NextResponse.redirect(url);
+    }
+    // On admin subdomain — only allow admin paths
+    if (isAdminPath(pathname)) {
+      return NextResponse.next();
+    }
+    // Redirect non-admin paths to main domain
+    const mainDomain = hostname.replace(/^admin[-.]/, "");
+    const url = request.nextUrl.clone();
+    url.host = mainDomain;
+    return NextResponse.redirect(url);
+  } else if (isAgencySubdomain) {
     // Root on agency subdomain → redirect to /dashboard
     if (pathname === "/") {
       const url = request.nextUrl.clone();
@@ -104,6 +133,11 @@ export function middleware(request: NextRequest) {
     if (isClientPath(pathname)) {
       const url = request.nextUrl.clone();
       url.host = `client.${hostname}`;
+      return NextResponse.redirect(url);
+    }
+    if (isAdminPath(pathname)) {
+      const url = request.nextUrl.clone();
+      url.host = `admin.${hostname}`;
       return NextResponse.redirect(url);
     }
     return NextResponse.next();
