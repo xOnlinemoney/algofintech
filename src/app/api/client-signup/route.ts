@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { first_name, last_name, email, password, license_key } = body;
 
-    // Validate required fields
     if (!first_name || !last_name || !email || !password || !license_key) {
       return NextResponse.json(
         { error: "All fields are required." },
@@ -35,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const normalizedKey = license_key.trim().toUpperCase();
 
-    // 1. Look up the license key in software_keys
+    // 1. Look up the license key
     const { data: keyRecord, error: keyErr } = await supabase
       .from("software_keys")
       .select("*")
@@ -49,22 +48,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check key status — must be active
     if (keyRecord.status === "used") {
       return NextResponse.json(
         { error: "This license key has already been used." },
-        { status: 400 }
-      );
-    }
-    if (keyRecord.status === "revoked") {
-      return NextResponse.json(
-        { error: "This license key has been revoked." },
-        { status: 400 }
-      );
-    }
-    if (keyRecord.status === "expired") {
-      return NextResponse.json(
-        { error: "This license key has expired." },
         { status: 400 }
       );
     }
@@ -75,63 +61,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ensure this key is linked to an agency
-    if (!keyRecord.agency_id) {
-      return NextResponse.json(
-        { error: "This license key is not associated with an agency." },
-        { status: 400 }
-      );
-    }
-
-    // 2. Fetch the agency
-    const { data: agency, error: agencyErr } = await supabase
-      .from("agencies")
-      .select("*")
-      .eq("id", keyRecord.agency_id)
-      .single();
-
-    if (agencyErr || !agency) {
-      return NextResponse.json(
-        { error: "Agency not found for this license key." },
-        { status: 400 }
-      );
-    }
-
-    // 3. Mark the license key as "used"
-    await supabase
-      .from("software_keys")
-      .update({ status: "used" })
-      .eq("id", keyRecord.id);
-
-    // 4. Update agency metadata if needed (store contact info on the key)
+    // 2. Mark the key as used and store signup info
     const existingMetadata = keyRecord.metadata || {};
     await supabase
       .from("software_keys")
       .update({
+        status: "used",
         metadata: {
           ...existingMetadata,
           signup_name: `${first_name} ${last_name}`,
           signup_email: email,
           signup_password: password,
+          signup_type: "client",
           signed_up_at: new Date().toISOString(),
         },
       })
       .eq("id", keyRecord.id);
 
-    return NextResponse.json(
-      {
-        success: true,
-        agency: {
-          id: agency.id,
-          name: agency.name,
-          slug: agency.slug,
-        },
-        message: "Agency signup successful!",
+    // Get agency info if the key is linked to one
+    let agencyName = "";
+    if (keyRecord.agency_id) {
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("name")
+        .eq("id", keyRecord.agency_id)
+        .single();
+      if (agency) agencyName = agency.name;
+    }
+
+    return NextResponse.json({
+      success: true,
+      client: {
+        name: `${first_name} ${last_name}`,
+        email: email,
+        agency_name: agencyName,
+        client_id: keyRecord.client_id || null,
       },
-      { status: 200 }
-    );
+      message: "Client signup successful!",
+    });
   } catch (err) {
-    console.error("Agency signup error:", err);
+    console.error("Client signup error:", err);
     return NextResponse.json(
       { error: "Internal server error." },
       { status: 500 }

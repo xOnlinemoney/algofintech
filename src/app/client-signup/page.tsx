@@ -75,12 +75,52 @@ export default function ClientSignupPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [licenseKey, validateKey]);
 
-  function handleSubmit(e: React.FormEvent) {
+  const [submitError, setSubmitError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (keyStatus !== "valid") return;
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) return;
     setSubmitting(true);
-    // Future: POST to signup API
-    setTimeout(() => setSubmitting(false), 2000);
+    setSubmitError("");
+
+    try {
+      const res = await fetch("/api/client-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          email: email.trim(),
+          password,
+          license_key: licenseKey,
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        try {
+          localStorage.setItem(
+            "client_session",
+            JSON.stringify({
+              client_id: data.client_id || "",
+              client_name: `${firstName.trim()} ${lastName.trim()}`,
+              client_email: email.trim(),
+              agency_name: data.agency_name || "",
+            })
+          );
+        } catch {
+          /* ignore */
+        }
+        window.location.href = "/client-dashboard";
+      } else {
+        setSubmitError(data.error || "Signup failed. Please try again.");
+      }
+    } catch {
+      setSubmitError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const keyBorderColor =
@@ -120,6 +160,13 @@ export default function ClientSignupPage() {
               Enter your details and license key to get started.
             </p>
           </div>
+
+          {/* Error Message */}
+          {submitError && (
+            <div className="mb-5 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 text-center">
+              {submitError}
+            </div>
+          )}
 
           {/* Signup Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

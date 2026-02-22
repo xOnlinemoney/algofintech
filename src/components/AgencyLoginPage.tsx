@@ -1,10 +1,55 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Lock, EyeOff, Eye } from "lucide-react";
+import { Mail, Lock, EyeOff, Eye, Loader2 } from "lucide-react";
 
 export default function AgencyLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || !password) return;
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/agency-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Store agency session
+        try {
+          localStorage.setItem(
+            "agency_session",
+            JSON.stringify({
+              agency_id: data.agency?.id || "",
+              agency_name: data.agency?.name || "",
+              agency_slug: data.agency?.slug || "",
+              user_name: data.user?.name || "",
+              user_email: data.user?.email || email.trim(),
+            })
+          );
+        } catch {
+          /* ignore */
+        }
+        window.location.href = "/dashboard";
+      } else {
+        setError(data.error || "Invalid email or password.");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="h-full flex flex-col items-center justify-center min-h-screen overflow-hidden relative bg-[#020408] selection:bg-blue-500/30 selection:text-blue-200">
@@ -37,11 +82,15 @@ export default function AgencyLoginPage() {
             </p>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mb-5 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 text-center">
+              {error}
+            </div>
+          )}
+
           {/* Login Form */}
-          <form
-            onSubmit={(e) => e.preventDefault()}
-            className="space-y-5"
-          >
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Field */}
             <div className="space-y-1.5">
               <label
@@ -58,6 +107,8 @@ export default function AgencyLoginPage() {
                   type="email"
                   id="email"
                   name="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@agency.com"
                   className="block w-full rounded-lg bg-[#0B0E14] border border-white/10 pl-10 pr-3 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all shadow-sm"
                   required
@@ -81,6 +132,8 @@ export default function AgencyLoginPage() {
                   type={showPassword ? "text" : "password"}
                   id="password"
                   name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   className="block w-full rounded-lg bg-[#0B0E14] border border-white/10 pl-10 pr-10 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all shadow-sm"
                   required
@@ -121,9 +174,11 @@ export default function AgencyLoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#050609] focus:ring-blue-500 transition-all shadow-[0_0_20px_-5px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_-5px_rgba(37,99,235,0.5)]"
+              disabled={submitting}
+              className="w-full flex justify-center items-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#050609] focus:ring-blue-500 transition-all shadow-[0_0_20px_-5px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_-5px_rgba(37,99,235,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {submitting ? "Signing In..." : "Sign In"}
             </button>
           </form>
 
@@ -145,27 +200,11 @@ export default function AgencyLoginPage() {
               type="button"
               className="flex items-center justify-center gap-2 px-4 py-2 bg-[#0B0E14] border border-white/10 rounded-lg hover:bg-white/5 hover:border-white/20 transition-all group"
             >
-              <svg
-                className="w-4 h-4 group-hover:scale-110 transition-transform"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
-                />
+              <svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
               <span className="text-xs font-medium text-slate-300">Google</span>
             </button>
@@ -173,20 +212,14 @@ export default function AgencyLoginPage() {
               type="button"
               className="flex items-center justify-center gap-2 px-4 py-2 bg-[#0B0E14] border border-white/10 rounded-lg hover:bg-white/5 hover:border-white/20 transition-all group"
             >
-              <svg
-                className="w-4 h-4 group-hover:scale-110 transition-transform"
-                viewBox="0 0 23 23"
-                fill="currentColor"
-              >
+              <svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 23 23" fill="currentColor">
                 <path fill="#f3f3f3" d="M0 0h23v23H0z" />
                 <path fill="#f35325" d="M1 1h10v10H1z" />
                 <path fill="#81bc06" d="M12 1h10v10H12z" />
                 <path fill="#05a6f0" d="M1 12h10v10H1z" />
                 <path fill="#ffba08" d="M12 12h10v10H12z" />
               </svg>
-              <span className="text-xs font-medium text-slate-300">
-                Microsoft
-              </span>
+              <span className="text-xs font-medium text-slate-300">Microsoft</span>
             </button>
           </div>
         </div>
@@ -196,10 +229,10 @@ export default function AgencyLoginPage() {
           <p className="text-center text-xs text-slate-500">
             Not an agency yet?
             <a
-              href="#"
+              href="/agency-signup"
               className="font-medium text-blue-500 hover:text-blue-400 transition-colors ml-1 hover:underline"
             >
-              Apply for Agency Account
+              Sign Up with License Key
             </a>
           </p>
 
@@ -211,19 +244,9 @@ export default function AgencyLoginPage() {
           </div>
 
           <div className="flex gap-4 text-[11px] text-slate-600">
-            <a
-              href="#"
-              className="hover:text-slate-400 transition-colors"
-            >
-              Privacy Policy
-            </a>
+            <a href="/privacy-policy" className="hover:text-slate-400 transition-colors">Privacy Policy</a>
             <span className="text-slate-700">&bull;</span>
-            <a
-              href="#"
-              className="hover:text-slate-400 transition-colors"
-            >
-              Terms of Service
-            </a>
+            <a href="#" className="hover:text-slate-400 transition-colors">Terms of Service</a>
           </div>
         </div>
       </div>
