@@ -62,69 +62,16 @@ type PageData = {
   accounts: AccountData[];
 };
 
-// ─── Mock Data ───────────────────────────────────────────
-const MOCK_DATA: PageData = {
+// ─── Empty default for new clients ──────────────────────
+const EMPTY_DATA: PageData = {
   summary: {
-    total_accounts: 2,
-    combined_balance: 12450.0,
-    total_daily_pnl: 450.0,
-    active_count: 2,
-    total_count: 2,
+    total_accounts: 0,
+    combined_balance: 0,
+    total_daily_pnl: 0,
+    active_count: 0,
+    total_count: 0,
   },
-  accounts: [
-    {
-      id: "1",
-      platform: "MetaTrader 5",
-      platform_short: "MT5",
-      platform_color: "#262626",
-      platform_text_color: "#ffffff",
-      account_number: "12345678",
-      account_mask: "••••5678",
-      account_label: "MT5 Account",
-      account_type: "Live",
-      currency: "USD",
-      status: "Active",
-      balance: 10500.0,
-      equity: 10547.5,
-      free_margin: 9200.0,
-      daily_pnl: 75.0,
-      daily_pnl_pct: 0.71,
-      weekly_pnl: 340.0,
-      weekly_pnl_pct: 3.3,
-      open_trades: 3,
-      connected_at: "2024-12-01T00:00:00Z",
-      algos: [
-        { name: "Gold Scalper", status: "active" },
-        { name: "EURUSD Trend", status: "active" },
-      ],
-    },
-    {
-      id: "2",
-      platform: "Binance",
-      platform_short: "BN",
-      platform_color: "#FCD535",
-      platform_text_color: "#000000",
-      account_number: "SPOT-xy24",
-      account_mask: "••••xy24",
-      account_label: "Binance Account",
-      account_type: "Spot Trading",
-      currency: "USDT",
-      status: "Active",
-      balance: 1950.0,
-      equity: 1950.0,
-      free_margin: 1950.0,
-      daily_pnl: 52.5,
-      daily_pnl_pct: 2.7,
-      weekly_pnl: 125.0,
-      weekly_pnl_pct: 6.8,
-      open_trades: 2,
-      connected_at: "2024-12-05T00:00:00Z",
-      algos: [
-        { name: "BTC Trend", status: "active" },
-        { name: "ETH Scalper", status: "active" },
-      ],
-    },
-  ],
+  accounts: [],
 };
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -488,15 +435,18 @@ function ConnectModal({
 function AccountCard({
   account,
   chartId,
+  onDisconnect,
 }: {
   account: AccountData;
   chartId: number;
+  onDisconnect: (accountId: string) => void;
 }) {
   const [showNumber, setShowNumber] = useState(false);
   const [tradingEnabled, setTradingEnabled] = useState(
     account.status === "Active"
   );
   const [menuOpen, setMenuOpen] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   const isPositivePnl = account.daily_pnl >= 0;
   const chartColor = isPositivePnl ? "#10b981" : "#3b82f6";
@@ -536,6 +486,36 @@ function AccountCard({
     }
   }
 
+  async function handleDisconnect() {
+    if (
+      !window.confirm(
+        `Are you sure you want to disconnect your ${account.platform} account (${account.account_mask})? This will remove the account from your dashboard.`
+      )
+    ) {
+      return;
+    }
+
+    setDisconnecting(true);
+    setMenuOpen(false);
+
+    try {
+      const res = await fetch(`/api/client-accounts?account_id=${account.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        onDisconnect(account.id);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error || "Failed to disconnect account. Please try again.");
+        setDisconnecting(false);
+      }
+    } catch {
+      alert("Network error. Please try again.");
+      setDisconnecting(false);
+    }
+  }
+
   // Determine display labels based on platform type
   const isCrypto = ["Binance", "Bybit", "Coinbase"].includes(
     account.platform
@@ -547,7 +527,7 @@ function AccountCard({
   const secondaryValue2 = isCrypto ? 0 : account.free_margin;
 
   return (
-    <div className="rounded-xl overflow-hidden bg-[#0B0E14] border border-white/5 hover:border-white/[0.08] hover:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] transition-all duration-200 group">
+    <div className={`rounded-xl overflow-hidden bg-[#0B0E14] border border-white/5 hover:border-white/[0.08] hover:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] transition-all duration-200 group ${disconnecting ? "opacity-50 pointer-events-none" : ""}`}>
       {/* Card Header */}
       <div className="p-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/[0.01]">
         <div className="flex items-center gap-4">
@@ -585,7 +565,7 @@ function AccountCard({
             {account.status === "Active" && (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             )}
-            {account.status}
+            {disconnecting ? "Disconnecting..." : account.status}
           </div>
           <div className="relative">
             <button
@@ -611,7 +591,10 @@ function AccountCard({
                     Pause Trading
                   </button>
                   <div className="h-px bg-white/5 my-1" />
-                  <button className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-white/5 hover:text-red-300 rounded-b-lg">
+                  <button
+                    onClick={handleDisconnect}
+                    className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-b-lg"
+                  >
                     Disconnect
                   </button>
                 </div>
@@ -886,7 +869,7 @@ function AccountCard({
 
 // ─── Main Page ───────────────────────────────────────────
 export default function ClientAccountsPage() {
-  const [data, setData] = useState<PageData | null>(null);
+  const [data, setData] = useState<PageData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -897,17 +880,35 @@ export default function ClientAccountsPage() {
         const json = await res.json();
         if (json.data) {
           setData(json.data);
-        } else {
-          setData(MOCK_DATA);
         }
       } catch {
-        setData(MOCK_DATA);
+        // No data — keep empty
       } finally {
         setLoading(false);
       }
     }
     load();
   }, []);
+
+  function handleDisconnect(accountId: string) {
+    setData((prev) => {
+      const updatedAccounts = prev.accounts.filter((a) => a.id !== accountId);
+      const combinedBalance = updatedAccounts.reduce((sum, a) => sum + a.balance, 0);
+      const totalDailyPnl = updatedAccounts.reduce((sum, a) => sum + a.daily_pnl, 0);
+      const activeCount = updatedAccounts.filter((a) => a.status === "Active").length;
+
+      return {
+        summary: {
+          total_accounts: updatedAccounts.length,
+          combined_balance: combinedBalance,
+          total_daily_pnl: totalDailyPnl,
+          active_count: activeCount,
+          total_count: updatedAccounts.length,
+        },
+        accounts: updatedAccounts,
+      };
+    });
+  }
 
   if (loading) {
     return (
@@ -919,8 +920,6 @@ export default function ClientAccountsPage() {
       </div>
     );
   }
-
-  const d = data || MOCK_DATA;
 
   return (
     <>
@@ -958,7 +957,7 @@ export default function ClientAccountsPage() {
                 Connected Accounts
               </p>
               <p className="text-2xl font-semibold text-white tracking-tight mt-0.5">
-                {d.summary.total_accounts}
+                {data.summary.total_accounts}
               </p>
             </div>
           </div>
@@ -974,19 +973,19 @@ export default function ClientAccountsPage() {
               </p>
               <div className="flex items-baseline gap-2 mt-0.5">
                 <p className="text-2xl font-semibold text-white tracking-tight">
-                  {fmt(d.summary.combined_balance)}
+                  {fmt(data.summary.combined_balance)}
                 </p>
-                {d.summary.total_daily_pnl !== 0 && (
+                {data.summary.total_daily_pnl !== 0 && (
                   <span
                     className={`text-xs font-medium flex items-center ${
-                      d.summary.total_daily_pnl >= 0
+                      data.summary.total_daily_pnl >= 0
                         ? "text-emerald-400"
                         : "text-red-400"
                     }`}
                   >
-                    {d.summary.total_daily_pnl >= 0 ? "+" : ""}
-                    {fmt(d.summary.total_daily_pnl)}
-                    {d.summary.total_daily_pnl >= 0 && (
+                    {data.summary.total_daily_pnl >= 0 ? "+" : ""}
+                    {fmt(data.summary.total_daily_pnl)}
+                    {data.summary.total_daily_pnl >= 0 && (
                       <ArrowUp className="w-3 h-3 ml-0.5" />
                     )}
                   </span>
@@ -1005,35 +1004,60 @@ export default function ClientAccountsPage() {
                 <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Trading Status
                 </p>
-                {d.summary.active_count === d.summary.total_count && (
+                {data.summary.total_count > 0 && data.summary.active_count === data.summary.total_count && (
                   <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/10">
                     All Active
                   </span>
                 )}
               </div>
               <p className="text-sm font-medium text-slate-300 mt-1">
-                {d.summary.active_count} of {d.summary.total_count} accounts
-                trading
+                {data.summary.total_count > 0
+                  ? `${data.summary.active_count} of ${data.summary.total_count} accounts trading`
+                  : "No accounts connected"}
               </p>
             </div>
           </div>
         </div>
 
         {/* Account Cards */}
-        <div className="space-y-6">
-          {d.accounts.map((account, idx) => (
-            <AccountCard key={account.id} account={account} chartId={idx} />
-          ))}
-        </div>
+        {data.accounts.length > 0 ? (
+          <div className="space-y-6">
+            {data.accounts.map((account, idx) => (
+              <AccountCard
+                key={account.id}
+                account={account}
+                chartId={idx}
+                onDisconnect={handleDisconnect}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 text-slate-500">
+              <LinkIcon className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">No accounts connected</h3>
+            <p className="text-sm text-slate-500 max-w-md mb-6">
+              Connect your first trading account to start automated trading with your assigned algorithms.
+            </p>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all shadow-lg shadow-blue-600/20 text-sm font-medium border border-blue-500"
+            >
+              <Plus className="w-4 h-4" />
+              Connect Your First Account
+            </button>
+          </div>
+        )}
 
         {/* Bottom Footer */}
         <div className="mt-8 pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-slate-600">
-          <p>&copy; 2024 AlgoFinTech Inc. Secure Connections.</p>
+          <p>&copy; 2025 Algo FinTech Inc. Secure Connections.</p>
           <div className="flex gap-4 mt-2 md:mt-0">
-            <a href="#" className="hover:text-slate-400">
+            <a href="/privacy-policy" className="hover:text-slate-400">
               Privacy Policy
             </a>
-            <a href="#" className="hover:text-slate-400">
+            <a href="/cookie-policy" className="hover:text-slate-400">
               Terms of Service
             </a>
           </div>
