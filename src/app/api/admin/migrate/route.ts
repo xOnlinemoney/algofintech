@@ -5,8 +5,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/admin/migrate
- * One-time migration to update the algorithms table status constraint
- * to allow 'draft' and 'beta' statuses.
+ * Runs database migrations:
+ * 1. Adds metadata JSONB column to software_keys (for login/signup)
+ * 2. Updates algorithms status constraint to allow draft/beta
  */
 export async function GET() {
   try {
@@ -16,14 +17,27 @@ export async function GET() {
 
     const log: string[] = [];
 
-    // Drop old status constraint and add new one with draft/beta
+    // ── Migration 1: Add metadata JSONB column to software_keys ──
+    const { error: metaErr } = await supabase.rpc("exec_sql", {
+      query: `ALTER TABLE software_keys ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;`,
+    });
+
+    if (metaErr) {
+      log.push(`metadata column migration error: ${metaErr.message}`);
+      log.push("--- You may need to run this SQL manually in Supabase SQL Editor: ---");
+      log.push(`ALTER TABLE software_keys ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;`);
+    } else {
+      log.push("Added metadata JSONB column to software_keys (or already exists).");
+    }
+
+    // ── Migration 2: Update algorithms status constraint ──
     const { error: dropError } = await supabase.rpc("exec_sql", {
       query: `ALTER TABLE algorithms DROP CONSTRAINT IF EXISTS algorithms_status_check;`,
     });
 
     if (dropError) {
       log.push(`Drop constraint error: ${dropError.message}`);
-      log.push("You may need to run this SQL manually in Supabase SQL editor:");
+      log.push("--- You may need to run this SQL manually in Supabase SQL Editor: ---");
       log.push(`ALTER TABLE algorithms DROP CONSTRAINT IF EXISTS algorithms_status_check;`);
       log.push(`ALTER TABLE algorithms ADD CONSTRAINT algorithms_status_check CHECK (status IN ('active', 'paused', 'deprecated', 'draft', 'beta'));`);
     } else {
