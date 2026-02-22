@@ -47,6 +47,7 @@ export default function AdminMasterAccounts() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [accountType, setAccountType] = useState("live");
+  const [username, setUsername] = useState("");
   const [nickname, setNickname] = useState("");
   // Advanced
   const [connectionTimeout, setConnectionTimeout] = useState("30");
@@ -78,6 +79,7 @@ export default function AdminMasterAccounts() {
     setPassword("");
     setShowPassword(false);
     setAccountType("live");
+    setUsername("");
     setNickname("");
     setConnectionTimeout("30");
     setMaxRetries("5");
@@ -94,7 +96,12 @@ export default function AdminMasterAccounts() {
   }
 
   async function handleSave() {
-    if (!server.trim() && !login.trim()) {
+    if (platform === "tradovate") {
+      if (!login.trim() || !username.trim()) {
+        alert("Account Number and Username are required for Tradovate.");
+        return;
+      }
+    } else if (!server.trim() && !login.trim()) {
       alert("Server and Login/Account ID are required.");
       return;
     }
@@ -105,8 +112,8 @@ export default function AdminMasterAccounts() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           platform,
-          broker: broker || null,
-          server: server.trim(),
+          broker: platform === "tradovate" ? "Tradovate" : (broker || null),
+          server: platform === "tradovate" ? null : server.trim(),
           login: login.trim(),
           password: password || null,
           account_type: accountType,
@@ -117,6 +124,7 @@ export default function AdminMasterAccounts() {
             max_retries: Number(maxRetries) || 5,
             auto_reconnect: autoReconnect,
             notes: notes.trim() || null,
+            ...(platform === "tradovate" ? { username: username.trim() } : {}),
           },
         }),
       });
@@ -154,6 +162,7 @@ export default function AdminMasterAccounts() {
       case "dxtrade": return "DX";
       case "binance": return "BN";
       case "coinbase": return "CB";
+      case "tradovate": return "TV";
       default: return p.slice(0, 2).toUpperCase();
     }
   };
@@ -273,6 +282,7 @@ export default function AdminMasterAccounts() {
                       <option value="mt5">MetaTrader 5</option>
                       <option value="ctrader">cTrader</option>
                       <option value="binance">Binance</option>
+                      <option value="tradovate">Tradovate</option>
                     </select>
                     <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="flex-1 bg-[#020408] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-blue-500/50 appearance-none cursor-pointer">
                       <option value="all">All Status</option>
@@ -378,6 +388,7 @@ export default function AdminMasterAccounts() {
                         <option value="dxtrade">DXTrade</option>
                         <option value="binance">Binance</option>
                         <option value="coinbase">Coinbase</option>
+                        <option value="tradovate">Tradovate</option>
                       </select>
                       <div className="absolute left-3 top-3 text-slate-500 pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></svg>
@@ -389,77 +400,143 @@ export default function AdminMasterAccounts() {
 
                   {/* Connection Details */}
                   <div className="space-y-5">
-                    {/* Broker */}
-                    <div>
-                      <label className="block text-xs font-medium text-slate-400 mb-1.5">Broker <span className="text-red-500">*</span></label>
-                      <select value={broker} onChange={(e) => setBroker(e.target.value)} className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 appearance-none cursor-pointer shadow-sm" style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: "right 0.5rem center", backgroundRepeat: "no-repeat", backgroundSize: "1.5em 1.5em" }}>
-                        <option value="" disabled>Select broker...</option>
-                        <option>IC Markets</option>
-                        <option>Pepperstone</option>
-                        <option>OANDA</option>
-                        <option>XM Global</option>
-                        <option>Exness</option>
-                        <option value="other">Other (Enter Manually)</option>
-                      </select>
-                    </div>
-
-                    {/* Server & Login */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-1.5">Server <span className="text-red-500">*</span></label>
-                        <input type="text" value={server} onChange={(e) => setServer(e.target.value)} placeholder="e.g., ICMarkets-Server" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-1.5">Login / Account ID <span className="text-red-500">*</span></label>
-                        <input type="text" value={login} onChange={(e) => setLogin(e.target.value)} placeholder="e.g., 882910" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
-                      </div>
-                    </div>
-
-                    {/* Password */}
-                    <div>
-                      <label className="block text-xs font-medium text-slate-400 mb-1.5">Password <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Account password" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-slate-500 hover:text-white transition-colors">
-                          {showPassword ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" x2="23" y1="1" y2="23" /></svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
-                          )}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-1.5 flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg>
-                        Password is encrypted and stored securely
-                      </p>
-                    </div>
-
-                    {/* Account Type & Nickname */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-3">Account Type <span className="text-red-500">*</span></label>
-                        <div className="flex gap-4">
-                          <label className="flex items-center gap-2 cursor-pointer group">
-                            <div className="relative flex items-center">
-                              <input type="radio" name="account_type" checked={accountType === "demo"} onChange={() => setAccountType("demo")} className="peer appearance-none w-4 h-4 border border-slate-600 rounded-full bg-transparent checked:border-blue-500 checked:bg-blue-500 transition-all" />
-                              <div className="absolute inset-0 m-auto w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity" />
-                            </div>
-                            <span className="text-sm text-slate-300 group-hover:text-white transition-colors">Demo</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer group">
-                            <div className="relative flex items-center">
-                              <input type="radio" name="account_type" checked={accountType === "live"} onChange={() => setAccountType("live")} className="peer appearance-none w-4 h-4 border border-slate-600 rounded-full bg-transparent checked:border-blue-500 checked:bg-blue-500 transition-all" />
-                              <div className="absolute inset-0 m-auto w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity" />
-                            </div>
-                            <span className="text-sm text-slate-300 group-hover:text-white transition-colors">Live Account</span>
-                          </label>
+                    {platform === "tradovate" ? (
+                      <>
+                        {/* Tradovate-specific fields */}
+                        {/* Account Type (Live/Demo) */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-3">Account Type <span className="text-red-500">*</span></label>
+                          <div className="flex gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer group">
+                              <div className="relative flex items-center">
+                                <input type="radio" name="account_type" checked={accountType === "live"} onChange={() => setAccountType("live")} className="peer appearance-none w-4 h-4 border border-slate-600 rounded-full bg-transparent checked:border-blue-500 checked:bg-blue-500 transition-all" />
+                                <div className="absolute inset-0 m-auto w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                              </div>
+                              <span className="text-sm text-slate-300 group-hover:text-white transition-colors">Live</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer group">
+                              <div className="relative flex items-center">
+                                <input type="radio" name="account_type" checked={accountType === "demo"} onChange={() => setAccountType("demo")} className="peer appearance-none w-4 h-4 border border-slate-600 rounded-full bg-transparent checked:border-blue-500 checked:bg-blue-500 transition-all" />
+                                <div className="absolute inset-0 m-auto w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                              </div>
+                              <span className="text-sm text-slate-300 group-hover:text-white transition-colors">Demo</span>
+                            </label>
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-1.5">Nickname (Optional)</label>
-                        <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="e.g., Gold Strategy Main" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
-                      </div>
-                    </div>
+
+                        {/* Account Number */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1.5">Account Number <span className="text-red-500">*</span></label>
+                          <input type="text" value={login} onChange={(e) => setLogin(e.target.value)} placeholder="e.g., 12345678" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
+                        </div>
+
+                        {/* Username */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1.5">Username <span className="text-red-500">*</span></label>
+                          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Tradovate username" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
+                        </div>
+
+                        {/* Password */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1.5">Password <span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tradovate password" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-slate-500 hover:text-white transition-colors">
+                              {showPassword ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" x2="23" y1="1" y2="23" /></svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
+                              )}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-1.5 flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg>
+                            Password is encrypted and stored securely
+                          </p>
+                        </div>
+
+                        {/* Nickname */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1.5">Nickname (Optional)</label>
+                          <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="e.g., Tradovate Futures Main" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Standard platform fields (MT4, MT5, cTrader, etc.) */}
+                        {/* Broker */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1.5">Broker <span className="text-red-500">*</span></label>
+                          <select value={broker} onChange={(e) => setBroker(e.target.value)} className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 appearance-none cursor-pointer shadow-sm" style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: "right 0.5rem center", backgroundRepeat: "no-repeat", backgroundSize: "1.5em 1.5em" }}>
+                            <option value="" disabled>Select broker...</option>
+                            <option>IC Markets</option>
+                            <option>Pepperstone</option>
+                            <option>OANDA</option>
+                            <option>XM Global</option>
+                            <option>Exness</option>
+                            <option value="other">Other (Enter Manually)</option>
+                          </select>
+                        </div>
+
+                        {/* Server & Login */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1.5">Server <span className="text-red-500">*</span></label>
+                            <input type="text" value={server} onChange={(e) => setServer(e.target.value)} placeholder="e.g., ICMarkets-Server" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1.5">Login / Account ID <span className="text-red-500">*</span></label>
+                            <input type="text" value={login} onChange={(e) => setLogin(e.target.value)} placeholder="e.g., 882910" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
+                          </div>
+                        </div>
+
+                        {/* Password */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1.5">Password <span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Account password" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-slate-500 hover:text-white transition-colors">
+                              {showPassword ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" x2="23" y1="1" y2="23" /></svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
+                              )}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-1.5 flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg>
+                            Password is encrypted and stored securely
+                          </p>
+                        </div>
+
+                        {/* Account Type & Nickname */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-3">Account Type <span className="text-red-500">*</span></label>
+                            <div className="flex gap-4">
+                              <label className="flex items-center gap-2 cursor-pointer group">
+                                <div className="relative flex items-center">
+                                  <input type="radio" name="account_type" checked={accountType === "demo"} onChange={() => setAccountType("demo")} className="peer appearance-none w-4 h-4 border border-slate-600 rounded-full bg-transparent checked:border-blue-500 checked:bg-blue-500 transition-all" />
+                                  <div className="absolute inset-0 m-auto w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                </div>
+                                <span className="text-sm text-slate-300 group-hover:text-white transition-colors">Demo</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer group">
+                                <div className="relative flex items-center">
+                                  <input type="radio" name="account_type" checked={accountType === "live"} onChange={() => setAccountType("live")} className="peer appearance-none w-4 h-4 border border-slate-600 rounded-full bg-transparent checked:border-blue-500 checked:bg-blue-500 transition-all" />
+                                  <div className="absolute inset-0 m-auto w-1.5 h-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                </div>
+                                <span className="text-sm text-slate-300 group-hover:text-white transition-colors">Live Account</span>
+                              </label>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1.5">Nickname (Optional)</label>
+                            <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="e.g., Gold Strategy Main" className="w-full bg-[#020408] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 placeholder-slate-600 shadow-sm" />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Advanced Settings */}
