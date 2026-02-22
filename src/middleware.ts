@@ -20,7 +20,7 @@ const AGENCY_PATHS = ["/dashboard", "/agency-login"];
 const CLIENT_PATHS = ["/client-dashboard", "/client-login", "/client-signup"];
 
 // All paths that belong exclusively to the admin subdomain
-const ADMIN_PATHS = ["/admin-login"];
+const ADMIN_PATHS = ["/admin-login", "/admin-dashboard"];
 
 function isAgencyPath(pathname: string): boolean {
   return AGENCY_PATHS.some(
@@ -76,11 +76,17 @@ export function middleware(request: NextRequest) {
     hostname.startsWith("admin-"); // Vercel preview URLs use dashes
 
   if (isAdminSubdomain) {
-    // Root on admin subdomain → redirect to /admin-login
+    // Root on admin subdomain → redirect to /dashboard
     if (pathname === "/") {
       const url = request.nextUrl.clone();
-      url.pathname = "/admin-login";
+      url.pathname = "/dashboard";
       return NextResponse.redirect(url);
+    }
+    // /dashboard on admin subdomain → rewrite to /admin-dashboard
+    if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
+      const url = request.nextUrl.clone();
+      url.pathname = pathname.replace("/dashboard", "/admin-dashboard");
+      return NextResponse.rewrite(url);
     }
     // On admin subdomain — only allow admin paths
     if (isAdminPath(pathname)) {
