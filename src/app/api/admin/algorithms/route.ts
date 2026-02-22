@@ -133,3 +133,61 @@ export async function GET() {
     );
   }
 }
+
+/**
+ * POST /api/admin/algorithms
+ * Create a new algorithm in Supabase.
+ */
+export async function POST(request: Request) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Supabase not configured." },
+        { status: 503 }
+      );
+    }
+
+    const body = await request.json();
+
+    // Build the insert object
+    const insert: any = {
+      name: body.name,
+      slug: body.slug,
+      description: body.description || "",
+      category: body.category || "Forex",
+      status: body.status || "draft",
+      risk_level: body.risk_level || "medium",
+      image_url: body.image_url || null,
+      roi: body.roi || "0%",
+      drawdown: body.drawdown || "0%",
+      win_rate: body.win_rate || "0%",
+      info: body.info || {},
+      metrics: body.metrics || {},
+      equity_chart: body.equity_chart || { labels: [], data: [] },
+      monthly_returns: body.monthly_returns || [],
+    };
+
+    const { data, error } = await supabase
+      .from("algorithms")
+      .insert(insert)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Algorithm insert error:", error);
+      return NextResponse.json(
+        { error: "Failed to create algorithm.", details: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ algorithm: data }, { status: 201 });
+  } catch (err) {
+    console.error("Admin algorithms POST error:", err);
+    return NextResponse.json(
+      { error: "Internal server error." },
+      { status: 500 }
+    );
+  }
+}

@@ -339,9 +339,9 @@ export default function AdminAlgorithmLibrary() {
                 <button className="px-3 py-2 bg-[#13161C] border border-white/10 hover:border-white/20 hover:text-white rounded-lg text-xs font-medium text-slate-300 transition-colors flex items-center gap-2">
                   <Download className="w-3.5 h-3.5" /> Export
                 </button>
-                <button className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)] flex items-center gap-2">
+                <a href="/dashboard/algorithms/new" className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)] flex items-center gap-2">
                   <Plus className="w-3.5 h-3.5" /> Add New Algorithm
-                </button>
+                </a>
               </div>
             </div>
 
