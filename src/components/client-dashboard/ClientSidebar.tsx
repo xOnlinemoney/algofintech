@@ -1,7 +1,8 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Wallet,
@@ -10,8 +11,15 @@ import {
   CreditCard,
   Settings,
   BarChart2,
-  HelpCircle,
+  LogOut,
 } from "lucide-react";
+
+interface ClientSession {
+  client_id: string;
+  client_name: string;
+  client_email: string;
+  agency_name: string;
+}
 
 const NAV_ITEMS = [
   { href: "/client-dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -24,17 +32,48 @@ const NAV_ITEMS = [
 
 export default function ClientSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [session, setSession] = useState<ClientSession | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("client_session");
+      if (stored) {
+        setSession(JSON.parse(stored));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function handleLogout() {
+    localStorage.removeItem("client_session");
+    router.push("/client-login");
+  }
+
+  const agencyName = session?.agency_name || "AlgoFinTech";
+  const userName = session?.client_name || "Client";
+  const userInitials = userName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2);
 
   return (
     <aside className="hidden md:flex w-64 flex-col border-r border-white/5 bg-[#020408] flex-shrink-0 z-20">
-      {/* Logo */}
+      {/* Logo / Agency Name */}
       <div className="h-16 flex items-center px-6 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors group">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center shadow-lg shadow-blue-900/20 mr-3 group-hover:scale-105 transition-transform">
           <BarChart2 className="text-white w-4 h-4" />
         </div>
-        <span className="font-semibold text-lg text-white tracking-tight">
-          AlgoFinTech
-        </span>
+        <div className="flex-1 min-w-0">
+          <span className="font-semibold text-sm text-white tracking-tight block truncate">
+            {agencyName}
+          </span>
+          <span className="text-[10px] text-slate-600 font-medium leading-tight">
+            Client Portal
+          </span>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -62,17 +101,33 @@ export default function ClientSidebar() {
         })}
       </nav>
 
-      {/* Sidebar Footer */}
-      <div className="p-4 border-t border-white/5">
-        <div className="bg-gradient-to-br from-blue-900/20 to-transparent p-4 rounded-xl border border-blue-500/10">
-          <p className="text-xs font-medium text-white mb-1">Need help?</p>
-          <p className="text-[10px] text-blue-200/60 mb-3">
-            Contact your account manager for support.
-          </p>
-          <button className="w-full py-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded text-xs text-white transition-colors">
-            Contact Support
-          </button>
-        </div>
+      {/* User Profile + Logout */}
+      <div className="p-3 border-t border-white/5 mt-auto space-y-1">
+        <button className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-white/5 transition-colors text-left group">
+          <div className="relative">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs ring-1 ring-white/10">
+              {userInitials}
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#020408] rounded-full flex items-center justify-center">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-white truncate">{userName}</div>
+            <div className="text-[10px] text-slate-500 truncate">
+              {agencyName}
+            </div>
+          </div>
+          <Settings className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400" />
+        </button>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-2 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-left group"
+        >
+          <LogOut className="w-4 h-4 text-slate-500 group-hover:text-red-400 transition-colors" />
+          <span className="text-xs font-medium text-slate-500 group-hover:text-red-400 transition-colors">Log Out</span>
+        </button>
       </div>
     </aside>
   );
