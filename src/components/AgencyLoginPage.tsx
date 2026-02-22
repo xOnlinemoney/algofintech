@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Cpu, Mail, Lock, EyeOff, Eye } from "lucide-react";
-import Link from "next/link";
+import { Mail, Lock, EyeOff, Eye } from "lucide-react";
 
 export default function AgencyLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,20 +22,6 @@ export default function AgencyLoginPage() {
 
       {/* Centered Container */}
       <div className="w-full max-w-[440px] px-6 relative z-10">
-        {/* Brand Header */}
-        <div className="flex flex-col items-center justify-center mb-8">
-          <Link href="/">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-900/20 ring-1 ring-white/10 mb-3">
-              <Cpu className="text-white w-5 h-5" />
-            </div>
-          </Link>
-          <Link href="/">
-            <span className="text-xl font-bold text-white tracking-tight">
-              AlgoStack
-            </span>
-          </Link>
-        </div>
-
         {/* Login Card */}
         <div className="bg-[#050609] border border-white/10 rounded-2xl p-8 shadow-2xl backdrop-blur-sm relative overflow-hidden">
           {/* Card Top Decoration */}
@@ -45,7 +30,7 @@ export default function AgencyLoginPage() {
           {/* Login Header */}
           <div className="mb-8 text-center">
             <h1 className="text-xl font-semibold text-white tracking-tight mb-2">
-              Partner Portal Login
+              Agency Portal Login
             </h1>
             <p className="text-xs text-slate-400">
               Enter your credentials to access your dashboard.
@@ -209,12 +194,12 @@ export default function AgencyLoginPage() {
         {/* Bottom Links */}
         <div className="mt-8 flex flex-col items-center gap-4">
           <p className="text-center text-xs text-slate-500">
-            Not a partner yet?
+            Not an agency yet?
             <a
               href="#"
               className="font-medium text-blue-500 hover:text-blue-400 transition-colors ml-1 hover:underline"
             >
-              Apply for Partnership
+              Apply for Agency Account
             </a>
           </p>
 
