@@ -35,6 +35,14 @@ export async function GET() {
   }
 }
 
+// ─── Helper: Generate a unique software key (XXXX-XXXX-XXXX-XXXX) ───
+function generateSoftwareKey(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid confusion
+  const segment = () =>
+    Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return `${segment()}-${segment()}-${segment()}-${segment()}`;
+}
+
 // ─── POST: Create a new client ──────────────────────────
 export async function POST(req: NextRequest) {
   try {
@@ -79,6 +87,20 @@ export async function POST(req: NextRequest) {
       attempts++;
     } while (attempts < 20);
 
+    // Generate a unique software / license key (XXXX-XXXX-XXXX-XXXX)
+    let softwareKey: string;
+    let keyAttempts = 0;
+    do {
+      softwareKey = generateSoftwareKey();
+      const { data: existingKey } = await supabase
+        .from("software_keys")
+        .select("id")
+        .eq("license_key", softwareKey)
+        .single();
+      if (!existingKey) break;
+      keyAttempts++;
+    } while (keyAttempts < 20);
+
     // Random gradient for avatar
     const gradients = [
       "from-blue-600 to-indigo-600",
@@ -107,6 +129,7 @@ export async function POST(req: NextRequest) {
       risk_level: "medium",
       broker: null,
       max_accounts: max_accounts || null, // NULL = unlimited
+      software_key: softwareKey,
     };
 
     const { data, error } = await supabase
@@ -122,6 +145,16 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Also store the key in the software_keys table
+    await supabase.from("software_keys").insert([
+      {
+        client_id: data.id,
+        agency_id: agency.id,
+        license_key: softwareKey,
+        status: "active",
+      },
+    ]);
 
     return NextResponse.json({ message: "Client created!", data }, { status: 201 });
   } catch (err) {

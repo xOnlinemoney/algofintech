@@ -61,6 +61,7 @@ export interface Client {
   broker: string;
   joined_at: string;
   last_active: string;
+  software_key?: string | null;
 }
 
 // ─── Client Account (trading accounts under a client) ────

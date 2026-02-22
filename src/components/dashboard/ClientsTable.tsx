@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu } from "lucide-react";
+import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu, KeyRound, Copy } from "lucide-react";
 import { mockClients, formatCurrencyFull, formatLiquidity, getStatusColor } from "@/lib/mock-data";
 import type { Client, ClientStatus } from "@/lib/types";
 
@@ -59,6 +59,7 @@ export default function ClientsGrid() {
             broker: (row.broker as string) || "—",
             joined_at: (row.joined_at as string) || new Date().toISOString(),
             last_active: (row.last_active as string) || new Date().toISOString(),
+            software_key: (row.software_key as string) || null,
           }));
           setDbClients(mapped);
         }
@@ -258,6 +259,28 @@ function ClientCard({
         </div>
       </div>
 
+      {/* License Key */}
+      {client.software_key && (
+        <div className="flex items-center gap-2 bg-white/[0.03] border border-white/5 rounded-lg px-3 py-2">
+          <KeyRound className="w-3.5 h-3.5 text-amber-500/70 shrink-0" />
+          <span className="text-[11px] font-mono text-slate-400 tracking-wide truncate">
+            {client.software_key}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(
+                client.software_key || ""
+              );
+            }}
+            title="Copy license key"
+            className="ml-auto text-slate-600 hover:text-slate-300 transition-colors shrink-0"
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-x-2 gap-y-3 pt-2 border-t border-white/5">
         <div className="space-y-0.5">
@@ -389,6 +412,8 @@ function AddClientModal({
   const [maxAccounts, setMaxAccounts] = useState<string>("unlimited");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
 
   const autoId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -418,13 +443,103 @@ function AddClientModal({
         return;
       }
       onClientAdded();
-      onClose();
-      // Reload to show new client
-      window.location.reload();
+      // Show success state with generated software key
+      setCreatedKey(json.data?.software_key || null);
+      setSaving(false);
     } catch {
       setError("Network error. Please try again.");
       setSaving(false);
     }
+  }
+
+  function handleCopyKey() {
+    if (createdKey) {
+      navigator.clipboard.writeText(createdKey);
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
+    }
+  }
+
+  function handleDone() {
+    onClose();
+    window.location.reload();
+  }
+
+  // ── Success State: Show generated software key ──
+  if (createdKey) {
+    return (
+      <div className="fixed inset-0 z-50">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg">
+          <div className="bg-[#1a1d24] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+              <h2 className="text-base font-semibold text-white tracking-tight">
+                CLIENT CREATED
+              </h2>
+              <button
+                onClick={handleDone}
+                className="text-slate-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded"
+              >
+                <X className="w-[18px] h-[18px]" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Success icon */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <Check className="w-7 h-7 text-emerald-400" />
+                </div>
+                <p className="text-sm text-slate-300 text-center">
+                  <span className="text-white font-medium">{name}</span> has been added successfully.
+                </p>
+              </div>
+
+              {/* Software Key Display */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    Software License Key
+                  </span>
+                </div>
+                <div className="bg-[#0B0E14] border border-white/10 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+                  <span className="font-mono text-base text-white tracking-widest select-all">
+                    {createdKey}
+                  </span>
+                  <button
+                    onClick={handleCopyKey}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-colors shrink-0"
+                  >
+                    {keyCopied ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-400" />
+                        <span className="text-emerald-400">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        Copy
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Share this key with your client. They will need it to register and link their account.
+                </p>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-white/10 flex justify-end">
+              <button
+                onClick={handleDone}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
