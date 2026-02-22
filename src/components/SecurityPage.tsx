@@ -695,7 +695,7 @@ export default function SecurityPage() {
                 Book Security Call
               </button>
               <p className="text-[10px] text-slate-500 mt-4">
-                security@algostack.com
+                security@algofintech.com
               </p>
             </div>
 
@@ -723,7 +723,7 @@ export default function SecurityPage() {
                 Partner Portal Login
               </button>
               <p className="text-[10px] text-slate-500 mt-4">
-                compliance@algostack.com
+                compliance@algofintech.com
               </p>
             </div>
           </div>

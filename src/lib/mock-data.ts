@@ -45,8 +45,8 @@ import type {
 // ─── Agency ───────────────────────────────────────────────
 export const mockAgency: Agency = {
   id: "agency_001",
-  name: "AlgoStack",
-  slug: "algostack",
+  name: "Algo FinTech",
+  slug: "algofintech",
   plan: "pro",
   created_at: "2024-01-15T00:00:00Z",
 };
@@ -56,7 +56,7 @@ export const mockAgencyUser: AgencyUser = {
   id: "user_001",
   agency_id: "agency_001",
   name: "Ali Husni",
-  email: "ali@algostack.com",
+  email: "ali@algofintech.com",
   role: "owner",
   avatar_url: null,
   plan_label: "Pro Plan",
@@ -645,7 +645,7 @@ export const mockPlatformUpdates: PlatformUpdate[] = [
     date: "Dec 02, 2024",
     category: "Integration",
     title: "MetaTrader 5 Now Supported",
-    description: "Connect your MT5 accounts directly to AlgoStack. This integration supports both hedging and netting accounts and includes full trade history synchronization.",
+    description: "Connect your MT5 accounts directly to Algo FinTech. This integration supports both hedging and netting accounts and includes full trade history synchronization.",
   },
   {
     id: "upd_009",

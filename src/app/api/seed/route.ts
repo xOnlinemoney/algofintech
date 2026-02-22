@@ -19,7 +19,7 @@ export async function GET() {
     const { data: existingAgency } = await supabase
       .from("agencies")
       .select("id")
-      .eq("slug", "algostack")
+      .eq("slug", "algofintech")
       .single();
 
     if (existingAgency) {
@@ -28,7 +28,7 @@ export async function GET() {
     } else {
       const { data, error } = await supabase
         .from("agencies")
-        .insert({ name: "AlgoStack", slug: "algostack", plan: "pro" })
+        .insert({ name: "Algo FinTech", slug: "algofintech", plan: "pro" })
         .select("id")
         .single();
       if (error) throw new Error(`Agency insert failed: ${error.message}`);

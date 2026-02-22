@@ -418,7 +418,7 @@ export default function StrategyDevelopmentPage() {
       {/* ─── Comparison Table ─── */}
       <section className="py-24 max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-semibold text-white mb-4">The AlgoStack Advantage</h2>
+          <h2 className="text-3xl font-semibold text-white mb-4">The Algo FinTech Advantage</h2>
           <p className="text-slate-400">How we differ from typical algorithm providers.</p>
         </div>
         <div className="overflow-x-auto rounded-xl border border-white/5">
@@ -427,7 +427,7 @@ export default function StrategyDevelopmentPage() {
               <tr className="bg-white/5 text-xs text-slate-300 uppercase tracking-wider">
                 <th className="p-6 border-b border-white/10 font-medium w-1/3">Aspect</th>
                 <th className="p-6 border-b border-white/10 font-medium w-1/3 text-slate-500">Typical Providers</th>
-                <th className="p-6 border-b border-white/10 font-medium w-1/3 text-white bg-indigo-500/10">AlgoStack</th>
+                <th className="p-6 border-b border-white/10 font-medium w-1/3 text-white bg-indigo-500/10">Algo FinTech</th>
               </tr>
             </thead>
             <tbody className="text-sm">
@@ -515,7 +515,7 @@ export default function StrategyDevelopmentPage() {
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-8 relative z-10">
-              Questions about our process? Contact research@algostack.com
+              Questions about our process? Contact research@algofintech.com
             </p>
           </div>
         </div>

@@ -35,7 +35,7 @@ export default function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-sm text-slate-200 tracking-tight leading-none group-hover:text-white transition-colors">
-              AlgoStack
+              Algo FinTech
             </div>
             <div className="text-[10px] text-slate-600 font-medium leading-tight mt-0.5 group-hover:text-slate-500">
               Pro Environment

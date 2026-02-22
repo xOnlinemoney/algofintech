@@ -190,7 +190,7 @@ export default function DashboardPreview() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm text-slate-200 tracking-tight leading-none">
-                  AlgoStack
+                  Algo FinTech
                 </div>
                 <div className="text-[10px] text-slate-600 font-medium leading-tight mt-0.5">
                   Pro Environment

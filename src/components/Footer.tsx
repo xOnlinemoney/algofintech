@@ -48,8 +48,8 @@ export default function Footer() {
             <ContactItem
               icon={<Mail className="w-4 h-4" />}
               label="Email Support"
-              value="support@algostack.com"
-              href="mailto:support@algostack.com"
+              value="support@algofintech.com"
+              href="mailto:support@algofintech.com"
             />
             <ContactItem
               icon={<Phone className="w-4 h-4" />}
@@ -79,7 +79,7 @@ export default function Footer() {
                 <Cpu className="text-white w-4 h-4" />
               </div>
               <span className="text-xl font-bold text-white tracking-tight">
-                AlgoStack
+                Algo FinTech
               </span>
             </div>
             <p className="text-sm text-slate-500 mb-6 leading-relaxed">
@@ -134,7 +134,7 @@ export default function Footer() {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-600 mb-12">
-          <div>&copy; 2025 AlgoStack Inc. All rights reserved.</div>
+          <div>&copy; 2025 Algo FinTech Inc. All rights reserved.</div>
           <div className="flex gap-6">
             {["Privacy Policy", "Terms of Service", "Cookie Settings", "Sitemap"].map(
               (item, i) => {
@@ -171,7 +171,7 @@ export default function Footer() {
               to achieve profits or losses similar to those shown.
             </p>
             <p>
-              AlgoStack does not provide investment, legal, or tax advice. The
+              Algo FinTech does not provide investment, legal, or tax advice. The
               information provided on this website and platform is for
               educational and informational purposes only and should not be
               construed as financial advice.

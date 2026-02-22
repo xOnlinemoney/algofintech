@@ -43,12 +43,12 @@ const categories = [
     icon: Rocket,
     color: "emerald",
     title: "Getting Started",
-    desc: "New to AlgoStack? Start here to understand how we work and how to become a partner",
+    desc: "New to Algo FinTech? Start here to understand how we work and how to become a partner",
     count: "25+ articles",
     articles: [
-      "What is AlgoStack?",
+      "What is Algo FinTech?",
       "How does the white-label model work?",
-      "Who is AlgoStack for?",
+      "Who is Algo FinTech for?",
       "Partnership requirements",
     ],
     cta: "View all articles",
@@ -127,7 +127,7 @@ const categories = [
     icon: Users,
     color: "pink",
     title: "Client Management",
-    desc: "How to onboard, manage, and support your clients using AlgoStack",
+    desc: "How to onboard, manage, and support your clients using Algo FinTech",
     count: "30+ articles",
     articles: [
       "How to onboard new clients",
@@ -144,7 +144,7 @@ const categories = [
     desc: "Learn about our security measures, compliance standards, and regulatory considerations",
     count: "25+ articles",
     articles: [
-      "Is AlgoStack regulated?",
+      "Is Algo FinTech regulated?",
       "Non-custodial architecture explained",
       "SOC 2 Type II certification",
       "GDPR and data privacy",
@@ -175,8 +175,8 @@ const popularArticles = [
     color: "emerald",
     tag: "Getting Started",
     time: "8 min read",
-    title: "What Is AlgoStack and How Does It Work?",
-    desc: "A comprehensive overview of AlgoStack\u2019s white-label algorithmic trading platform and how agencies use it to serve clients",
+    title: "What Is Algo FinTech and How Does It Work?",
+    desc: "A comprehensive overview of Algo FinTech\u2019s white-label algorithmic trading platform and how agencies use it to serve clients",
     views: "15K views",
   },
   {
@@ -185,7 +185,7 @@ const popularArticles = [
     tag: "Pricing & Fees",
     time: "10 min read",
     title: "Complete Pricing Guide: Setup Fees, Client Fees, and Performance Fees",
-    desc: "Transparent breakdown of all costs associated with partnering with AlgoStack and how to calculate your ROI",
+    desc: "Transparent breakdown of all costs associated with partnering with Algo FinTech and how to calculate your ROI",
     views: "12K views",
   },
   {
@@ -203,7 +203,7 @@ const popularArticles = [
     tag: "Onboarding",
     time: "7 min read",
     title: "7-Day Launch Timeline: From Application to Live Platform",
-    desc: "Step-by-step breakdown of what happens during your first week as an AlgoStack partner",
+    desc: "Step-by-step breakdown of what happens during your first week as an Algo FinTech partner",
     views: "9K views",
   },
   {
@@ -220,7 +220,7 @@ const popularArticles = [
     color: "green",
     tag: "Security",
     time: "9 min read",
-    title: "Security & Fund Safety: Why AlgoStack Never Touches Client Money",
+    title: "Security & Fund Safety: Why Algo FinTech Never Touches Client Money",
     desc: "Detailed explanation of our non-custodial architecture and how client funds remain secure with regulated brokers",
     views: "6K views",
   },
@@ -232,9 +232,9 @@ const gettingStartedSteps = [
     color: "indigo",
     title: "Understand What We Offer",
     time: "~20 min",
-    desc: "Learn the basics of AlgoStack and how white-label algorithmic trading works",
+    desc: "Learn the basics of Algo FinTech and how white-label algorithmic trading works",
     links: [
-      { icon: FileText, color: "indigo", label: "What is AlgoStack?" },
+      { icon: FileText, color: "indigo", label: "What is Algo FinTech?" },
       { icon: FileText, color: "indigo", label: "How white-label works" },
       { icon: FileText, color: "indigo", label: "Ideal partner profile" },
       { icon: PlayCircle, color: "red", label: "Platform Overview (5 min)" },
@@ -299,16 +299,16 @@ const gettingStartedSteps = [
 ];
 
 const tools = [
-  { icon: Calculator, color: "emerald", title: "ROI Calculator", desc: "Calculate your potential revenue as an AlgoStack partner based on client count and trading volume", cta: "Try Calculator" },
-  { icon: Receipt, color: "amber", title: "Setup Cost Estimator", desc: "Estimate your AlgoStack setup costs based on asset classes, algorithms, and customization tier", cta: "Estimate Costs" },
+  { icon: Calculator, color: "emerald", title: "ROI Calculator", desc: "Calculate your potential revenue as an Algo FinTech partner based on client count and trading volume", cta: "Try Calculator" },
+  { icon: Receipt, color: "amber", title: "Setup Cost Estimator", desc: "Estimate your Algo FinTech setup costs based on asset classes, algorithms, and customization tier", cta: "Estimate Costs" },
   { icon: Layers, color: "purple", title: "Partnership Tier Selector", desc: "Answer a few questions to find the right partnership tier for your needs", cta: "Find My Tier" },
   { icon: Filter, color: "cyan", title: "Algorithm Selector", desc: "Find algorithms that match your client profile based on risk tolerance and preferences", cta: "Find Algorithms" },
-  { icon: Scale, color: "pink", title: "Build vs. Buy Comparison", desc: "Compare costs and timelines: AlgoStack vs. building in-house", cta: "Compare Options" },
+  { icon: Scale, color: "pink", title: "Build vs. Buy Comparison", desc: "Compare costs and timelines: Algo FinTech vs. building in-house", cta: "Compare Options" },
   { icon: CheckSquare, color: "blue", title: "Onboarding Checklist", desc: "Generate a personalized checklist of everything you need to get started", cta: "Get Checklist" },
 ];
 
 const videos = [
-  { gradient: "from-indigo-600/20 to-purple-600/20", duration: "5:24", title: "Introduction to AlgoStack Platform", meta: "Platform Walkthrough Series \u2022 15K views" },
+  { gradient: "from-indigo-600/20 to-purple-600/20", duration: "5:24", title: "Introduction to Algo FinTech Platform", meta: "Platform Walkthrough Series \u2022 15K views" },
   { gradient: "from-purple-600/20 to-pink-600/20", duration: "8:12", title: "White-Label Setup Guide", meta: "White-Label Series \u2022 12K views" },
   { gradient: "from-emerald-600/20 to-cyan-600/20", duration: "12:45", title: "Algorithm Selection Masterclass", meta: "Algorithm Education \u2022 10K views" },
   { gradient: "from-amber-600/20 to-orange-600/20", duration: "15:30", title: "Client Onboarding Tutorial", meta: "Client Management \u2022 8K views" },
@@ -323,8 +323,8 @@ const resources = [
 
 const faqs = [
   {
-    q: "What is AlgoStack?",
-    a: "AlgoStack is a white-label algorithmic trading platform that enables agencies, wealth managers, and trading firms to offer institutional-grade automated trading to their clients under their own brand. We provide the technology, algorithms, and infrastructure\u2014you provide the client relationships.",
+    q: "What is Algo FinTech?",
+    a: "Algo FinTech is a white-label algorithmic trading platform that enables agencies, wealth managers, and trading firms to offer institutional-grade automated trading to their clients under their own brand. We provide the technology, algorithms, and infrastructure\u2014you provide the client relationships.",
   },
   {
     q: "How much does it cost to get started?",
@@ -336,14 +336,14 @@ const faqs = [
   },
   {
     q: "Do you have access to client funds?",
-    a: "Absolutely not. AlgoStack operates a non-custodial architecture. Client funds remain at their chosen regulated broker at all times. We only send trade signals\u2014we never hold, touch, or have access to client money. This is a fundamental security principle of our platform.",
+    a: "Absolutely not. Algo FinTech operates a non-custodial architecture. Client funds remain at their chosen regulated broker at all times. We only send trade signals\u2014we never hold, touch, or have access to client money. This is a fundamental security principle of our platform.",
   },
   {
     q: "What trading platforms do you support?",
     a: "We currently integrate with NinjaTrader, MetaTrader 5 (MT5), Charles Schwab, TradingView, and HyperLiquid. Additional platform integrations are available for Enterprise partners. Our copy trading system works with most major brokers.",
   },
   {
-    q: "Do I need technical skills to use AlgoStack?",
+    q: "Do I need technical skills to use Algo FinTech?",
     a: "No technical skills required. Our platform is designed for non-technical users with an intuitive interface. We handle all the complex technology\u2014you focus on your clients. Full training is included in your onboarding, and our support team is always available to help.",
   },
   {
@@ -373,7 +373,7 @@ const recentlyUpdated = [
 ];
 
 const contactOptions = [
-  { icon: Mail, color: "indigo", title: "Contact Support", desc: "We respond within 24 hours", detail: "support@algostack.com", detailColor: "text-indigo-400" },
+  { icon: Mail, color: "indigo", title: "Contact Support", desc: "We respond within 24 hours", detail: "support@algofintech.com", detailColor: "text-indigo-400" },
   { icon: Calendar, color: "purple", title: "Schedule a Call", desc: "Talk to our partnerships team", detail: "30-45 min consultation", detailColor: "text-indigo-400" },
   { icon: MessageCircle, color: "emerald", title: "Live Chat", desc: "Get instant answers", detail: "Online now", detailColor: "text-emerald-400", pulse: true },
   { icon: MessageSquarePlus, color: "amber", title: "Submit Feedback", desc: "Help us improve", detail: "Suggest an article", detailColor: "text-indigo-400" },
@@ -471,7 +471,7 @@ export default function HelpCenterPage() {
             How Can We Help You Today?
           </h1>
           <p className="text-lg sm:text-xl text-slate-400 mb-3 max-w-2xl mx-auto">
-            Everything you need to know about partnering with AlgoStack and launching your algorithmic trading business
+            Everything you need to know about partnering with Algo FinTech and launching your algorithmic trading business
           </p>
           <p className="text-sm text-slate-500 mb-10">
             Browse articles, watch tutorials, or search for specific answers
@@ -647,7 +647,7 @@ export default function HelpCenterPage() {
               <Compass className="w-3.5 h-3.5" />
               Recommended Path
             </div>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight mb-3">New to AlgoStack? Start Here</h2>
+            <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight mb-3">New to Algo FinTech? Start Here</h2>
             <p className="text-slate-400 max-w-2xl mx-auto">Follow this guide to understand how we work and get started. Total estimated time: ~3 hours</p>
           </div>
 
@@ -700,7 +700,7 @@ export default function HelpCenterPage() {
                     </div>
                     <h3 className="text-lg font-semibold text-white">Ready to Apply?</h3>
                   </div>
-                  <p className="text-sm text-slate-300 mb-5">You&apos;ve done your research! Take the next step toward becoming an AlgoStack partner.</p>
+                  <p className="text-sm text-slate-300 mb-5">You&apos;ve done your research! Take the next step toward becoming an Algo FinTech partner.</p>
                   <div className="flex flex-wrap gap-3">
                     <a href="#" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 font-medium rounded-lg hover:bg-slate-100 transition-colors text-sm">
                       <Send className="w-4 h-4" />

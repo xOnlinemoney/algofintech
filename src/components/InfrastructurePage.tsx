@@ -475,7 +475,7 @@ export default function InfrastructurePage() {
               Proprietary Technology
             </span>
             <h2 className="text-3xl md:text-4xl font-medium text-white tracking-tight mb-6">
-              AlgoStack Copy Trading Engine™
+              Algo FinTech Copy Trading Engine™
             </h2>
             <p className="text-slate-400 max-w-3xl text-lg font-light">
               Our proprietary software monitors master accounts and instantly

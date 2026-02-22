@@ -336,11 +336,11 @@ export default function EarnWithAlgoPage() {
               <div className="p-6 rounded-xl bg-gradient-to-br from-indigo-900/10 to-transparent border border-indigo-500/10">
                 <p className="text-sm text-slate-400 mb-3">Have questions before submitting?</p>
                 <a
-                  href="mailto:devrelations@algostack.com"
+                  href="mailto:devrelations@algofintech.com"
                   className="inline-flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
                 >
                   <Mail className="w-4 h-4" />
-                  devrelations@algostack.com
+                  devrelations@algofintech.com
                 </a>
               </div>
             </div>

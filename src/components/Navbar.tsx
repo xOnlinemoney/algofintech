@@ -14,7 +14,7 @@ export default function Navbar() {
             <Cpu className="text-white w-4 h-4" />
           </div>
           <span className="text-lg font-bold text-white tracking-tight">
-            AlgoStack
+            Algo FinTech
           </span>
         </Link>
 

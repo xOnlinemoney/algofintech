@@ -71,10 +71,10 @@ const colorTextMap: Record<string, string> = {
 };
 
 const necessaryCookies = [
-  { name: "session_id", purpose: "Maintains your login session", duration: "Session", provider: "AlgoStack" },
-  { name: "csrf_token", purpose: "Protects against cross-site request forgery", duration: "Session", provider: "AlgoStack" },
+  { name: "session_id", purpose: "Maintains your login session", duration: "Session", provider: "Algo FinTech" },
+  { name: "csrf_token", purpose: "Protects against cross-site request forgery", duration: "Session", provider: "Algo FinTech" },
   { name: "__cf_bm", purpose: "Bot management and security", duration: "30 min", provider: "Cloudflare" },
-  { name: "cookie_consent", purpose: "Stores your cookie preferences", duration: "1 year", provider: "AlgoStack" },
+  { name: "cookie_consent", purpose: "Stores your cookie preferences", duration: "1 year", provider: "Algo FinTech" },
 ];
 
 const analyticsCookies = [
@@ -167,7 +167,7 @@ export default function CookiePolicyPage() {
             </div>
 
             <p className="text-lg text-slate-400 max-w-3xl leading-relaxed font-light mt-2">
-              This Cookie Policy explains how AlgoStack (operated by AlgoFintech
+              This Cookie Policy explains how Algo FinTech (operated by AlgoFintech
               Inc.) uses cookies and similar tracking technologies on our website
               and platform. This policy should be read alongside our Privacy
               Policy, which provides more information about how we collect, use,
@@ -220,10 +220,10 @@ export default function CookiePolicyPage() {
                     Questions about cookies?
                   </p>
                   <a
-                    href="mailto:privacy@algostack.com"
+                    href="mailto:privacy@algofintech.com"
                     className="text-xs font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
                   >
-                    privacy@algostack.com
+                    privacy@algofintech.com
                     <ArrowRight className="w-2.5 h-2.5" />
                   </a>
                 </div>
@@ -586,10 +586,10 @@ export default function CookiePolicyPage() {
                       If you believe a child has provided us with information,
                       please contact{" "}
                       <a
-                        href="mailto:privacy@algostack.com"
+                        href="mailto:privacy@algofintech.com"
                         className="text-indigo-400 hover:underline"
                       >
-                        privacy@algostack.com
+                        privacy@algofintech.com
                       </a>{" "}
                       immediately.
                     </p>
@@ -664,10 +664,10 @@ export default function CookiePolicyPage() {
                               Privacy Team
                             </span>
                             <a
-                              href="mailto:privacy@algostack.com"
+                              href="mailto:privacy@algofintech.com"
                               className="hover:text-indigo-400 transition-colors"
                             >
-                              privacy@algostack.com
+                              privacy@algofintech.com
                             </a>
                           </div>
                         </div>
@@ -678,10 +678,10 @@ export default function CookiePolicyPage() {
                               Data Protection Officer
                             </span>
                             <a
-                              href="mailto:dpo@algostack.com"
+                              href="mailto:dpo@algofintech.com"
                               className="hover:text-indigo-400 transition-colors"
                             >
-                              dpo@algostack.com
+                              dpo@algofintech.com
                             </a>
                           </div>
                         </div>

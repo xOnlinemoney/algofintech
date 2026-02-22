@@ -58,11 +58,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
     }
 
-    // Get the agency (use first agency — AlgoStack)
+    // Get the agency (use first agency — Algo FinTech)
     const { data: agency, error: agencyErr } = await supabase
       .from("agencies")
       .select("id")
-      .eq("slug", "algostack")
+      .eq("slug", "algofintech")
       .single();
 
     if (agencyErr || !agency) {

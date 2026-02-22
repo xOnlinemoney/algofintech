@@ -126,7 +126,7 @@ export default function PrivacyPolicyPage() {
             </div>
 
             <p className="text-lg text-slate-400 max-w-3xl leading-relaxed font-light mt-2">
-              At AlgoStack (operated by AlgoFintech Inc.), we take your privacy
+              At Algo FinTech (operated by AlgoFintech Inc.), we take your privacy
               seriously. This Privacy Policy explains how we collect, use,
               protect, and share your personal information when you use our
               white-label algorithmic trading platform and related services. By
@@ -167,10 +167,10 @@ export default function PrivacyPolicyPage() {
                     Our privacy team is available to help.
                   </p>
                   <a
-                    href="mailto:privacy@algostack.com"
+                    href="mailto:privacy@algofintech.com"
                     className="text-xs font-medium text-purple-400 hover:text-purple-300"
                   >
-                    privacy@algostack.com &rarr;
+                    privacy@algofintech.com &rarr;
                   </a>
                 </div>
               </div>
@@ -185,7 +185,7 @@ export default function PrivacyPolicyPage() {
                 </h2>
                 <div className="bg-[rgba(11,14,20,0.6)] backdrop-blur-xl border border-white/5 p-6 rounded-xl space-y-4 text-sm leading-7 text-slate-400">
                   <p>
-                    This Privacy Policy applies to the AlgoStack platform
+                    This Privacy Policy applies to the Algo FinTech platform
                     (www.algostack.com and all subdomains), agency partner
                     dashboards, client-facing portals, mobile applications,
                     APIs, and all related services.
@@ -208,10 +208,10 @@ export default function PrivacyPolicyPage() {
                       Important Note for White-Label Partners
                     </h4>
                     <p className="text-blue-200/70 text-xs">
-                      When you use AlgoStack&apos;s white-label platform under
+                      When you use Algo FinTech&apos;s white-label platform under
                       your own brand, you are the{" "}
                       <strong>data controller</strong> for your clients&apos;
-                      information. AlgoStack acts as a{" "}
+                      information. Algo FinTech acts as a{" "}
                       <strong>data processor</strong>. You are responsible for
                       providing your own privacy policy to your clients and
                       obtaining necessary consents.
@@ -219,7 +219,7 @@ export default function PrivacyPolicyPage() {
                   </div>
 
                   <p className="text-xs pt-2">
-                    AlgoStack is a service provided by AlgoFintech Inc., a
+                    Algo FinTech is a service provided by AlgoFintech Inc., a
                     Delaware corporation.
                   </p>
                 </div>
@@ -497,10 +497,10 @@ export default function PrivacyPolicyPage() {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4">
                       <a
-                        href="mailto:privacy@algostack.com"
+                        href="mailto:privacy@algofintech.com"
                         className="px-4 py-2 bg-white text-black text-sm font-medium rounded hover:bg-slate-200 transition-colors"
                       >
-                        Email privacy@algostack.com
+                        Email privacy@algofintech.com
                       </a>
                       <span className="px-4 py-2 border border-white/10 text-white text-sm font-medium rounded bg-white/5">
                         Write to: AlgoFintech Inc, [Address]
@@ -584,7 +584,7 @@ export default function PrivacyPolicyPage() {
                   9. International Data Transfers
                 </h2>
                 <p className="text-sm text-slate-400 mb-4">
-                  AlgoStack operates globally. Your data may be processed in
+                  Algo FinTech operates globally. Your data may be processed in
                   the US, EU, or APAC. For transfers from EEA/UK to countries
                   without adequacy decisions, we rely on:
                 </p>
@@ -679,10 +679,10 @@ export default function PrivacyPolicyPage() {
                       Privacy Team
                     </h4>
                     <a
-                      href="mailto:privacy@algostack.com"
+                      href="mailto:privacy@algofintech.com"
                       className="text-purple-400 text-sm hover:underline"
                     >
-                      privacy@algostack.com
+                      privacy@algofintech.com
                     </a>
                     <p className="text-xs text-slate-500 mt-2">
                       For rights requests and data concerns.

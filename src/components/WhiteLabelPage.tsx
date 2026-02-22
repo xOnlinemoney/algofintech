@@ -512,7 +512,7 @@ export default function WhiteLabelPage() {
                   <thead>
                     <tr className="border-b border-white/5">
                       <th className="p-4 text-slate-500 font-normal">Factor</th>
-                      <th className="p-4 text-purple-400 font-medium bg-purple-500/5">AlgoStack White-Label</th>
+                      <th className="p-4 text-purple-400 font-medium bg-purple-500/5">Algo FinTech White-Label</th>
                       <th className="p-4 text-slate-400 font-medium">Build In-House</th>
                     </tr>
                   </thead>

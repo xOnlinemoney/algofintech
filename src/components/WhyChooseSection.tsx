@@ -21,7 +21,7 @@ export default function WhyChooseSection() {
             <Feature
               icon={<MonitorCheck className="text-blue-500 w-5 h-5" />}
               title="Custom Brand Portal"
-              desc="Your logo, your domain, your rules. Clients never see AlgoStack."
+              desc="Your logo, your domain, your rules. Clients never see Algo FinTech."
             />
             <Feature
               icon={<ShieldCheck className="text-blue-500 w-5 h-5" />}

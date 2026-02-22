@@ -184,7 +184,7 @@ export default function ApiDocsPage() {
               API Documentation
             </h1>
             <p className="text-base md:text-lg text-slate-400 max-w-2xl leading-relaxed">
-              Unlock full programmatic control over the AlgoStack platform. Our
+              Unlock full programmatic control over the Algo FinTech platform. Our
               robust REST API enables you to manage clients, execute strategies,
               and build custom white-label integrations.
             </p>
