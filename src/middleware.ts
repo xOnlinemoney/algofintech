@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
  */
 
 // All paths that belong exclusively to the agency subdomain
-const AGENCY_PATHS = ["/dashboard", "/agency-login"];
+const AGENCY_PATHS = ["/dashboard", "/agency-login", "/agency-signup"];
 
 // All paths that belong exclusively to the client subdomain
 const CLIENT_PATHS = ["/client-dashboard", "/client-login", "/client-signup"];
