@@ -31,21 +31,21 @@ interface AlgorithmData {
   description: string;
   category: string;
   status: string;
-  risk_level: string;
-  roi: string;
-  drawdown: string;
-  win_rate: string;
-  sharpe_ratio: number;
-  pairs: string;
+  risk_level?: string;
+  roi?: string;
+  drawdown?: string;
+  win_rate?: string;
+  sharpe_ratio?: number | null;
+  pairs?: string | null;
   agencies_count: number;
   clients_count: number;
-  last_updated: string;
+  last_updated?: string | null;
   created_at: string;
 }
 
 interface ApiResponse {
   algorithms: AlgorithmData[];
-  summary: { total: number; active: number; beta: number; deprecated: number };
+  summary: { total: number; active: number; beta: number; paused: number; deprecated: number };
 }
 
 // ─── Helpers ────────────────────────────────────────────
@@ -132,9 +132,10 @@ function StatusBadge({ status }: { status: string }) {
         </span>
       );
     case "beta":
+    case "paused":
       return (
         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> Beta
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> {status === "paused" ? "Paused" : "Beta"}
         </span>
       );
     case "deprecated":
@@ -182,7 +183,7 @@ export default function AdminAlgorithmLibrary() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "beta" | "deprecated">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "active" | "beta" | "paused" | "deprecated">("all");
   const [assetFilter, setAssetFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
   const [sortBy, setSortBy] = useState("performance");
@@ -201,15 +202,20 @@ export default function AdminAlgorithmLibrary() {
   let filtered = data?.algorithms || [];
 
   if (activeTab !== "all") {
-    filtered = filtered.filter((a) => a.status === activeTab);
+    // "beta" tab shows both "beta" and "paused" statuses
+    if (activeTab === "beta") {
+      filtered = filtered.filter((a) => a.status === "beta" || a.status === "paused");
+    } else {
+      filtered = filtered.filter((a) => a.status === activeTab);
+    }
   }
   if (searchTerm) {
     const term = searchTerm.toLowerCase();
     filtered = filtered.filter(
       (a) =>
         a.name.toLowerCase().includes(term) ||
-        a.description.toLowerCase().includes(term) ||
-        a.pairs.toLowerCase().includes(term)
+        (a.description || "").toLowerCase().includes(term) ||
+        (a.pairs || "").toLowerCase().includes(term)
     );
   }
   if (assetFilter !== "all") {
@@ -223,7 +229,7 @@ export default function AdminAlgorithmLibrary() {
   filtered = [...filtered].sort((a, b) => {
     switch (sortBy) {
       case "performance":
-        return parsePercent(b.roi) - parsePercent(a.roi);
+        return parsePercent(b.roi || "0%") - parsePercent(a.roi || "0%");
       case "name":
         return a.name.localeCompare(b.name);
       case "date":
@@ -364,7 +370,7 @@ export default function AdminAlgorithmLibrary() {
                 >
                   Beta{" "}
                   <span className="ml-1.5 text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full text-slate-300">
-                    {data?.summary.beta || 0}
+                    {(data?.summary.beta || 0) + (data?.summary.paused || 0)}
                   </span>
                 </button>
                 <button
@@ -473,7 +479,7 @@ export default function AdminAlgorithmLibrary() {
                       filtered.map((algo) => {
                         const catStyle = getCategoryStyle(algo.category);
                         const CatIcon = catStyle.icon;
-                        const roiNum = parsePercent(algo.roi);
+                        const roiNum = parsePercent(algo.roi || "0%");
 
                         return (
                           <tr key={algo.id} className="group hover:bg-white/[0.02] transition-colors">
@@ -487,26 +493,26 @@ export default function AdminAlgorithmLibrary() {
                                   <div className="font-semibold text-white group-hover:text-blue-400 transition-colors cursor-pointer">{algo.name}</div>
                                   <div className="flex items-center gap-2 mt-1">
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400 font-medium">{algo.category}</span>
-                                    <span className="text-[10px] text-slate-500">{algo.pairs}</span>
+                                    <span className="text-[10px] text-slate-500">{algo.pairs || ""}</span>
                                   </div>
                                 </div>
                               </div>
                             </td>
                             <td className="px-4 py-4"><StatusBadge status={algo.status} /></td>
-                            <td className="px-4 py-4"><RiskBar level={algo.risk_level} /></td>
+                            <td className="px-4 py-4"><RiskBar level={algo.risk_level || "medium"} /></td>
                             <td className="px-4 py-4">
                               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                                 <div>
                                   <div className="text-slate-500 text-[10px] uppercase">Return</div>
-                                  <div className={`font-bold ${roiNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>{algo.roi}</div>
+                                  <div className={`font-bold ${roiNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>{algo.roi || "—"}</div>
                                 </div>
                                 <div>
                                   <div className="text-slate-500 text-[10px] uppercase">Max DD</div>
-                                  <div className="text-white font-medium">{algo.drawdown}</div>
+                                  <div className="text-white font-medium">{algo.drawdown || "—"}</div>
                                 </div>
                                 <div>
                                   <div className="text-slate-500 text-[10px] uppercase">Win Rate</div>
-                                  <div className="text-white font-medium">{algo.win_rate}</div>
+                                  <div className="text-white font-medium">{algo.win_rate || "—"}</div>
                                 </div>
                                 <div>
                                   <div className="text-slate-500 text-[10px] uppercase">Sharpe</div>

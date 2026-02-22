@@ -12,6 +12,8 @@ function getSupabase() {
 
 export const dynamic = "force-dynamic";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export async function GET() {
   try {
     const supabase = getSupabase();
@@ -31,64 +33,95 @@ export async function GET() {
     if (error) {
       console.error("Algorithms fetch error:", error);
       return NextResponse.json(
-        { error: "Failed to fetch algorithms." },
+        { error: "Failed to fetch algorithms.", details: error.message },
         { status: 500 }
       );
     }
 
-    // Fetch agency counts per algorithm from agency_saved_algorithms
-    const { data: agencySaved } = await supabase
-      .from("agency_saved_algorithms")
-      .select("algorithm_id, agency_id");
+    // Fetch agency counts per algorithm (wrapped in try/catch so it doesn't break everything)
+    let agencyCountMap: Record<string, number> = {};
+    try {
+      const { data: agencySaved } = await supabase
+        .from("agency_saved_algorithms")
+        .select("algorithm_id, agency_id");
 
-    // Build a map: algorithm_id -> count of distinct agencies
-    const agencyCountMap: Record<string, number> = {};
-    if (agencySaved) {
-      const agencySetMap: Record<string, Set<string>> = {};
-      for (const row of agencySaved) {
-        if (!agencySetMap[row.algorithm_id]) {
-          agencySetMap[row.algorithm_id] = new Set();
+      if (agencySaved) {
+        const agencySetMap: Record<string, Set<string>> = {};
+        for (const row of agencySaved) {
+          if (!agencySetMap[row.algorithm_id]) {
+            agencySetMap[row.algorithm_id] = new Set();
+          }
+          agencySetMap[row.algorithm_id].add(row.agency_id);
         }
-        agencySetMap[row.algorithm_id].add(row.agency_id);
+        for (const [algoId, agencySet] of Object.entries(agencySetMap)) {
+          agencyCountMap[algoId] = agencySet.size;
+        }
       }
-      for (const [algoId, agencySet] of Object.entries(agencySetMap)) {
-        agencyCountMap[algoId] = agencySet.size;
-      }
+    } catch {
+      agencyCountMap = {};
     }
 
-    // Fetch client counts per algorithm from client_accounts
-    const { data: clientAccounts } = await supabase
-      .from("client_accounts")
-      .select("algorithm_id, client_id")
-      .not("algorithm_id", "is", null);
+    // Fetch client counts per algorithm (wrapped in try/catch)
+    let clientCountMap: Record<string, number> = {};
+    try {
+      const { data: clientAccounts } = await supabase
+        .from("client_accounts")
+        .select("algorithm_id, client_id")
+        .not("algorithm_id", "is", null);
 
-    // Build a map: algorithm_id -> count of distinct clients
-    const clientCountMap: Record<string, number> = {};
-    if (clientAccounts) {
-      const clientSetMap: Record<string, Set<string>> = {};
-      for (const row of clientAccounts) {
-        if (!clientSetMap[row.algorithm_id]) {
-          clientSetMap[row.algorithm_id] = new Set();
+      if (clientAccounts) {
+        const clientSetMap: Record<string, Set<string>> = {};
+        for (const row of clientAccounts) {
+          if (!clientSetMap[row.algorithm_id]) {
+            clientSetMap[row.algorithm_id] = new Set();
+          }
+          clientSetMap[row.algorithm_id].add(row.client_id);
         }
-        clientSetMap[row.algorithm_id].add(row.client_id);
+        for (const [algoId, clientSet] of Object.entries(clientSetMap)) {
+          clientCountMap[algoId] = clientSet.size;
+        }
       }
-      for (const [algoId, clientSet] of Object.entries(clientSetMap)) {
-        clientCountMap[algoId] = clientSet.size;
-      }
+    } catch {
+      clientCountMap = {};
     }
 
-    // Merge counts into algorithm data
-    const list = (algorithms || []).map((algo) => ({
-      ...algo,
-      agencies_count: agencyCountMap[algo.id] || 0,
-      clients_count: clientCountMap[algo.id] || 0,
-    }));
+    // Normalize algorithm data — extract fields from JSONB if not top-level columns
+    const list = (algorithms || []).map((algo: any) => {
+      const metrics = algo.metrics || {};
+      const info = algo.info || {};
+
+      return {
+        id: algo.id,
+        slug: algo.slug,
+        name: algo.name,
+        description: algo.description || "",
+        category: algo.category || "Forex",
+        image_url: algo.image_url || null,
+        // Performance fields — check top-level first, then metrics JSONB
+        roi: algo.roi || metrics.total_return || metrics.roi || "0%",
+        drawdown: algo.drawdown || metrics.max_drawdown || metrics.drawdown || "0%",
+        win_rate: algo.win_rate || metrics.win_rate || "0%",
+        sharpe_ratio: algo.sharpe_ratio ?? metrics.sharpe_ratio ?? metrics.profit_factor ?? 0,
+        // Risk & pairs — check top-level first, then info/metrics JSONB
+        risk_level: algo.risk_level || info.risk_level || metrics.risk_level || "medium",
+        pairs: algo.pairs || info.instruments || info.pairs || algo.category || "",
+        // Status
+        status: algo.status || "active",
+        // Timestamps
+        last_updated: algo.updated_at || algo.created_at,
+        created_at: algo.created_at,
+        // Computed counts from join tables
+        agencies_count: agencyCountMap[algo.id] || 0,
+        clients_count: clientCountMap[algo.id] || 0,
+      };
+    });
 
     const summary = {
       total: list.length,
-      active: list.filter((a) => a.status === "active").length,
-      beta: list.filter((a) => a.status === "beta").length,
-      deprecated: list.filter((a) => a.status === "deprecated").length,
+      active: list.filter((a: any) => a.status === "active").length,
+      beta: list.filter((a: any) => a.status === "beta").length,
+      paused: list.filter((a: any) => a.status === "paused").length,
+      deprecated: list.filter((a: any) => a.status === "deprecated").length,
     };
 
     return NextResponse.json({ algorithms: list, summary }, { status: 200 });
