@@ -787,28 +787,24 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
                                   <div className="flex justify-between items-center text-[11px]">
                                     <span className="text-slate-500">Password</span>
                                     <div className="flex items-center gap-1.5">
-                                      {acc.password ? (
-                                        <>
-                                          <span className="text-slate-300 font-mono">
-                                            {isPasswordRevealed ? acc.password : "••••••••"}
-                                          </span>
-                                          <button
-                                            onClick={() => togglePasswordReveal(acc.id)}
-                                            className="text-slate-600 hover:text-slate-300 transition-colors"
-                                            title={isPasswordRevealed ? "Hide password" : "Show password"}
-                                          >
-                                            {isPasswordRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                                          </button>
-                                          <button
-                                            onClick={() => copyToClipboard(acc.password)}
-                                            className="text-slate-600 hover:text-slate-300 transition-colors"
-                                            title="Copy"
-                                          >
-                                            <Copy className="w-3 h-3" />
-                                          </button>
-                                        </>
-                                      ) : (
-                                        <span className="text-slate-600 italic">Not set</span>
+                                      <span className="text-slate-300 font-mono">
+                                        {isPasswordRevealed ? (acc.password || "N/A") : "••••••••"}
+                                      </span>
+                                      <button
+                                        onClick={() => togglePasswordReveal(acc.id)}
+                                        className="text-slate-600 hover:text-slate-300 transition-colors"
+                                        title={isPasswordRevealed ? "Hide password" : "Show password"}
+                                      >
+                                        {isPasswordRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                      </button>
+                                      {acc.password && (
+                                        <button
+                                          onClick={() => copyToClipboard(acc.password)}
+                                          className="text-slate-600 hover:text-slate-300 transition-colors"
+                                          title="Copy"
+                                        >
+                                          <Copy className="w-3 h-3" />
+                                        </button>
                                       )}
                                     </div>
                                   </div>
