@@ -31,7 +31,6 @@ const NAV_ITEMS = [
   { href: "/client-dashboard/activity", icon: Activity, label: "Trading Activity" },
   { href: "/client-dashboard/performance", icon: TrendingUp, label: "Performance" },
   { href: "/client-dashboard/payments", icon: CreditCard, label: "Payments" },
-  { href: "/client-dashboard/settings", icon: Settings, label: "Settings" },
 ];
 
 export default function ClientSidebar() {
@@ -130,7 +129,7 @@ export default function ClientSidebar() {
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-transparent transition-all"
         >
           <MessageCircleQuestion className="w-4 h-4 text-slate-500" />
-          <span className="font-medium text-sm">FAQ</span>
+          <span className="font-medium text-sm">Frequently Asked Questions</span>
         </a>
       </div>
 
