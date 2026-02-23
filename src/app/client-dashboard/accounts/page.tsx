@@ -223,7 +223,7 @@ function ConnectModal({
       // Build the request body based on platform
       const platformName = PLATFORM_NAMES[view] || view;
       let accountNumber = "";
-      let accountType = "Live";
+      let accountType = "live";
       let username = "";
       let pwd = "";
 
