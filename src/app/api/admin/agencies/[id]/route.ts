@@ -145,24 +145,30 @@ export async function GET(
         accounts_count: clientAccs.length,
         active_accounts: clientActiveAccounts,
         aum: clientAUM,
-        accounts: clientAccs.map((a) => ({
-          id: a.id,
-          account_name: a.account_name || a.platform || "Unknown",
-          account_label: a.account_label || "",
-          platform: a.platform || "Unknown",
-          account_type: a.account_type || "Real",
-          account_number: a.account_number || a.account_id || "",
-          username: a.username_encrypted || "",
-          password: a.password_encrypted || "",
-          balance: a.balance || 0,
-          equity: a.equity || 0,
-          pnl: a.pnl || 0,
-          is_active: a.is_active || false,
-          status: a.status || "active",
-          asset_class: a.asset_class || "Other",
-          broker: a.broker || a.platform || "",
-          currency: a.currency || "USD",
-        })),
+        accounts: clientAccs.map((a) => {
+          const bal = a.balance || 0;
+          const eq = a.equity || 0;
+          // pnl = equity - balance (no pnl column in schema)
+          const computedPnl = eq > 0 ? eq - bal : 0;
+          return {
+            id: a.id,
+            account_name: a.account_name || a.platform || "Unknown",
+            account_label: a.account_label || "",
+            platform: a.platform || "Unknown",
+            account_type: a.account_type || "Real",
+            account_number: a.account_number || "",
+            username: a.username_encrypted || "",
+            password: a.password_encrypted || "",
+            balance: bal,
+            equity: eq,
+            pnl: computedPnl,
+            is_active: a.is_active || false,
+            status: a.status || "active",
+            asset_class: a.asset_class || "Other",
+            broker: a.platform || "Unknown",
+            currency: a.currency || "USD",
+          };
+        }),
       };
     });
 
