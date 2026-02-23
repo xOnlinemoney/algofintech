@@ -38,6 +38,11 @@ import {
   Check,
   User,
   Edit3,
+  LayoutDashboard,
+  UserPlus,
+  Ban,
+  LineChart,
+  Wallet,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────
@@ -201,6 +206,46 @@ function statusBadge(status: string): string {
   }
 }
 
+// ─── Sidebar Nav Item ───────────────────────────────────
+function NavItem({
+  icon: Icon,
+  label,
+  active,
+  badge,
+  badgeColor,
+  href,
+}: {
+  icon: React.ElementType;
+  label: string;
+  active?: boolean;
+  badge?: string;
+  badgeColor?: string;
+  href?: string;
+}) {
+  return (
+    <a
+      href={href || "#"}
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors group ${
+        active
+          ? "text-white bg-blue-500/10 border border-blue-500/10"
+          : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
+      }`}
+    >
+      <Icon className={`w-4 h-4 ${active ? "text-blue-400" : "group-hover:text-slate-300"}`} />
+      <span className={active ? "font-medium" : ""}>{label}</span>
+      {badge && (
+        <span
+          className={`ml-auto text-[10px] px-1.5 py-0.5 rounded border ${
+            badgeColor || "bg-red-500/20 text-red-400 border-red-500/20"
+          }`}
+        >
+          {badge}
+        </span>
+      )}
+    </a>
+  );
+}
+
 // ─── Main Component ─────────────────────────────────────
 export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -284,8 +329,85 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
     });
   };
 
+  // ─── Sidebar + Header shell (used for all states) ───
+  const renderShell = (content: React.ReactNode) => (
+    <div className="antialiased h-screen w-screen overflow-hidden flex text-sm font-sans text-slate-400" style={{ background: "#020408" }}>
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+      `}</style>
+
+      {/* ═══ Sidebar ═══ */}
+      <aside className="w-64 bg-[#0B0E14] border-r border-white/5 flex flex-col shrink-0 z-20">
+        <div className="h-14 flex items-center px-4 border-b border-white/5">
+          <div className="flex items-center gap-2 text-white font-semibold tracking-tight">
+            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            AlgoFinTech Admin
+          </div>
+        </div>
+        <nav className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+          <NavItem icon={LayoutDashboard} label="Dashboard" href="/dashboard" />
+          <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Agency Management</div>
+          <NavItem icon={Building2} label="All Agencies" active href="/dashboard/agencies" />
+          <NavItem icon={UserPlus} label="Pending Invitations" />
+          <NavItem icon={Ban} label="Suspended" />
+          <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Client Management</div>
+          <NavItem icon={Users} label="All Clients" />
+          <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Algorithms</div>
+          <NavItem icon={Cpu} label="Algorithm Library" href="/dashboard/algorithms" />
+          <NavItem icon={LineChart} label="Performance" />
+          <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Finance</div>
+          <NavItem icon={Wallet} label="Revenue Overview" />
+          <NavItem icon={FileText} label="Invoices" />
+        </nav>
+        <div className="p-3 border-t border-white/5">
+          <NavItem icon={Settings} label="System Settings" />
+        </div>
+      </aside>
+
+      {/* ═══ Main Content ═══ */}
+      <main className="flex-1 flex flex-col overflow-hidden relative" style={{ background: "#020408" }}>
+        {/* Top Bar */}
+        <header className="h-14 border-b border-white/5 bg-[#020408]/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-10 sticky top-0">
+          <div className="flex items-center gap-2 text-sm">
+            <a href="/dashboard" className="text-slate-500 hover:text-slate-300 transition-colors">Dashboard</a>
+            <span className="text-slate-700">/</span>
+            <a href="/dashboard/agencies" className="text-slate-500 hover:text-slate-300 transition-colors">Agencies</a>
+            <span className="text-slate-700">/</span>
+            <span className="text-white font-medium">{data?.agency?.name || "Agency Detail"}</span>
+          </div>
+          <div className="flex items-center gap-4 ml-4">
+            <button className="relative text-slate-400 hover:text-white transition-colors">
+              <Bell className="w-5 h-5" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border-2 border-[#020408]" />
+            </button>
+            <div className="h-4 w-px bg-white/10" />
+            <button className="flex items-center gap-2 hover:bg-white/5 p-1 rounded-lg transition-colors">
+              <img src="https://ui-avatars.com/api/?name=Admin+User&background=3b82f6&color=fff" alt="Admin" className="w-7 h-7 rounded-md" />
+              <div className="text-left hidden md:block">
+                <div className="text-xs font-medium text-white">Admin</div>
+                <div className="text-[10px] text-slate-500">Super Admin</div>
+              </div>
+              <ChevronDown className="w-3 h-3 text-slate-500" />
+            </button>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {content}
+        </div>
+      </main>
+    </div>
+  );
+
   if (loading) {
-    return (
+    return renderShell(
       <div className="flex-1 flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -296,7 +418,7 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
   }
 
   if (!data || !data.agency) {
-    return (
+    return renderShell(
       <div className="flex-1 flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="text-white text-lg mb-2">Agency Not Found</div>
@@ -334,8 +456,8 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
     { key: "settings", label: "Settings", icon: Settings },
   ];
 
-  return (
-    <div className="space-y-6">
+  return renderShell(
+    <div className="p-6 space-y-6">
       {/* ═══ Back Button ═══ */}
       <a
         href="/dashboard/agencies"
