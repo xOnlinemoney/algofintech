@@ -31,6 +31,13 @@ import {
   Eye,
   EyeOff,
   Copy,
+  Save,
+  ExternalLink,
+  AlertCircle,
+  Crown,
+  Check,
+  User,
+  Edit3,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────
@@ -203,7 +210,6 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editSection, setEditSection] = useState("basic");
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [revealedPasswords, setRevealedPasswords] = useState<Set<string>>(new Set());
@@ -231,7 +237,17 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
     plan: "starter",
     sold_by: "",
     license_key: "",
+    website: "",
+    monthly_fee: "0",
+    status: "active",
+    admin_notes: "",
   });
+  const [editSaving, setEditSaving] = useState(false);
+  const [notifClientSignup, setNotifClientSignup] = useState(true);
+  const [notifLowBalance, setNotifLowBalance] = useState(true);
+  const [apiEnabled, setApiEnabled] = useState(true);
+  const [apiRateLimit, setApiRateLimit] = useState("100");
+  const [showAudit, setShowAudit] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/agencies/${agencyId}`)
@@ -248,6 +264,10 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
             plan: d.agency.plan || "starter",
             sold_by: d.agency.sold_by || "",
             license_key: d.agency.license_key || "",
+            website: "",
+            monthly_fee: d.agency.plan === "enterprise" ? "2500" : d.agency.plan === "pro" ? "1250" : "500",
+            status: "active",
+            admin_notes: "",
           });
         }
         setLoading(false);
@@ -1098,222 +1118,471 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
       {/* ═══ Edit Agency Modal ═══ */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+          <div className="bg-[#0B0E14] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#0B0E14] shrink-0">
               <div>
-                <h2 className="text-lg font-semibold text-white">Edit Agency</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Update agency information and settings</p>
+                <h2 className="text-xl font-semibold text-white tracking-tight">Edit Agency</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm text-slate-400 font-medium">{agency.name}</span>
+                  <span className="text-xs font-mono text-slate-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                    #{agency.id.slice(0, 8)}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
+                className="p-2 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Sidebar Tabs */}
-            <div className="flex flex-1 overflow-hidden">
-              <div className="w-48 border-r border-white/5 py-2 shrink-0">
-                {[
-                  { key: "basic", label: "Basic Info", icon: Building2 },
-                  { key: "contact", label: "Primary Contact", icon: Users },
-                  { key: "account", label: "Account Details", icon: Key },
-                  { key: "tier", label: "Tier & Status", icon: Shield },
-                  { key: "notifications", label: "Notifications", icon: Bell },
-                  { key: "api", label: "API Access", icon: Globe },
-                  { key: "notes", label: "Internal Notes", icon: FileText },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.key}
-                      onClick={() => setEditSection(item.key)}
-                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium transition-colors ${
-                        editSection === item.key
-                          ? "text-white bg-blue-500/10 border-r-2 border-blue-500"
-                          : "text-slate-400 hover:text-white hover:bg-white/5"
-                      }`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                      {item.label}
-                    </button>
-                  );
-                })}
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
+
+              {/* ── Section 1: Basic Information ── */}
+              <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10">
+                    <Building2 className="w-[18px] h-[18px]" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Basic Information</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Agency name and primary details</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Agency Name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      placeholder="e.g. TradePro Solutions"
+                      className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-slate-600"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Display Name</label>
+                    <input
+                      type="text"
+                      value={editForm.slug}
+                      onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
+                      className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-slate-600"
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Agency Logo</label>
+                    <div className="flex items-center gap-4 p-3 bg-[#020408] border border-white/10 rounded-lg">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold border border-white/10">
+                        {initials(editForm.name || agency.name)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-white">Current Logo</div>
+                        <div className="text-xs text-slate-500">JPG, PNG or SVG. Max 2MB.</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-md text-xs font-medium text-slate-300 hover:text-white transition-all">
+                          Change
+                        </button>
+                        <button className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 transition-colors">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Modal Content */}
-              <div className="flex-1 p-6 overflow-y-auto">
-                {editSection === "basic" && (
-                  <div className="space-y-5">
-                    <h3 className="text-sm font-semibold text-white">Basic Information</h3>
-                    <div className="space-y-4">
+              {/* ── Section 2: Primary Contact ── */}
+              <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10">
+                    <User className="w-[18px] h-[18px]" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Primary Contact</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Main point of contact for this agency</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Contact Name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={editForm.contact_name}
+                      onChange={(e) => setEditForm({ ...editForm, contact_name: e.target.value })}
+                      className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Contact Email <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={editForm.contact_email}
+                        onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
+                        className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors pr-8"
+                      />
+                      {editForm.contact_email && editForm.contact_email.includes("@") && (
+                        <Check className="absolute right-3 top-3 w-3.5 h-3.5 text-emerald-500" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={editForm.contact_phone}
+                      onChange={(e) => setEditForm({ ...editForm, contact_phone: e.target.value })}
+                      className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Website</label>
+                    <div className="relative">
+                      <input
+                        type="url"
+                        value={editForm.website}
+                        onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+                        placeholder="https://..."
+                        className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors pr-8 placeholder-slate-600"
+                      />
+                      {editForm.website && (
+                        <a href={editForm.website} target="_blank" rel="noopener noreferrer" className="absolute right-2 top-2.5 text-slate-500 hover:text-white">
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Section 3: Account Details ── */}
+              <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10">
+                    <Settings className="w-[18px] h-[18px]" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Account Details</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Account configuration and access</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Account Manager</label>
+                    <div className="flex items-center gap-2 bg-[#020408] border border-white/10 rounded-lg px-3 py-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center text-[8px] text-white font-bold ring-1 ring-white/10">
+                        {editForm.sold_by ? initials(editForm.sold_by) : "??"}
+                      </div>
+                      <input
+                        type="text"
+                        value={editForm.sold_by}
+                        onChange={(e) => setEditForm({ ...editForm, sold_by: e.target.value })}
+                        placeholder="Account manager name"
+                        className="flex-1 bg-transparent text-sm text-white font-medium focus:outline-none placeholder-slate-600"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">License Key</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={editForm.license_key || "No key assigned"}
+                        className="flex-1 bg-[#020408] border border-white/10 rounded-lg px-3 py-2.5 text-sm font-mono text-slate-300 focus:outline-none cursor-default"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(editForm.license_key)}
+                        className="px-3 border border-white/10 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
+                        title="Copy license key"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Section 4: Tier & Status ── */}
+              <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10">
+                    <DollarSign className="w-[18px] h-[18px]" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Tier &amp; Status</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Subscription plan and access control</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Subscription Tier</label>
+                    <select
+                      value={editForm.plan}
+                      onChange={(e) => setEditForm({ ...editForm, plan: e.target.value })}
+                      className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                    >
+                      <option value="starter" className="bg-[#0B0E14]">Starter</option>
+                      <option value="pro" className="bg-[#0B0E14]">Growth (Pro)</option>
+                      <option value="enterprise" className="bg-[#0B0E14]">Enterprise</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Monthly Fee</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        value={editForm.monthly_fee}
+                        onChange={(e) => setEditForm({ ...editForm, monthly_fee: e.target.value })}
+                        className="w-full bg-[#020408] border border-white/10 rounded-lg pl-6 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Next Billing Date</label>
+                    <div className="bg-[#020408] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-slate-300">
+                      {(() => {
+                        const d = new Date();
+                        d.setMonth(d.getMonth() + 1, 1);
+                        return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-white/5 pt-5">
+                  <label className="text-xs font-medium text-slate-400 block mb-3">Agency Status</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Active */}
+                    <label className="cursor-pointer group relative">
+                      <input
+                        type="radio"
+                        name="editStatus"
+                        checked={editForm.status === "active"}
+                        onChange={() => setEditForm({ ...editForm, status: "active" })}
+                        className="peer sr-only"
+                      />
+                      <div className={`p-3 rounded-lg border transition-all ${
+                        editForm.status === "active"
+                          ? "border-emerald-500 bg-emerald-500/10"
+                          : "border-white/10 bg-[#020408] hover:border-emerald-500/50 hover:bg-emerald-500/5"
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${editForm.status === "active" ? "bg-emerald-500" : "border border-slate-500"}`} />
+                          <span className={`font-semibold text-sm ${editForm.status === "active" ? "text-emerald-400" : "text-slate-300"}`}>Active</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1 pl-5">Full system access</p>
+                      </div>
+                    </label>
+                    {/* Paused */}
+                    <label className="cursor-pointer group relative">
+                      <input
+                        type="radio"
+                        name="editStatus"
+                        checked={editForm.status === "paused"}
+                        onChange={() => setEditForm({ ...editForm, status: "paused" })}
+                        className="peer sr-only"
+                      />
+                      <div className={`p-3 rounded-lg border transition-all ${
+                        editForm.status === "paused"
+                          ? "border-amber-500 bg-amber-500/10"
+                          : "border-white/10 bg-[#020408] hover:border-amber-500/50 hover:bg-amber-500/5"
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${editForm.status === "paused" ? "bg-amber-500" : "border border-slate-500"}`} />
+                          <span className={`font-semibold text-sm ${editForm.status === "paused" ? "text-amber-400" : "text-slate-300"}`}>Paused</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1 pl-5">Temporarily disabled</p>
+                      </div>
+                    </label>
+                    {/* Suspended */}
+                    <label className="cursor-pointer group relative">
+                      <input
+                        type="radio"
+                        name="editStatus"
+                        checked={editForm.status === "suspended"}
+                        onChange={() => setEditForm({ ...editForm, status: "suspended" })}
+                        className="peer sr-only"
+                      />
+                      <div className={`p-3 rounded-lg border transition-all ${
+                        editForm.status === "suspended"
+                          ? "border-red-500 bg-red-500/10"
+                          : "border-white/10 bg-[#020408] hover:border-red-500/50 hover:bg-red-500/5"
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${editForm.status === "suspended" ? "bg-red-500" : "border border-slate-500"}`} />
+                          <span className={`font-semibold text-sm ${editForm.status === "suspended" ? "text-red-400" : "text-slate-300"}`}>Suspended</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1 pl-5">Access revoked</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Section 5: Notifications & API (side by side) ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Notifications */}
+                <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10">
+                      <Bell className="w-[18px] h-[18px]" />
+                    </div>
+                    <h3 className="text-base font-semibold text-white">Notifications</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1.5">Agency Name</label>
+                        <div className="text-sm font-medium text-white">Client Signup</div>
+                        <div className="text-[10px] text-slate-500">Alert on new user registration</div>
+                      </div>
+                      <button
+                        onClick={() => setNotifClientSignup(!notifClientSignup)}
+                        className={`relative w-9 h-5 rounded-full transition-colors duration-300 ${notifClientSignup ? "bg-blue-600" : "bg-slate-700"}`}
+                      >
+                        <div className={`absolute top-[2px] w-4 h-4 rounded-full bg-white transition-all duration-300 ${notifClientSignup ? "left-[18px]" : "left-[2px]"}`} />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-white">Low Balance</div>
+                        <div className="text-[10px] text-slate-500">Alert when funds below $500</div>
+                      </div>
+                      <button
+                        onClick={() => setNotifLowBalance(!notifLowBalance)}
+                        className={`relative w-9 h-5 rounded-full transition-colors duration-300 ${notifLowBalance ? "bg-blue-600" : "bg-slate-700"}`}
+                      >
+                        <div className={`absolute top-[2px] w-4 h-4 rounded-full bg-white transition-all duration-300 ${notifLowBalance ? "left-[18px]" : "left-[2px]"}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* API Access */}
+                <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10">
+                      <Globe className="w-[18px] h-[18px]" />
+                    </div>
+                    <h3 className="text-base font-semibold text-white">API Access</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-white">Enable REST API</div>
+                        <div className="text-[10px] text-slate-500">Allow programmatic access</div>
+                      </div>
+                      <button
+                        onClick={() => setApiEnabled(!apiEnabled)}
+                        className={`relative w-9 h-5 rounded-full transition-colors duration-300 ${apiEnabled ? "bg-emerald-500" : "bg-slate-700"}`}
+                      >
+                        <div className={`absolute top-[2px] w-4 h-4 rounded-full bg-white transition-all duration-300 ${apiEnabled ? "left-[18px]" : "left-[2px]"}`} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-medium text-slate-500 mb-1 block">Rate Limit (req/min)</label>
                         <input
-                          type="text"
-                          value={editForm.name}
-                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                          className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
+                          type="number"
+                          value={apiRateLimit}
+                          onChange={(e) => setApiRateLimit(e.target.value)}
+                          className="w-full bg-[#020408] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1.5">Agency Slug</label>
-                        <div className="flex items-center gap-0">
-                          <input
-                            type="text"
-                            value={editForm.slug}
-                            onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
-                            className="flex-1 bg-white/[0.03] border border-white/10 rounded-l-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
-                          />
-                          <span className="px-3 py-2 bg-white/[0.02] border border-l-0 border-white/10 rounded-r-lg text-xs text-slate-500">
-                            .algofintech.com
-                          </span>
+                        <label className="text-[10px] font-medium text-slate-500 mb-1 block">Webhook Active</label>
+                        <div className="flex items-center gap-1 text-xs text-emerald-400 mt-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Yes
                         </div>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
+              </div>
 
-                {editSection === "contact" && (
-                  <div className="space-y-5">
-                    <h3 className="text-sm font-semibold text-white">Primary Contact</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1.5">Contact Name</label>
-                        <input
-                          type="text"
-                          value={editForm.contact_name}
-                          onChange={(e) => setEditForm({ ...editForm, contact_name: e.target.value })}
-                          className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1.5">Email Address</label>
-                        <input
-                          type="email"
-                          value={editForm.contact_email}
-                          onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
-                          className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1.5">Phone Number</label>
-                        <input
-                          type="tel"
-                          value={editForm.contact_phone}
-                          onChange={(e) => setEditForm({ ...editForm, contact_phone: e.target.value })}
-                          className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
-                        />
-                      </div>
+              {/* ── Section 6: Internal Notes & History (collapsible) ── */}
+              <div className="bg-[#0a0a0a] border border-white/5 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setShowAudit(!showAudit)}
+                  className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10">
+                      <Edit3 className="w-[18px] h-[18px]" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-white">Internal Notes &amp; History</h3>
+                      <p className="text-xs text-slate-500">Admin comments and audit log</p>
                     </div>
                   </div>
-                )}
-
-                {editSection === "account" && (
-                  <div className="space-y-5">
-                    <h3 className="text-sm font-semibold text-white">Account Details</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1.5">License Key</label>
-                        <input
-                          type="text"
-                          value={editForm.license_key}
-                          readOnly
-                          className="w-full bg-white/[0.02] border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-500 font-mono cursor-not-allowed"
-                        />
-                        <p className="text-[10px] text-slate-600 mt-1">License keys are auto-generated and cannot be changed.</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1.5">Sold By</label>
-                        <input
-                          type="text"
-                          value={editForm.sold_by}
-                          onChange={(e) => setEditForm({ ...editForm, sold_by: e.target.value })}
-                          className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50"
-                        />
-                      </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${showAudit ? "rotate-180" : ""}`} />
+                </button>
+                {showAudit && (
+                  <div className="px-6 pb-6 pt-0 border-t border-white/5">
+                    <div className="mt-4">
+                      <label className="text-xs font-medium text-amber-500 mb-2 flex items-center gap-1">
+                        <FileText className="w-3 h-3" />
+                        Private Admin Notes
+                      </label>
+                      <textarea
+                        value={editForm.admin_notes}
+                        onChange={(e) => setEditForm({ ...editForm, admin_notes: e.target.value })}
+                        className="w-full h-24 bg-[#020408] border border-amber-500/20 rounded-lg p-3 text-sm text-slate-300 focus:outline-none focus:border-amber-500/50 resize-none"
+                        placeholder="Add notes visible only to admins..."
+                      />
                     </div>
-                  </div>
-                )}
-
-                {editSection === "tier" && (
-                  <div className="space-y-5">
-                    <h3 className="text-sm font-semibold text-white">Tier & Status</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1.5">Partnership Tier</label>
-                        <select
-                          value={editForm.plan}
-                          onChange={(e) => setEditForm({ ...editForm, plan: e.target.value })}
-                          className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500/50"
-                        >
-                          <option value="starter" className="bg-[#0B0E14]">Starter</option>
-                          <option value="pro" className="bg-[#0B0E14]">Growth (Pro)</option>
-                          <option value="enterprise" className="bg-[#0B0E14]">Enterprise</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {editSection === "notifications" && (
-                  <div className="space-y-5">
-                    <h3 className="text-sm font-semibold text-white">Notifications</h3>
-                    <div className="text-xs text-slate-500">Notification preferences will be configurable soon.</div>
-                  </div>
-                )}
-
-                {editSection === "api" && (
-                  <div className="space-y-5">
-                    <h3 className="text-sm font-semibold text-white">API Access</h3>
-                    <div className="text-xs text-slate-500">API key management will be available soon.</div>
-                  </div>
-                )}
-
-                {editSection === "notes" && (
-                  <div className="space-y-5">
-                    <h3 className="text-sm font-semibold text-white">Internal Notes</h3>
-                    <textarea
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-lg p-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 resize-none h-32"
-                      placeholder="Add private notes about this agency..."
-                    />
                   </div>
                 )}
               </div>
+
+              <div className="h-4" />
             </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5">
+            {/* Footer Action Bar */}
+            <div className="bg-[#0a0a0a] border-t border-white/10 p-5 flex items-center justify-between shrink-0">
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 bg-white/5 border border-white/10 hover:border-white/20 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await fetch(`/api/admin/agencies/${agencyId}`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(editForm),
-                    });
-                    if (res.ok) {
-                      // Refresh data
-                      const updated = await fetch(`/api/admin/agencies/${agencyId}`).then((r) => r.json());
-                      setData(updated);
-                      setShowEditModal(false);
+              <div className="flex gap-3">
+                <button className="px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 text-sm font-medium transition-colors border border-transparent hover:border-white/10">
+                  Export Data
+                </button>
+                <button
+                  disabled={editSaving}
+                  onClick={async () => {
+                    setEditSaving(true);
+                    try {
+                      const res = await fetch(`/api/admin/agencies/${agencyId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(editForm),
+                      });
+                      if (res.ok) {
+                        const updated = await fetch(`/api/admin/agencies/${agencyId}`).then((r) => r.json());
+                        setData(updated);
+                        setShowEditModal(false);
+                      }
+                    } catch (err) {
+                      console.error("Failed to save:", err);
+                    } finally {
+                      setEditSaving(false);
                     }
-                  } catch (err) {
-                    console.error("Failed to save:", err);
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors shadow-lg shadow-blue-500/20"
-              >
-                Save Changes
-              </button>
+                  }}
+                  className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="w-4 h-4" />
+                  {editSaving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
