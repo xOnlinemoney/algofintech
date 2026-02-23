@@ -142,6 +142,15 @@ const PLATFORMS = [
     available: false,
   },
   {
+    id: "tradovate",
+    name: "Tradovate",
+    short: "TV",
+    color: "#0ea5e9",
+    textColor: "#ffffff",
+    desc: "Futures Trading (Beta)",
+    available: true,
+  },
+  {
     id: "ibkr",
     name: "Interactive Brokers",
     short: "IB",
@@ -158,6 +167,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   mt4: "MetaTrader 4",
   binance: "Binance",
   coinbase: "Coinbase",
+  tradovate: "Tradovate",
   ibkr: "Interactive Brokers",
 };
 
@@ -183,6 +193,10 @@ function ConnectModal({
   const [secretKey, setSecretKey] = useState("");
   const [accountId, setAccountId] = useState("");
   const [apiToken, setApiToken] = useState("");
+  const [tvAccountType, setTvAccountType] = useState<"Demo" | "Real">("Demo");
+  const [tvAccountNumber, setTvAccountNumber] = useState("");
+  const [tvUsername, setTvUsername] = useState("");
+  const [tvPassword, setTvPassword] = useState("");
 
   if (!open) return null;
 
@@ -196,6 +210,10 @@ function ConnectModal({
     setSecretKey("");
     setAccountId("");
     setApiToken("");
+    setTvAccountType("Demo");
+    setTvAccountNumber("");
+    setTvUsername("");
+    setTvPassword("");
     setError("");
   }
 
@@ -239,6 +257,13 @@ function ConnectModal({
         accountType = "Real";
         username = apiKey.trim();
         pwd = secretKey;
+      } else if (view === "tradovate") {
+        if (!tvUsername.trim() || !tvPassword.trim()) { setError("Username and password are required for Tradovate."); setConnecting(false); return; }
+        if (!tvAccountNumber.trim()) { setError("Account number is required."); setConnecting(false); return; }
+        accountNumber = tvAccountNumber.trim();
+        accountType = tvAccountType;
+        username = tvUsername.trim();
+        pwd = tvPassword;
       } else if (view === "ibkr") {
         if (!accountId.trim()) { setError("Account ID is required."); setConnecting(false); return; }
         accountNumber = accountId.trim();
@@ -485,6 +510,85 @@ function ConnectModal({
                 </>
               )}
 
+              {/* Tradovate form fields */}
+              {view === "tradovate" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Account Type
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setTvAccountType("Demo")}
+                        className={`py-2.5 rounded-lg text-sm font-medium border transition-all ${
+                          tvAccountType === "Demo"
+                            ? "bg-sky-500/10 border-sky-500/50 text-sky-400"
+                            : "bg-[#0B0E14] border-white/10 text-slate-400 hover:border-white/20"
+                        }`}
+                      >
+                        Demo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTvAccountType("Real")}
+                        className={`py-2.5 rounded-lg text-sm font-medium border transition-all ${
+                          tvAccountType === "Real"
+                            ? "bg-sky-500/10 border-sky-500/50 text-sky-400"
+                            : "bg-[#0B0E14] border-white/10 text-slate-400 hover:border-white/20"
+                        }`}
+                      >
+                        Real
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Account Number
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 12345678"
+                      value={tvAccountNumber}
+                      onChange={(e) => setTvAccountNumber(e.target.value)}
+                      className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-sky-500 placeholder-slate-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Username
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Your Tradovate username"
+                      value={tvUsername}
+                      onChange={(e) => setTvUsername(e.target.value)}
+                      className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-sky-500 placeholder-slate-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Your Tradovate password"
+                      value={tvPassword}
+                      onChange={(e) => setTvPassword(e.target.value)}
+                      className="w-full bg-[#0B0E14] border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-sky-500 placeholder-slate-600"
+                    />
+                  </div>
+                  <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-3 flex gap-3">
+                    <ShieldCheck className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                    <p className="text-xs text-sky-200">
+                      Your Tradovate credentials are encrypted before being
+                      transmitted. We only use them to execute trades and read
+                      account data.
+                    </p>
+                  </div>
+                </>
+              )}
+
               {/* IBKR form fields */}
               {view === "ibkr" && (
                 <>
@@ -546,7 +650,9 @@ function ConnectModal({
                     ? "bg-slate-600 cursor-not-allowed"
                     : view === "binance"
                       ? "bg-yellow-600 hover:bg-yellow-500"
-                      : "bg-blue-600 hover:bg-blue-500"
+                      : view === "tradovate"
+                        ? "bg-sky-600 hover:bg-sky-500"
+                        : "bg-blue-600 hover:bg-blue-500"
                 }`}
               >
                 <span>
