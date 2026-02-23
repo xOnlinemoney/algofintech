@@ -15,6 +15,7 @@ import {
   HelpCircle,
   BookOpen,
   Link2,
+  MessageCircleQuestion,
 } from "lucide-react";
 
 interface ClientSession {
@@ -123,6 +124,13 @@ export default function ClientSidebar() {
         >
           <Link2 className="w-4 h-4 text-slate-500" />
           <span className="font-medium text-sm">Connect Your Account</span>
+        </a>
+        <a
+          href="#"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-transparent transition-all"
+        >
+          <MessageCircleQuestion className="w-4 h-4 text-slate-500" />
+          <span className="font-medium text-sm">FAQ</span>
         </a>
       </div>
 
