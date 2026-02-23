@@ -67,6 +67,27 @@ export async function GET() {
       }
     }
 
+    // ── Migration 4: Add status column to agencies ──
+    const agencyStatusMigrations = [
+      `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';`,
+      `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS contact_name TEXT;`,
+      `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS contact_email TEXT;`,
+      `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS contact_phone TEXT;`,
+      `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS sold_by TEXT;`,
+      `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS website TEXT;`,
+      `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS monthly_fee NUMERIC DEFAULT 0;`,
+      `ALTER TABLE agencies ADD COLUMN IF NOT EXISTS admin_notes TEXT;`,
+    ];
+
+    for (const sql of agencyStatusMigrations) {
+      const { error: migErr } = await supabase.rpc("exec_sql", { query: sql });
+      if (migErr) {
+        log.push(`Migration error (${sql.slice(0, 50)}...): ${migErr.message}`);
+      } else {
+        log.push(`OK: ${sql.slice(0, 60)}...`);
+      }
+    }
+
     return NextResponse.json({ log }, { status: 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

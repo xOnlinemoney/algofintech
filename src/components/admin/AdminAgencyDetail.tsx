@@ -51,12 +51,16 @@ interface AgencyInfo {
   name: string;
   slug: string;
   plan: string;
+  status: string;
   created_at: string;
   license_key?: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;
   sold_by?: string | null;
   contact_name?: string | null;
+  website?: string | null;
+  monthly_fee?: number;
+  admin_notes?: string;
 }
 
 interface AgencyStats {
@@ -309,10 +313,10 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
             plan: d.agency.plan || "starter",
             sold_by: d.agency.sold_by || "",
             license_key: d.agency.license_key || "",
-            website: "",
-            monthly_fee: d.agency.plan === "enterprise" ? "2500" : d.agency.plan === "pro" ? "1250" : "500",
-            status: "active",
-            admin_notes: "",
+            website: d.agency.website || "",
+            monthly_fee: String(d.agency.monthly_fee || (d.agency.plan === "enterprise" ? 2500 : d.agency.plan === "pro" ? 1250 : 500)),
+            status: d.agency.status || "active",
+            admin_notes: d.agency.admin_notes || "",
           });
         }
         setLoading(false);

@@ -200,12 +200,16 @@ export async function GET(
           name: agency.name,
           slug: agency.slug,
           plan: agency.plan || "starter",
+          status: agency.status || "active",
           created_at: agency.created_at,
           license_key: agencyKey?.license_key || null,
           contact_email: keyMetadata.contact_email || agency.contact_email || null,
           contact_phone: keyMetadata.contact_phone || agency.contact_phone || null,
           sold_by: keyMetadata.sold_by || agency.sold_by || null,
-          contact_name: keyMetadata.contact_name || null,
+          contact_name: keyMetadata.contact_name || agency.contact_name || null,
+          website: agency.website || null,
+          monthly_fee: agency.monthly_fee || 0,
+          admin_notes: agency.admin_notes || "",
         },
         stats: {
           totalClients,
@@ -262,7 +266,10 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, slug, plan, contact_email, contact_phone, contact_name, sold_by } = body;
+    const {
+      name, slug, plan, contact_email, contact_phone, contact_name,
+      sold_by, status, website, monthly_fee, admin_notes,
+    } = body;
 
     // Update the agency record
     const agencyUpdates: Record<string, unknown> = {};
@@ -271,7 +278,13 @@ export async function PUT(
     if (plan !== undefined) agencyUpdates.plan = plan;
     if (contact_email !== undefined) agencyUpdates.contact_email = contact_email;
     if (contact_phone !== undefined) agencyUpdates.contact_phone = contact_phone;
+    if (contact_name !== undefined) agencyUpdates.contact_name = contact_name;
     if (sold_by !== undefined) agencyUpdates.sold_by = sold_by;
+    if (status !== undefined) agencyUpdates.status = status;
+    if (website !== undefined) agencyUpdates.website = website;
+    if (monthly_fee !== undefined) agencyUpdates.monthly_fee = parseFloat(monthly_fee) || 0;
+    if (admin_notes !== undefined) agencyUpdates.admin_notes = admin_notes;
+    agencyUpdates.updated_at = new Date().toISOString();
 
     if (Object.keys(agencyUpdates).length > 0) {
       const { error: updateErr } = await supabase
@@ -286,6 +299,34 @@ export async function PUT(
           { status: 500 }
         );
       }
+    }
+
+    // ── Status cascade: when agency is paused or suspended ──
+    if (status === "paused" || status === "suspended") {
+      // 1. Pause/suspend all clients under this agency
+      const clientStatus = status === "suspended" ? "suspended" : "inactive";
+      await supabase
+        .from("clients")
+        .update({ status: clientStatus })
+        .eq("agency_id", id);
+
+      // 2. Deactivate all client accounts under this agency
+      await supabase
+        .from("client_accounts")
+        .update({ is_active: false, status: "off" })
+        .eq("agency_id", id);
+    } else if (status === "active") {
+      // When re-activating, set clients back to active
+      await supabase
+        .from("clients")
+        .update({ status: "active" })
+        .eq("agency_id", id);
+
+      // Re-activate accounts
+      await supabase
+        .from("client_accounts")
+        .update({ is_active: true, status: "active" })
+        .eq("agency_id", id);
     }
 
     // Also update the software_keys metadata if contact info changed

@@ -1,5 +1,6 @@
 import Sidebar from "@/components/dashboard/Sidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import AgencyStatusBanner from "@/components/dashboard/AgencyStatusBanner";
 import { SavedAlgorithmsProvider } from "@/context/SavedAlgorithmsContext";
 
 export default function DashboardLayout({
@@ -14,6 +15,7 @@ export default function DashboardLayout({
           <Sidebar />
 
           <main className="flex-1 flex flex-col min-w-0 bg-[#0A0C10]">
+            <AgencyStatusBanner />
             <DashboardHeader />
 
             <div className="flex-1 overflow-auto custom-scrollbar">
