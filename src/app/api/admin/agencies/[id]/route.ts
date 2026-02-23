@@ -145,6 +145,18 @@ export async function GET(
         accounts_count: clientAccs.length,
         active_accounts: clientActiveAccounts,
         aum: clientAUM,
+        accounts: clientAccs.map((a) => ({
+          id: a.id,
+          account_name: a.account_name || a.platform || "Unknown",
+          platform: a.platform || "Unknown",
+          account_number: a.account_number || a.account_id || "",
+          balance: a.balance || 0,
+          equity: a.equity || 0,
+          pnl: a.pnl || 0,
+          is_active: a.is_active || false,
+          asset_class: a.asset_class || "Other",
+          broker: a.broker || "",
+        })),
       };
     });
 

@@ -63,6 +63,19 @@ interface AgencyStats {
   revenue: number;
 }
 
+interface ClientAccount {
+  id: string;
+  account_name: string;
+  platform: string;
+  account_number: string;
+  balance: number;
+  equity: number;
+  pnl: number;
+  is_active: boolean;
+  asset_class: string;
+  broker: string;
+}
+
 interface ClientData {
   id: string;
   client_id: string;
@@ -81,6 +94,7 @@ interface ClientData {
   accounts_count: number;
   active_accounts: number;
   aum: number;
+  accounts: ClientAccount[];
 }
 
 interface HealthInfo {
@@ -640,47 +654,78 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
                       className="w-full px-4 py-2 border-t border-white/5 bg-white/[0.02] text-[10px] text-slate-500 hover:text-slate-300 transition-colors flex items-center justify-center gap-1"
                     >
                       {isExpanded ? (
-                        <>Less Details <ChevronUp className="w-3 h-3" /></>
+                        <>Collapse Accounts <ChevronUp className="w-3 h-3" /></>
                       ) : (
-                        <>More Details <ChevronDown className="w-3 h-3" /></>
+                        <>{client.accounts_count} Connected Account{client.accounts_count !== 1 ? "s" : ""} <ChevronDown className="w-3 h-3" /></>
                       )}
                     </button>
 
-                    {/* Expanded Details */}
+                    {/* Expanded: Connected Accounts */}
                     {isExpanded && (
-                      <div className="px-4 pb-4 border-t border-white/5 space-y-2 pt-3">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-500">Email</span>
-                          <span className="text-slate-300">{client.email || "N/A"}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-500">Phone</span>
-                          <span className="text-slate-300">{client.phone || "N/A"}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-500">Broker</span>
-                          <span className="text-slate-300">{client.broker || "N/A"}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-500">Active Accounts</span>
-                          <span className="text-emerald-400">{client.active_accounts}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-500">Risk Level</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] border ${
-                            client.risk_level === "low" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                            client.risk_level === "high" ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                            "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                          }`}>
-                            {client.risk_level || "Medium"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-500">Status</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] border capitalize ${statusBadge(client.status)}`}>
-                            {client.status}
-                          </span>
-                        </div>
+                      <div className="bg-[#0F1219] border-t border-white/5 p-4 space-y-3">
+                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Connected Accounts</div>
+
+                        {(!client.accounts || client.accounts.length === 0) ? (
+                          <div className="text-xs text-slate-600 text-center py-4">No connected accounts</div>
+                        ) : (
+                          client.accounts.map((acc) => (
+                            <div key={acc.id} className="bg-[#020408] border border-white/5 rounded-lg p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-6 h-6 rounded text-[8px] flex items-center justify-center font-bold ${
+                                    acc.platform.toLowerCase().includes("binance")
+                                      ? "bg-[#F0B90B] text-black"
+                                      : acc.platform.toLowerCase().includes("mt5") || acc.platform.toLowerCase().includes("mt4")
+                                      ? "bg-[#2a2e39] text-slate-300"
+                                      : acc.platform.toLowerCase().includes("tradovate")
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-slate-700 text-slate-300"
+                                  }`}>
+                                    {acc.platform.toLowerCase().includes("binance") ? "BIN" :
+                                     acc.platform.toLowerCase().includes("mt5") ? "MT5" :
+                                     acc.platform.toLowerCase().includes("mt4") ? "MT4" :
+                                     acc.platform.toLowerCase().includes("tradovate") ? "TDV" :
+                                     acc.platform.slice(0, 3).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div className="text-xs font-medium text-white">{acc.account_name}</div>
+                                    <div className="text-[10px] text-slate-500">
+                                      {acc.account_number ? `****${acc.account_number.slice(-4)}` : "N/A"}
+                                    </div>
+                                  </div>
+                                </div>
+                                <span className={`w-1.5 h-1.5 rounded-full ${acc.is_active ? "bg-emerald-500" : "bg-slate-500"}`} />
+                              </div>
+                              <div className="flex justify-between items-end">
+                                <div>
+                                  <div className="text-[10px] text-slate-500">Balance</div>
+                                  <div className="text-sm font-semibold text-white">{formatCurrency(acc.balance)}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-[10px] text-slate-500">P&L</div>
+                                  <div className={`text-sm font-semibold ${acc.pnl >= 0 ? "text-emerald-500" : "text-red-400"}`}>
+                                    {acc.pnl >= 0 ? "+" : ""}{formatCurrency(Math.abs(acc.pnl))}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex gap-2">
+                                <button className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                                  View Trades
+                                </button>
+                                <button className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5 transition-colors">
+                                  Pause
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+
+                        <button
+                          onClick={() => toggleClientExpand(client.id)}
+                          className="w-full py-2 text-xs text-slate-500 hover:text-white transition-colors flex items-center justify-center gap-1 border-t border-white/5 mt-2"
+                        >
+                          <ChevronUp className="w-3 h-3" /> Collapse Accounts
+                        </button>
                       </div>
                     )}
                   </div>
