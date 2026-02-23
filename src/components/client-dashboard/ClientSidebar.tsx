@@ -117,13 +117,17 @@ export default function ClientSidebar() {
           <BookOpen className="w-4 h-4 text-slate-500" />
           <span className="font-medium text-sm">Get a Prop Firm Account</span>
         </a>
-        <a
-          href="#"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-transparent transition-all"
+        <Link
+          href="/client-dashboard/connect-guide"
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+            pathname === "/client-dashboard/connect-guide"
+              ? "text-white bg-white/5 border border-white/5"
+              : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
+          }`}
         >
-          <Link2 className="w-4 h-4 text-slate-500" />
+          <Link2 className={`w-4 h-4 ${pathname === "/client-dashboard/connect-guide" ? "text-blue-400" : "text-slate-500"}`} />
           <span className="font-medium text-sm">Connect Your Account</span>
-        </a>
+        </Link>
         <a
           href="#"
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-transparent transition-all"
