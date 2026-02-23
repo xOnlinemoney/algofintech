@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 function getSupabase() {
@@ -10,28 +10,49 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-export async function GET() {
+export const dynamic = "force-dynamic";
+
+export async function GET(req: NextRequest) {
   const supabase = getSupabase();
   if (!supabase) {
     return NextResponse.json({ data: null, error: "No Supabase" });
   }
 
   try {
-    // For now, fetch the first client dashboard record
-    // In production this would use auth to determine which client
-    const { data: dashboard, error } = await supabase
-      .from("client_dashboards")
-      .select("*")
-      .limit(1)
+    // Get the client_id from query params (display ID like "CL-1234")
+    const clientDisplayId = req.nextUrl.searchParams.get("client_id");
+
+    // If no client_id provided, return empty — don't return random data
+    if (!clientDisplayId) {
+      return NextResponse.json({ data: null });
+    }
+
+    // Look up the client UUID from the clients table
+    const { data: clientRow } = await supabase
+      .from("clients")
+      .select("id, agency_id")
+      .eq("client_id", clientDisplayId)
       .single();
 
-    if (error || !dashboard) {
+    // Try to find a dashboard record for this specific client
+    let dashboard = null;
+    if (clientRow) {
+      const { data: db } = await supabase
+        .from("client_dashboards")
+        .select("*")
+        .eq("client_id", clientRow.id)
+        .limit(1)
+        .single();
+      dashboard = db;
+    }
+
+    // If no dashboard exists for this client, return null (empty state)
+    if (!dashboard) {
       return NextResponse.json({ data: null });
     }
 
     // Fetch connected accounts from the SHARED client_accounts table
-    // (same table the agency sees when managing this client)
-    const clientId = dashboard.client_id;
+    const clientId = clientRow?.id || dashboard.client_id;
     const { data: sharedAccounts } = clientId
       ? await supabase
           .from("client_accounts")

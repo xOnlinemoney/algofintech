@@ -151,22 +151,24 @@ export default function ClientDashboardPage() {
   const [expandedTrade, setExpandedTrade] = useState<string | null>(null);
   const [chartTimeframe, setChartTimeframe] = useState("7D");
 
-  // Load client name from session
+  // Load client session and fetch dashboard data
   useEffect(() => {
+    let cId = "";
     try {
       const stored = localStorage.getItem("client_session");
       if (stored) {
         const session = JSON.parse(stored);
         setClientName(session.client_name || "");
+        cId = session.client_id || "";
       }
     } catch {
       /* ignore */
     }
-  }, []);
 
-  // Fetch from API (stays empty if no data)
-  useEffect(() => {
-    fetch("/api/client-dashboard")
+    // Only fetch if we have a client_id — otherwise stay empty
+    if (!cId) return;
+
+    fetch(`/api/client-dashboard?client_id=${encodeURIComponent(cId)}`)
       .then((r) => r.json())
       .then((json) => {
         if (json.data) setData(json.data);
