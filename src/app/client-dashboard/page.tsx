@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Wallet,
   BarChart,
@@ -10,7 +11,6 @@ import {
   X,
   Zap,
   PlusCircle,
-  Sliders,
   ChevronRight,
   CreditCard,
 } from "lucide-react";
@@ -145,6 +145,7 @@ function EmptyState({ icon, title, description }: { icon: React.ReactNode; title
 
 // ─── Main Page ───────────────────────────────────────────
 export default function ClientDashboardPage() {
+  const router = useRouter();
   const [data, setData] = useState<DashboardData>(EMPTY_DATA);
   const [clientName, setClientName] = useState("");
   const [showAlert, setShowAlert] = useState(false);
@@ -554,19 +555,15 @@ export default function ClientDashboardPage() {
           <div className="bg-[#0B0E14] border border-white/5 rounded-xl p-5 hover:border-white/8 transition-colors">
             <h3 className="text-sm font-semibold text-white mb-4">Quick Actions</h3>
             <div className="space-y-2">
-              <button className="w-full flex items-center justify-between p-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-500/20 group">
+              <button
+                onClick={() => router.push("/client-dashboard/accounts?connect=1")}
+                className="w-full flex items-center justify-between p-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-500/20 group"
+              >
                 <div className="flex items-center gap-3">
                   <PlusCircle className="w-4 h-4" />
                   <span className="font-medium text-sm">Connect New Account</span>
                 </div>
                 <ChevronRight className="w-4 h-4 opacity-70 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button className="w-full flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-slate-300 hover:text-white transition-all group">
-                <div className="flex items-center gap-3">
-                  <Sliders className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                  <span className="font-medium text-sm">Adjust Risk Settings</span>
-                </div>
-                <ChevronRight className="w-4 h-4 opacity-50 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           </div>
@@ -607,7 +604,10 @@ export default function ClientDashboardPage() {
               ) : (
                 <p className="text-xs text-slate-600 text-center py-4">No accounts connected yet.</p>
               )}
-              <button className="w-full py-2 border border-dashed border-white/10 rounded-lg text-xs text-slate-500 hover:text-white hover:border-white/20 transition-all">
+              <button
+                onClick={() => router.push("/client-dashboard/accounts?connect=1")}
+                className="w-full py-2 border border-dashed border-white/10 rounded-lg text-xs text-slate-500 hover:text-white hover:border-white/20 transition-all"
+              >
                 + Connect Another Account
               </button>
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Link as LinkIcon,
   Wallet,
@@ -1106,10 +1107,26 @@ function AccountCard({
 
 // ─── Main Page ───────────────────────────────────────────
 export default function ClientAccountsPage() {
+  return (
+    <Suspense>
+      <ClientAccountsInner />
+    </Suspense>
+  );
+}
+
+function ClientAccountsInner() {
+  const searchParams = useSearchParams();
   const [data, setData] = useState<PageData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [clientId, setClientId] = useState("");
+
+  // Auto-open connect modal if ?connect=1 is in URL
+  useEffect(() => {
+    if (searchParams.get("connect") === "1") {
+      setModalOpen(true);
+    }
+  }, [searchParams]);
 
   // Get client_id from session
   useEffect(() => {
