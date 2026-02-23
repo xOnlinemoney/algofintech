@@ -222,3 +222,78 @@ export async function GET(
     );
   }
 }
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = getSupabase();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Supabase not configured." },
+        { status: 503 }
+      );
+    }
+
+    const body = await request.json();
+    const { name, slug, plan, contact_email, contact_phone, contact_name, sold_by } = body;
+
+    // Update the agency record
+    const agencyUpdates: Record<string, unknown> = {};
+    if (name !== undefined) agencyUpdates.name = name;
+    if (slug !== undefined) agencyUpdates.slug = slug;
+    if (plan !== undefined) agencyUpdates.plan = plan;
+    if (contact_email !== undefined) agencyUpdates.contact_email = contact_email;
+    if (contact_phone !== undefined) agencyUpdates.contact_phone = contact_phone;
+    if (sold_by !== undefined) agencyUpdates.sold_by = sold_by;
+
+    if (Object.keys(agencyUpdates).length > 0) {
+      const { error: updateErr } = await supabase
+        .from("agencies")
+        .update(agencyUpdates)
+        .eq("id", id);
+
+      if (updateErr) {
+        console.error("Agency update error:", updateErr);
+        return NextResponse.json(
+          { error: `Failed to update agency: ${updateErr.message}` },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Also update the software_keys metadata if contact info changed
+    if (contact_name || contact_email || contact_phone || sold_by) {
+      const { data: existingKey } = await supabase
+        .from("software_keys")
+        .select("id, metadata")
+        .eq("agency_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (existingKey) {
+        const metadata = existingKey.metadata || {};
+        if (contact_name !== undefined) metadata.contact_name = contact_name;
+        if (contact_email !== undefined) metadata.contact_email = contact_email;
+        if (contact_phone !== undefined) metadata.contact_phone = contact_phone;
+        if (sold_by !== undefined) metadata.sold_by = sold_by;
+
+        await supabase
+          .from("software_keys")
+          .update({ metadata })
+          .eq("id", existingKey.id);
+      }
+    }
+
+    return NextResponse.json({ message: "Agency updated!" }, { status: 200 });
+  } catch (err) {
+    console.error("Admin agency update API error:", err);
+    return NextResponse.json(
+      { error: "Internal server error." },
+      { status: 500 }
+    );
+  }
+}
