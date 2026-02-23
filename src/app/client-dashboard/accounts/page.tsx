@@ -230,19 +230,19 @@ function ConnectModal({
       if (view === "mt5" || view === "mt4") {
         if (!loginId.trim()) { setError("Login ID is required."); setConnecting(false); return; }
         accountNumber = loginId.trim();
-        accountType = "Live";
+        accountType = "live";
         username = loginId.trim();
         pwd = password;
       } else if (view === "binance") {
         if (!apiKey.trim()) { setError("API Key is required."); setConnecting(false); return; }
         accountNumber = apiKey.trim().slice(-8) || apiKey.trim();
-        accountType = "Spot Trading";
+        accountType = "live";
         username = apiKey.trim();
         pwd = secretKey;
       } else if (view === "ibkr") {
         if (!accountId.trim()) { setError("Account ID is required."); setConnecting(false); return; }
         accountNumber = accountId.trim();
-        accountType = "Live";
+        accountType = "live";
         username = accountId.trim();
         pwd = apiToken;
       }
