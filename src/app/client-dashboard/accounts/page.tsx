@@ -223,26 +223,26 @@ function ConnectModal({
       // Build the request body based on platform
       const platformName = PLATFORM_NAMES[view] || view;
       let accountNumber = "";
-      let accountType = "live";
+      let accountType = "Real";
       let username = "";
       let pwd = "";
 
       if (view === "mt5" || view === "mt4") {
         if (!loginId.trim()) { setError("Login ID is required."); setConnecting(false); return; }
         accountNumber = loginId.trim();
-        accountType = "live";
+        accountType = "Real";
         username = loginId.trim();
         pwd = password;
       } else if (view === "binance") {
         if (!apiKey.trim()) { setError("API Key is required."); setConnecting(false); return; }
         accountNumber = apiKey.trim().slice(-8) || apiKey.trim();
-        accountType = "live";
+        accountType = "Real";
         username = apiKey.trim();
         pwd = secretKey;
       } else if (view === "ibkr") {
         if (!accountId.trim()) { setError("Account ID is required."); setConnecting(false); return; }
         accountNumber = accountId.trim();
-        accountType = "live";
+        accountType = "Real";
         username = accountId.trim();
         pwd = apiToken;
       }
