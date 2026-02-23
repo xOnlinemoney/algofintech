@@ -183,7 +183,14 @@ export default function Sidebar() {
 
       {/* User Profile + Logout */}
       <div className="p-3 border-t border-white/5 mt-auto space-y-1">
-        <button className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-white/5 transition-colors text-left group">
+        <Link
+          href="/dashboard/settings"
+          className={
+            pathname === "/dashboard/settings"
+              ? "flex items-center gap-3 w-full p-2 rounded-lg bg-blue-500/10 border border-blue-500/10 text-left group"
+              : "flex items-center gap-3 w-full p-2 rounded-lg hover:bg-white/5 transition-colors text-left group"
+          }
+        >
           <div className="relative">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs ring-1 ring-white/10">
               {userInitials}
@@ -199,7 +206,7 @@ export default function Sidebar() {
             </div>
           </div>
           <Settings className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400" />
-        </button>
+        </Link>
 
         <button
           onClick={handleLogout}

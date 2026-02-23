@@ -13,6 +13,7 @@ const breadcrumbMap: Record<string, string> = {
   "/dashboard/new-algorithms": "New Algorithms",
   "/dashboard/industry-news": "Industry News",
   "/dashboard/announcements": "Announcements",
+  "/dashboard/settings": "White-Label Settings",
 };
 
 export default function DashboardHeader() {
