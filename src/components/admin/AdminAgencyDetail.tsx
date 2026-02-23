@@ -28,6 +28,9 @@ import {
   FileText,
   Clock,
   Settings,
+  Eye,
+  EyeOff,
+  Copy,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────
@@ -66,14 +69,20 @@ interface AgencyStats {
 interface ClientAccount {
   id: string;
   account_name: string;
+  account_label: string;
   platform: string;
+  account_type: string;
   account_number: string;
+  username: string;
+  password: string;
   balance: number;
   equity: number;
   pnl: number;
   is_active: boolean;
+  status: string;
   asset_class: string;
   broker: string;
+  currency: string;
 }
 
 interface ClientData {
@@ -197,6 +206,20 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
   const [editSection, setEditSection] = useState("basic");
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [revealedPasswords, setRevealedPasswords] = useState<Set<string>>(new Set());
+
+  const togglePasswordReveal = (accountId: string) => {
+    setRevealedPasswords((prev) => {
+      const next = new Set(prev);
+      if (next.has(accountId)) next.delete(accountId);
+      else next.add(accountId);
+      return next;
+    });
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+  };
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -668,56 +691,141 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
                         {(!client.accounts || client.accounts.length === 0) ? (
                           <div className="text-xs text-slate-600 text-center py-4">No connected accounts</div>
                         ) : (
-                          client.accounts.map((acc) => (
-                            <div key={acc.id} className="bg-[#020408] border border-white/5 rounded-lg p-3">
-                              <div className="flex justify-between items-start mb-2">
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-6 h-6 rounded text-[8px] flex items-center justify-center font-bold ${
-                                    acc.platform.toLowerCase().includes("binance")
-                                      ? "bg-[#F0B90B] text-black"
-                                      : acc.platform.toLowerCase().includes("mt5") || acc.platform.toLowerCase().includes("mt4")
-                                      ? "bg-[#2a2e39] text-slate-300"
-                                      : acc.platform.toLowerCase().includes("tradovate")
-                                      ? "bg-blue-600 text-white"
-                                      : "bg-slate-700 text-slate-300"
-                                  }`}>
-                                    {acc.platform.toLowerCase().includes("binance") ? "BIN" :
-                                     acc.platform.toLowerCase().includes("mt5") ? "MT5" :
-                                     acc.platform.toLowerCase().includes("mt4") ? "MT4" :
-                                     acc.platform.toLowerCase().includes("tradovate") ? "TDV" :
-                                     acc.platform.slice(0, 3).toUpperCase()}
+                          client.accounts.map((acc) => {
+                            const isPasswordRevealed = revealedPasswords.has(acc.id);
+                            const platformLower = acc.platform.toLowerCase();
+                            return (
+                              <div key={acc.id} className="bg-[#020408] border border-white/5 rounded-lg p-3 space-y-3">
+                                {/* Account Header */}
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-6 h-6 rounded text-[8px] flex items-center justify-center font-bold ${
+                                      platformLower.includes("binance")
+                                        ? "bg-[#F0B90B] text-black"
+                                        : platformLower.includes("mt5") || platformLower.includes("metatrader 5")
+                                        ? "bg-[#2a2e39] text-slate-300"
+                                        : platformLower.includes("mt4") || platformLower.includes("metatrader 4")
+                                        ? "bg-[#2a2e39] text-slate-300"
+                                        : platformLower.includes("tradovate")
+                                        ? "bg-blue-600 text-white"
+                                        : platformLower.includes("bybit")
+                                        ? "bg-orange-500 text-white"
+                                        : "bg-slate-700 text-slate-300"
+                                    }`}>
+                                      {platformLower.includes("binance") ? "BIN" :
+                                       platformLower.includes("mt5") || platformLower.includes("metatrader 5") ? "MT5" :
+                                       platformLower.includes("mt4") || platformLower.includes("metatrader 4") ? "MT4" :
+                                       platformLower.includes("tradovate") ? "TDV" :
+                                       platformLower.includes("bybit") ? "BYB" :
+                                       acc.platform.slice(0, 3).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-medium text-white">{acc.account_name}</div>
+                                      <div className="text-[10px] text-slate-500">{acc.platform} &middot; {acc.account_type}</div>
+                                    </div>
                                   </div>
+                                  <span className={`w-1.5 h-1.5 rounded-full mt-1 ${acc.is_active ? "bg-emerald-500" : "bg-slate-500"}`} />
+                                </div>
+
+                                {/* Balance & P&L Row */}
+                                <div className="flex justify-between items-end">
                                   <div>
-                                    <div className="text-xs font-medium text-white">{acc.account_name}</div>
-                                    <div className="text-[10px] text-slate-500">
-                                      {acc.account_number ? `****${acc.account_number.slice(-4)}` : "N/A"}
+                                    <div className="text-[10px] text-slate-500">Balance</div>
+                                    <div className="text-sm font-semibold text-white">{formatCurrency(acc.balance)}</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-[10px] text-slate-500">P&L</div>
+                                    <div className={`text-sm font-semibold ${acc.pnl >= 0 ? "text-emerald-500" : "text-red-400"}`}>
+                                      {acc.pnl >= 0 ? "+" : ""}{formatCurrency(Math.abs(acc.pnl))}
                                     </div>
                                   </div>
                                 </div>
-                                <span className={`w-1.5 h-1.5 rounded-full ${acc.is_active ? "bg-emerald-500" : "bg-slate-500"}`} />
-                              </div>
-                              <div className="flex justify-between items-end">
-                                <div>
-                                  <div className="text-[10px] text-slate-500">Balance</div>
-                                  <div className="text-sm font-semibold text-white">{formatCurrency(acc.balance)}</div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-[10px] text-slate-500">P&L</div>
-                                  <div className={`text-sm font-semibold ${acc.pnl >= 0 ? "text-emerald-500" : "text-red-400"}`}>
-                                    {acc.pnl >= 0 ? "+" : ""}{formatCurrency(Math.abs(acc.pnl))}
+
+                                {/* Account Details */}
+                                <div className="border-t border-white/5 pt-3 space-y-2">
+                                  {/* Broker */}
+                                  <div className="flex justify-between items-center text-[11px]">
+                                    <span className="text-slate-500">Broker</span>
+                                    <span className="text-slate-300 font-medium">{acc.broker || acc.platform}</span>
+                                  </div>
+
+                                  {/* Account Number */}
+                                  <div className="flex justify-between items-center text-[11px]">
+                                    <span className="text-slate-500">Account #</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-slate-300 font-mono">{acc.account_number || "N/A"}</span>
+                                      {acc.account_number && (
+                                        <button
+                                          onClick={() => copyToClipboard(acc.account_number)}
+                                          className="text-slate-600 hover:text-slate-300 transition-colors"
+                                          title="Copy"
+                                        >
+                                          <Copy className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Username */}
+                                  <div className="flex justify-between items-center text-[11px]">
+                                    <span className="text-slate-500">Username</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-slate-300 font-mono">{acc.username || "N/A"}</span>
+                                      {acc.username && (
+                                        <button
+                                          onClick={() => copyToClipboard(acc.username)}
+                                          className="text-slate-600 hover:text-slate-300 transition-colors"
+                                          title="Copy"
+                                        >
+                                          <Copy className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Password */}
+                                  <div className="flex justify-between items-center text-[11px]">
+                                    <span className="text-slate-500">Password</span>
+                                    <div className="flex items-center gap-1.5">
+                                      {acc.password ? (
+                                        <>
+                                          <span className="text-slate-300 font-mono">
+                                            {isPasswordRevealed ? acc.password : "••••••••"}
+                                          </span>
+                                          <button
+                                            onClick={() => togglePasswordReveal(acc.id)}
+                                            className="text-slate-600 hover:text-slate-300 transition-colors"
+                                            title={isPasswordRevealed ? "Hide password" : "Show password"}
+                                          >
+                                            {isPasswordRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                          </button>
+                                          <button
+                                            onClick={() => copyToClipboard(acc.password)}
+                                            className="text-slate-600 hover:text-slate-300 transition-colors"
+                                            title="Copy"
+                                          >
+                                            <Copy className="w-3 h-3" />
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <span className="text-slate-600 italic">Not set</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-2">
+                                  <button className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                                    View Trades
+                                  </button>
+                                  <button className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5 transition-colors">
+                                    Pause
+                                  </button>
+                                </div>
                               </div>
-                              <div className="mt-3 flex gap-2">
-                                <button className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-                                  View Trades
-                                </button>
-                                <button className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5 transition-colors">
-                                  Pause
-                                </button>
-                              </div>
-                            </div>
-                          ))
+                            );
+                          })
                         )}
 
                         <button
