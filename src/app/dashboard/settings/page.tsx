@@ -141,6 +141,15 @@ export default function WhiteLabelSettingsPage() {
     []
   );
 
+  // Update agency-level fields (contact email, phone, website)
+  function updateAgency<K extends keyof AgencyData>(key: K, value: AgencyData[K]) {
+    setAgency((prev) => {
+      if (!prev) return prev;
+      setHasChanges(true);
+      return { ...prev, [key]: value };
+    });
+  }
+
   // Save
   async function handleSave() {
     if (!agency || !settings) return;
@@ -158,10 +167,23 @@ export default function WhiteLabelSettingsPage() {
           name: settings.business_name || agency.name,
           contact_email: agency.contact_email,
           contact_phone: agency.contact_phone,
+          contact_name: agency.contact_name,
+          website: agency.website,
           settings,
         }),
       });
-      if (!res.ok) throw new Error("Save failed");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Save failed");
+      }
+
+      // Update localStorage agency_session so sidebar reflects new name immediately
+      const updatedSession = {
+        ...session,
+        agency_name: settings.business_name || session.agency_name,
+      };
+      localStorage.setItem("agency_session", JSON.stringify(updatedSession));
+
       originalSettings.current = { ...settings };
       setHasChanges(false);
       setShowToast(true);
@@ -405,7 +427,7 @@ export default function WhiteLabelSettingsPage() {
                       <input
                         type="email"
                         value={agency.contact_email || ""}
-                        readOnly
+                        onChange={(e) => updateAgency("contact_email", e.target.value)}
                         className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 pr-12 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600 transition-colors"
                         placeholder="name@yourdomain.com"
                       />
@@ -431,7 +453,7 @@ export default function WhiteLabelSettingsPage() {
                     <input
                       type="tel"
                       value={agency.contact_phone || ""}
-                      readOnly
+                      onChange={(e) => updateAgency("contact_phone", e.target.value)}
                       className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600 transition-colors"
                       placeholder="(555) 123-4567"
                     />
@@ -1231,7 +1253,7 @@ export default function WhiteLabelSettingsPage() {
                     <input
                       type="url"
                       value={agency.website || ""}
-                      readOnly
+                      onChange={(e) => updateAgency("website", e.target.value)}
                       className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
                       placeholder="https://yourwebsite.com"
                     />

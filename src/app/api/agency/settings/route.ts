@@ -107,7 +107,15 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { agency_id, settings: newSettings, contact_email, contact_phone, name } = body;
+    const {
+      agency_id,
+      settings: newSettings,
+      contact_email,
+      contact_phone,
+      contact_name,
+      website,
+      name,
+    } = body;
 
     if (!agency_id) {
       return NextResponse.json({ error: "agency_id required" }, { status: 400 });
@@ -118,17 +126,19 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Supabase not configured." }, { status: 503 });
     }
 
-    // Build agency-level updates
+    // Build agency-level updates (columns on the agencies table)
     const agencyUpdates: Record<string, unknown> = {};
     if (name !== undefined) agencyUpdates.name = name;
     if (contact_email !== undefined) agencyUpdates.contact_email = contact_email;
     if (contact_phone !== undefined) agencyUpdates.contact_phone = contact_phone;
+    if (contact_name !== undefined) agencyUpdates.contact_name = contact_name;
+    if (website !== undefined) agencyUpdates.website = website;
 
     // Save logo_url and primary_color at agency level too
     if (newSettings?.logo_url !== undefined) agencyUpdates.logo_url = newSettings.logo_url;
     if (newSettings?.primary_color !== undefined) agencyUpdates.primary_color = newSettings.primary_color;
 
-    // Merge new settings into existing settings JSON
+    // Merge new settings into existing settings JSONB column
     const { data: existing } = await supabase
       .from("agencies")
       .select("settings")
@@ -150,6 +160,29 @@ export async function PUT(request: NextRequest) {
         { error: `Failed to update settings: ${updateErr.message}` },
         { status: 500 }
       );
+    }
+
+    // Also sync contact info to software_keys metadata
+    if (contact_name || contact_email || contact_phone) {
+      const { data: existingKey } = await supabase
+        .from("software_keys")
+        .select("id, metadata")
+        .eq("agency_id", agency_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (existingKey) {
+        const metadata = existingKey.metadata || {};
+        if (contact_name !== undefined) metadata.contact_name = contact_name;
+        if (contact_email !== undefined) metadata.contact_email = contact_email;
+        if (contact_phone !== undefined) metadata.contact_phone = contact_phone;
+
+        await supabase
+          .from("software_keys")
+          .update({ metadata })
+          .eq("id", existingKey.id);
+      }
     }
 
     return NextResponse.json({ message: "Settings saved!" }, { status: 200 });
