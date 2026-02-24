@@ -1160,83 +1160,151 @@ export default function WhiteLabelSettingsPage() {
                   )}
 
                   {/* DNS Records Table */}
-                  <div className="bg-[#020408] border border-white/10 rounded-lg overflow-hidden">
-                    <div className="px-4 py-3 border-b border-white/10 bg-white/5 flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Required DNS Records
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard("cname.algofintech.com", "cname-all")}
-                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                      >
-                        {copiedField === "cname-all" ? "Copied!" : "Copy All"}
-                      </button>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b border-white/10">
-                            <th className="p-3 text-xs font-medium text-slate-500 w-24">Type</th>
-                            <th className="p-3 text-xs font-medium text-slate-500 w-48">Host</th>
-                            <th className="p-3 text-xs font-medium text-slate-500">Value</th>
-                            <th className="p-3 text-xs font-medium text-slate-500 w-16 text-right">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                          <tr>
-                            <td className="p-3 text-xs font-mono text-emerald-400">CNAME</td>
-                            <td className="p-3 text-xs font-mono text-slate-300">
-                              {settings.custom_domain
-                                ? settings.custom_domain.split(".")[0]
-                                : "client"}
-                            </td>
-                            <td className="p-3 text-xs font-mono text-slate-400">cname.algofintech.com</td>
-                            <td className="p-3 text-right">
-                              <button
-                                onClick={() => copyToClipboard("cname.algofintech.com", "cname")}
-                                className="text-slate-500 hover:text-white transition-colors"
-                              >
-                                {copiedField === "cname" ? (
-                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  {(() => {
+                    const d = (settings.custom_domain || "").trim().toLowerCase();
+                    const parts = d.split(".").filter(Boolean);
+                    // Root domain = exactly 2 parts (domain.com) or domain.co.uk style
+                    const isRootDomain =
+                      parts.length <= 2 ||
+                      (parts.length === 3 &&
+                        ["co", "com", "org", "net"].includes(parts[parts.length - 2]));
+                    // For subdomain: host = everything before the root domain
+                    // e.g. "client.agency.com" → host = "client", root = "agency.com"
+                    // e.g. "app.dashboard.agency.com" → host = "app.dashboard", root = "agency.com"
+                    const rootDomain = isRootDomain
+                      ? d
+                      : parts.slice(-2).join(".");
+                    const subdomainHost = isRootDomain
+                      ? "@"
+                      : parts.slice(0, -2).join(".");
+
+                    return (
+                      <>
+                        <div className="bg-[#020408] border border-white/10 rounded-lg overflow-hidden">
+                          <div className="px-4 py-3 border-b border-white/10 bg-white/5 flex items-center justify-between">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                              Required DNS Records
+                            </span>
+                            <button
+                              onClick={() =>
+                                copyToClipboard(
+                                  isRootDomain
+                                    ? "76.76.21.21"
+                                    : "cname.algofintech.com",
+                                  "cname-all"
+                                )
+                              }
+                              className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                            >
+                              {copiedField === "cname-all" ? "Copied!" : "Copy Value"}
+                            </button>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="border-b border-white/10">
+                                  <th className="p-3 text-xs font-medium text-slate-500 w-24">Type</th>
+                                  <th className="p-3 text-xs font-medium text-slate-500 w-48">Host / Name</th>
+                                  <th className="p-3 text-xs font-medium text-slate-500">Value / Points To</th>
+                                  <th className="p-3 text-xs font-medium text-slate-500 w-16 text-right">Copy</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-white/5">
+                                {isRootDomain ? (
+                                  <tr>
+                                    <td className="p-3 text-xs font-mono text-amber-400">A</td>
+                                    <td className="p-3 text-xs font-mono text-slate-300">
+                                      @ <span className="text-slate-600 ml-1">({d || "yourdomain.com"})</span>
+                                    </td>
+                                    <td className="p-3 text-xs font-mono text-slate-400">76.76.21.21</td>
+                                    <td className="p-3 text-right">
+                                      <button
+                                        onClick={() => copyToClipboard("76.76.21.21", "a-record")}
+                                        className="text-slate-500 hover:text-white transition-colors"
+                                      >
+                                        {copiedField === "a-record" ? (
+                                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                        ) : (
+                                          <Copy className="w-3.5 h-3.5" />
+                                        )}
+                                      </button>
+                                    </td>
+                                  </tr>
                                 ) : (
-                                  <Copy className="w-3.5 h-3.5" />
+                                  <tr>
+                                    <td className="p-3 text-xs font-mono text-emerald-400">CNAME</td>
+                                    <td className="p-3 text-xs font-mono text-slate-300">
+                                      {subdomainHost}{" "}
+                                      <span className="text-slate-600 ml-1">(.{rootDomain})</span>
+                                    </td>
+                                    <td className="p-3 text-xs font-mono text-slate-400">cname.algofintech.com</td>
+                                    <td className="p-3 text-right">
+                                      <button
+                                        onClick={() => copyToClipboard("cname.algofintech.com", "cname")}
+                                        className="text-slate-500 hover:text-white transition-colors"
+                                      >
+                                        {copiedField === "cname" ? (
+                                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                        ) : (
+                                          <Copy className="w-3.5 h-3.5" />
+                                        )}
+                                      </button>
+                                    </td>
+                                  </tr>
                                 )}
-                              </button>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
 
-                  {/* Instructions */}
-                  <div className="rounded-lg bg-[#020408] border border-white/10 p-4 space-y-3">
-                    <div className="text-sm font-medium text-white">Setup Instructions</div>
-                    <ol className="text-xs text-slate-400 space-y-2 list-decimal list-inside">
-                      <li>Go to your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.)</li>
-                      <li>
-                        Add a <span className="text-emerald-400 font-mono">CNAME</span> record with host{" "}
-                        <span className="text-white font-mono">
-                          {settings.custom_domain
-                            ? settings.custom_domain.split(".")[0]
-                            : "client"}
-                        </span>{" "}
-                        pointing to{" "}
-                        <span className="text-white font-mono">cname.algofintech.com</span>
-                      </li>
-                      <li>Save your settings here, then click &quot;Verify DNS Records&quot;</li>
-                      <li>Allow up to 48 hours for DNS propagation</li>
-                    </ol>
-                  </div>
+                        {/* Example preview */}
+                        {d && (
+                          <div className="rounded-lg bg-white/[0.02] border border-white/5 px-4 py-3 flex items-center gap-3">
+                            <Globe className="w-4 h-4 text-slate-500 shrink-0" />
+                            <div className="text-xs text-slate-500">
+                              Your clients will access the dashboard at{" "}
+                              <span className="text-blue-400 font-medium">
+                                https://{d}/client-dashboard
+                              </span>
+                            </div>
+                          </div>
+                        )}
 
-                  <div className="rounded-lg bg-blue-500/10 border border-blue-500/10 p-4 flex gap-3">
-                    <Info className="w-[18px] h-[18px] text-blue-400 mt-0.5 shrink-0" />
-                    <div className="text-sm text-slate-300">
-                      <span className="text-white font-medium">SSL Certificate:</span> We automatically provision a
-                      free SSL certificate via Let&apos;s Encrypt once your DNS is verified. This process typically takes
-                      15 minutes.
-                    </div>
-                  </div>
+                        {/* Instructions */}
+                        <div className="rounded-lg bg-[#020408] border border-white/10 p-4 space-y-3">
+                          <div className="text-sm font-medium text-white">Setup Instructions</div>
+                          <ol className="text-xs text-slate-400 space-y-2 list-decimal list-inside">
+                            <li>Go to your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.)</li>
+                            {isRootDomain ? (
+                              <li>
+                                Add an <span className="text-amber-400 font-mono">A</span> record with host{" "}
+                                <span className="text-white font-mono">@</span> pointing to{" "}
+                                <span className="text-white font-mono">76.76.21.21</span>
+                              </li>
+                            ) : (
+                              <li>
+                                Add a <span className="text-emerald-400 font-mono">CNAME</span> record with host{" "}
+                                <span className="text-white font-mono">{subdomainHost}</span> pointing to{" "}
+                                <span className="text-white font-mono">cname.algofintech.com</span>
+                              </li>
+                            )}
+                            <li>Save your settings here, then click &quot;Verify DNS Records&quot;</li>
+                            <li>Allow up to 48 hours for DNS propagation (usually much faster)</li>
+                          </ol>
+                        </div>
+
+                        {/* SSL Certificate Info */}
+                        <div className="rounded-lg bg-blue-500/10 border border-blue-500/10 p-4 flex gap-3">
+                          <Info className="w-[18px] h-[18px] text-blue-400 mt-0.5 shrink-0" />
+                          <div className="text-sm text-slate-300">
+                            <span className="text-white font-medium">SSL Certificate:</span> We automatically provision a
+                            free SSL certificate via Let&apos;s Encrypt once your DNS is verified. This process typically takes
+                            15 minutes.
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
