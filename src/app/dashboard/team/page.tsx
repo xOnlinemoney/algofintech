@@ -833,7 +833,7 @@ function InviteModal({
     const tmpl = agencySettings.email_templates?.team_invite || DEFAULT_TEAM_TEMPLATE;
     const agencyName = agencySettings.business_name || "Your Agency";
     const domain = agencySettings.custom_domain || `${agencySettings.slug || "app"}.algofintech.com`;
-    const inviteUrl = `https://${domain}/team-login`;
+    const inviteUrl = `https://${domain}/agency-login`;
     const supportEmail = agencySettings.support_email || agencySettings.reply_to_email || "support@agency.com";
     const fName = firstName.trim() || "First";
     const lName = lastName.trim() || "Last";
