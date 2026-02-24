@@ -132,13 +132,17 @@ export default function ClientSidebar() {
           <Link2 className={`w-4 h-4 ${pathname === "/client-dashboard/connect-guide" ? "text-blue-400" : "text-slate-500"}`} />
           <span className="font-medium text-sm">How to Connect Your Account</span>
         </Link>
-        <a
-          href="#"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-transparent transition-all"
+        <Link
+          href="/client-dashboard/faq"
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+            pathname === "/client-dashboard/faq"
+              ? "text-white bg-white/5 border border-white/5"
+              : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
+          }`}
         >
-          <MessageCircleQuestion className="w-4 h-4 text-slate-500" />
+          <MessageCircleQuestion className={`w-4 h-4 ${pathname === "/client-dashboard/faq" ? "text-blue-400" : "text-slate-500"}`} />
           <span className="font-medium text-sm">Frequently Asked Questions</span>
-        </a>
+        </Link>
       </div>
 
       {/* User Profile + Logout */}
