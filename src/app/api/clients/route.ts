@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, email, phone, max_accounts, agency_id } = body;
+    const { name, email, phone, max_accounts, agency_id, license_key, send_email } = body;
 
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
@@ -100,19 +100,34 @@ export async function POST(req: NextRequest) {
       attempts++;
     } while (attempts < 20);
 
-    // Generate a unique software / license key (XXXX-XXXX-XXXX-XXXX)
+    // Use pre-generated license key if provided, otherwise generate one
     let softwareKey: string;
-    let keyAttempts = 0;
-    do {
-      softwareKey = generateSoftwareKey();
+    if (license_key && typeof license_key === "string" && license_key.trim()) {
+      softwareKey = license_key.trim();
+      // Verify it doesn't already exist
       const { data: existingKey } = await supabase
         .from("software_keys")
         .select("id")
         .eq("license_key", softwareKey)
         .single();
-      if (!existingKey) break;
-      keyAttempts++;
-    } while (keyAttempts < 20);
+      if (existingKey) {
+        // Key collision — generate a new one
+        softwareKey = generateSoftwareKey();
+      }
+    } else {
+      let keyAttempts = 0;
+      softwareKey = generateSoftwareKey();
+      do {
+        const { data: existingKey } = await supabase
+          .from("software_keys")
+          .select("id")
+          .eq("license_key", softwareKey)
+          .single();
+        if (!existingKey) break;
+        softwareKey = generateSoftwareKey();
+        keyAttempts++;
+      } while (keyAttempts < 20);
+    }
 
     // Random gradient for avatar
     const gradients = [
@@ -169,7 +184,60 @@ export async function POST(req: NextRequest) {
       },
     ]);
 
-    return NextResponse.json({ message: "Client created!", data }, { status: 201 });
+    // Send onboarding email if requested (non-blocking — don't fail client creation)
+    let emailSent = false;
+    if (send_email) {
+      try {
+        // Look up agency settings to check if template is enabled
+        const { data: agency } = await supabase
+          .from("agencies")
+          .select("name, settings, primary_color")
+          .eq("id", resolvedAgencyId)
+          .single();
+
+        const settings = agency?.settings || {};
+        const templates = settings.email_templates || {};
+        const onboarding = templates.client_onboarding;
+
+        if (onboarding?.enabled) {
+          // Build the signup URL
+          const customDomain = settings.custom_domain;
+          const agencySlug = settings.slug || "";
+          let signupUrl = "";
+          if (customDomain) {
+            signupUrl = `https://${customDomain}/client-signup`;
+          } else if (agencySlug) {
+            signupUrl = `https://${agencySlug}.algofintech.com/client-signup`;
+          } else {
+            signupUrl = `https://algofintech.com/client-signup`;
+          }
+
+          // Call our email API
+          const baseUrl = req.nextUrl.origin;
+          await fetch(`${baseUrl}/api/agency/send-email`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              agency_id: resolvedAgencyId,
+              template_type: "client_onboarding",
+              to_email: email,
+              to_name: name,
+              dynamic_fields: {
+                client_name: name,
+                client_email: email,
+                license_key: softwareKey,
+                signup_url: signupUrl,
+              },
+            }),
+          });
+          emailSent = true;
+        }
+      } catch (emailErr) {
+        console.error("Failed to send onboarding email (non-blocking):", emailErr);
+      }
+    }
+
+    return NextResponse.json({ message: "Client created!", data, email_sent: emailSent }, { status: 201 });
   } catch (err) {
     console.error("API error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });

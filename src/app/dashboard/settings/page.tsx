@@ -46,6 +46,12 @@ interface AgencyData {
   license_key: string | null;
 }
 
+interface EmailTemplate {
+  enabled: boolean;
+  subject: string;
+  body: string;
+}
+
 interface SettingsData {
   business_name: string;
   display_name: string;
@@ -59,6 +65,12 @@ interface SettingsData {
   sender_name: string;
   reply_to_email: string;
   use_custom_smtp: boolean;
+  smtp_host: string;
+  smtp_port: string;
+  smtp_user: string;
+  smtp_pass: string;
+  smtp_from_email: string;
+  email_templates: Record<string, EmailTemplate>;
   business_address: string;
   business_city: string;
   business_state: string;
@@ -1423,8 +1435,80 @@ export default function WhiteLabelSettingsPage() {
                       </div>
                     </label>
                   </div>
+
+                  {/* SMTP Configuration Fields */}
+                  {settings.use_custom_smtp && (
+                    <div className="pt-4 space-y-4 border-t border-white/5 ml-[52px]">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-slate-400">SMTP Host</label>
+                          <input
+                            type="text"
+                            value={settings.smtp_host || ""}
+                            onChange={(e) => updateSetting("smtp_host", e.target.value)}
+                            className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                            placeholder="smtp.gmail.com"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-slate-400">SMTP Port</label>
+                          <input
+                            type="number"
+                            value={settings.smtp_port || "587"}
+                            onChange={(e) => updateSetting("smtp_port", e.target.value)}
+                            className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                            placeholder="587"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-slate-400">SMTP Username</label>
+                          <input
+                            type="text"
+                            value={settings.smtp_user || ""}
+                            onChange={(e) => updateSetting("smtp_user", e.target.value)}
+                            className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                            placeholder="your-email@gmail.com"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-slate-400">SMTP Password</label>
+                          <input
+                            type="password"
+                            value={settings.smtp_pass || ""}
+                            onChange={(e) => updateSetting("smtp_pass", e.target.value)}
+                            className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                            placeholder="••••••••••••"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-slate-400">From Email Address</label>
+                        <input
+                          type="email"
+                          value={settings.smtp_from_email || ""}
+                          onChange={(e) => updateSetting("smtp_from_email", e.target.value)}
+                          className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                          placeholder="noreply@yourdomain.com"
+                        />
+                      </div>
+                      <div className="rounded-lg bg-blue-500/10 border border-blue-500/10 p-3 flex gap-2">
+                        <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                        <p className="text-xs text-slate-300">
+                          For Gmail, use an <span className="text-white font-medium">App Password</span> (not your regular password). Go to Google Account → Security → 2-Step Verification → App Passwords.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* Email Templates */}
+              <EmailTemplateEditor
+                settings={settings}
+                updateSetting={updateSetting}
+              />
             </div>
           )}
 
@@ -1688,6 +1772,236 @@ export default function WhiteLabelSettingsPage() {
             <X className="w-4 h-4" />
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dynamic Field Pill ───────────────────────────────────
+function DynamicFieldPill({ field, label }: { field: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard.writeText(`{{${field}}}`);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all border ${
+        copied
+          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+          : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
+      }`}
+      title={`Copy {{${field}}}`}
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      {`{{${field}}}`}
+      <span className="text-[9px] text-slate-600 font-sans ml-0.5">{label}</span>
+    </button>
+  );
+}
+
+// ─── Email Template Editor Component ──────────────────────
+const DEFAULT_ONBOARDING_TEMPLATE: EmailTemplate = {
+  enabled: true,
+  subject: "Welcome to {{agency_name}} — Your Account is Ready!",
+  body: "Hi {{client_name}},\n\nYour account has been created. Here are your login credentials:\n\nLicense Key: {{license_key}}\n\nTo get started, visit: {{signup_url}}\n\nIf you need help, reach out to us at {{support_email}}.\n\nBest regards,\n{{agency_name}}",
+};
+
+const DYNAMIC_FIELDS = [
+  { field: "client_name", label: "Client name" },
+  { field: "client_email", label: "Client email" },
+  { field: "license_key", label: "License key" },
+  { field: "agency_name", label: "Agency name" },
+  { field: "signup_url", label: "Signup page" },
+  { field: "support_email", label: "Support email" },
+];
+
+function EmailTemplateEditor({
+  settings,
+  updateSetting,
+}: {
+  settings: SettingsData;
+  updateSetting: <K extends keyof SettingsData>(key: K, value: SettingsData[K]) => void;
+}) {
+  const templates = settings.email_templates || {};
+  const currentTemplate = templates.client_onboarding || DEFAULT_ONBOARDING_TEMPLATE;
+  const [showPreview, setShowPreview] = useState(false);
+  const [selectedTemplate] = useState("client_onboarding");
+
+  function updateTemplate(updates: Partial<EmailTemplate>) {
+    const newTemplates = {
+      ...templates,
+      [selectedTemplate]: {
+        ...currentTemplate,
+        ...updates,
+      },
+    };
+    updateSetting("email_templates", newTemplates);
+  }
+
+  // Build preview with sample data
+  function getPreviewHtml() {
+    const sampleFields: Record<string, string> = {
+      client_name: "John Smith",
+      client_email: "john@example.com",
+      license_key: "ABCD-EFGH-JKLM-NPQR",
+      agency_name: settings.business_name || "Your Agency",
+      signup_url: settings.custom_domain
+        ? `https://${settings.custom_domain}/client-signup`
+        : "https://algofintech.com/client-signup",
+      support_email: settings.support_email || settings.reply_to_email || "support@agency.com",
+    };
+
+    let subject = currentTemplate.subject || "";
+    let body = currentTemplate.body || "";
+    for (const [key, val] of Object.entries(sampleFields)) {
+      subject = subject.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val);
+      body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val);
+    }
+    return { subject, body };
+  }
+
+  const preview = getPreviewHtml();
+
+  return (
+    <div className="bg-[#0B0E14] border border-white/5 rounded-xl p-6">
+      <div className="flex items-start gap-3 mb-5">
+        <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/10">
+          <Mail className="w-[18px] h-[18px]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg font-semibold text-white tracking-tight">Email Templates</h3>
+          <p className="text-sm text-slate-400 mt-0.5">
+            Customize the emails sent to your clients
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        {/* Template Selector */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-400">Template</label>
+          <div className="relative">
+            <select
+              value={selectedTemplate}
+              disabled
+              className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white appearance-none focus:outline-none focus:border-blue-500 cursor-not-allowed"
+            >
+              <option value="client_onboarding">Client Onboarding</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4 pointer-events-none" />
+          </div>
+          <p className="text-[10px] text-slate-600">Sent when you add a new client with &quot;Send Email&quot; enabled</p>
+        </div>
+
+        {/* Enable Toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => updateTemplate({ enabled: !currentTemplate.enabled })}
+            className={`w-10 h-6 rounded-full transition-colors relative shrink-0 ${
+              currentTemplate.enabled ? "bg-emerald-500" : "bg-white/10"
+            }`}
+          >
+            <div
+              className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                currentTemplate.enabled ? "left-5" : "left-1"
+              }`}
+            />
+          </button>
+          <span className="text-sm text-slate-300">
+            {currentTemplate.enabled ? "Template enabled" : "Template disabled"}
+          </span>
+        </div>
+
+        {currentTemplate.enabled && (
+          <>
+            {/* Subject */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-400">Subject Line</label>
+              <input
+                type="text"
+                value={currentTemplate.subject}
+                onChange={(e) => updateTemplate({ subject: e.target.value })}
+                className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                placeholder="Welcome to {{agency_name}}"
+              />
+            </div>
+
+            {/* Body */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-400">Email Body</label>
+              <textarea
+                value={currentTemplate.body}
+                onChange={(e) => updateTemplate({ body: e.target.value })}
+                rows={10}
+                className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600 font-mono resize-y"
+                placeholder="Hi {{client_name}},..."
+              />
+            </div>
+
+            {/* Dynamic Fields Reference */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Available Dynamic Fields
+              </label>
+              <p className="text-[10px] text-slate-600">Click to copy. Paste into subject or body above.</p>
+              <div className="flex flex-wrap gap-2">
+                {DYNAMIC_FIELDS.map((f) => (
+                  <DynamicFieldPill key={f.field} field={f.field} label={f.label} />
+                ))}
+              </div>
+            </div>
+
+            {/* Preview Toggle */}
+            <div className="pt-3 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => setShowPreview(!showPreview)}
+                className="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                <Eye className="w-4 h-4" />
+                {showPreview ? "Hide Preview" : "Preview Email"}
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showPreview ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+
+            {/* Preview Panel */}
+            {showPreview && (
+              <div className="bg-[#020408] border border-white/10 rounded-lg overflow-hidden">
+                <div className="px-4 py-3 border-b border-white/10 bg-white/5">
+                  <span className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Email Preview</span>
+                  <span className="text-[10px] text-slate-600 ml-2">(with sample data)</span>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold w-16 shrink-0">Subject:</span>
+                    <span className="text-sm text-white font-medium">{preview.subject}</span>
+                  </div>
+                  <div className="border-t border-white/5 pt-3">
+                    <div className="bg-white/[0.02] rounded-lg p-4 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed font-sans">
+                      {preview.body}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Reset to default */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => updateTemplate(DEFAULT_ONBOARDING_TEMPLATE)}
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Reset to default template
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu, KeyRound, Copy } from "lucide-react";
+import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu, KeyRound, Copy, RefreshCw, Send } from "lucide-react";
 import { formatCurrencyFull, formatLiquidity, getStatusColor } from "@/lib/mock-data";
 import type { Client, ClientStatus } from "@/lib/types";
 
@@ -408,6 +408,14 @@ function DeleteConfirmModal({
   );
 }
 
+// ─── Helper: Generate a software key (XXXX-XXXX-XXXX-XXXX) ──
+function generateSoftwareKey(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const segment = () =>
+    Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return `${segment()}-${segment()}-${segment()}-${segment()}`;
+}
+
 // ─── Add Client Modal ────────────────────────────────────
 function AddClientModal({
   onClose,
@@ -420,12 +428,53 @@ function AddClientModal({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [maxAccounts, setMaxAccounts] = useState<string>("unlimited");
+  const [licenseKey, setLicenseKey] = useState(() => generateSoftwareKey());
+  const [sendEmail, setSendEmail] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [keyCopied, setKeyCopied] = useState(false);
+  const [keyFieldCopied, setKeyFieldCopied] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailTemplateEnabled, setEmailTemplateEnabled] = useState<boolean | null>(null);
 
   const autoId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  // Check if email template is configured
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("agency_session");
+      if (raw) {
+        const session = JSON.parse(raw);
+        const agencyId = session.agency_id;
+        if (agencyId) {
+          fetch(`/api/agency/settings?agency_id=${agencyId}`)
+            .then((res) => res.json())
+            .then((json) => {
+              const settings = json.settings || {};
+              const templates = settings.email_templates || {};
+              const onboarding = templates.client_onboarding;
+              setEmailTemplateEnabled(onboarding?.enabled === true);
+              // Default sendEmail to true if template is enabled
+              if (onboarding?.enabled) setSendEmail(true);
+            })
+            .catch(() => setEmailTemplateEnabled(false));
+        }
+      }
+    } catch {
+      setEmailTemplateEnabled(false);
+    }
+  }, []);
+
+  function handleRegenerateKey() {
+    setLicenseKey(generateSoftwareKey());
+  }
+
+  function handleCopyKeyField() {
+    navigator.clipboard.writeText(licenseKey);
+    setKeyFieldCopied(true);
+    setTimeout(() => setKeyFieldCopied(false), 2000);
+  }
 
   async function handleSubmit() {
     if (!name.trim() || !email.trim()) {
@@ -455,6 +504,8 @@ function AddClientModal({
           phone: phone.trim() || null,
           max_accounts: maxAccounts === "unlimited" ? null : Number(maxAccounts),
           agency_id: agencyId || undefined,
+          license_key: licenseKey,
+          send_email: sendEmail,
         }),
       });
       const json = await res.json();
@@ -464,8 +515,8 @@ function AddClientModal({
         return;
       }
       onClientAdded();
-      // Show success state with generated software key
-      setCreatedKey(json.data?.software_key || null);
+      setCreatedKey(json.data?.software_key || licenseKey);
+      setEmailSent(json.email_sent === true);
       setSaving(false);
     } catch {
       setError("Network error. Please try again.");
@@ -513,6 +564,12 @@ function AddClientModal({
                 <p className="text-sm text-slate-300 text-center">
                   <span className="text-white font-medium">{name}</span> has been added successfully.
                 </p>
+                {emailSent && (
+                  <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1.5">
+                    <Send className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-xs text-emerald-400 font-medium">Onboarding email sent to {email}</span>
+                  </div>
+                )}
               </div>
 
               {/* Software Key Display */}
@@ -545,7 +602,9 @@ function AddClientModal({
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Share this key with your client. They will need it to register and link their account.
+                  {emailSent
+                    ? "This key was included in the onboarding email sent to your client."
+                    : "Share this key with your client. They will need it to register and link their account."}
                 </p>
               </div>
             </div>
@@ -664,6 +723,96 @@ function AddClientModal({
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-4 h-4" />
               </div>
             </div>
+
+            {/* License Key Field */}
+            <div className="flex items-start gap-4">
+              <label className="w-36 text-sm text-slate-300 shrink-0 pt-2.5">
+                License Key
+              </label>
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-[#0B0E14] border border-white/10 rounded-lg px-4 py-2.5 flex items-center gap-2">
+                    <KeyRound className="w-3.5 h-3.5 text-amber-500/70 shrink-0" />
+                    <span className="font-mono text-sm text-white tracking-wider select-all truncate">
+                      {licenseKey}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyKeyField}
+                    className="p-2.5 bg-[#2a2d35] border border-white/10 rounded-lg text-slate-400 hover:text-white hover:border-white/20 transition-all shrink-0"
+                    title="Copy key"
+                  >
+                    {keyFieldCopied ? (
+                      <Check className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRegenerateKey}
+                    className="p-2.5 bg-[#2a2d35] border border-white/10 rounded-lg text-slate-400 hover:text-white hover:border-white/20 transition-all shrink-0"
+                    title="Generate new key"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-600">
+                  Auto-generated. Click regenerate for a new key.
+                </p>
+              </div>
+            </div>
+
+            {/* Send Onboarding Email Toggle */}
+            <div className="flex items-start gap-4">
+              <label className="w-36 text-sm text-slate-300 shrink-0 pt-0.5">
+                Send Email
+              </label>
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-3">
+                  <div
+                    onClick={() => {
+                      if (emailTemplateEnabled) setSendEmail(!sendEmail);
+                    }}
+                    className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ${
+                      !emailTemplateEnabled
+                        ? "bg-slate-800 cursor-not-allowed opacity-50"
+                        : sendEmail
+                        ? "bg-emerald-500 cursor-pointer"
+                        : "bg-slate-700 cursor-pointer"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-3 h-3 rounded-full transition-all duration-200 ${
+                        sendEmail && emailTemplateEnabled ? "left-5 bg-white" : "left-1 bg-slate-400"
+                      }`}
+                    ></div>
+                  </div>
+                  <span className="text-xs text-slate-400">
+                    {sendEmail && emailTemplateEnabled ? "Onboarding email will be sent" : "No email will be sent"}
+                  </span>
+                </div>
+                {emailTemplateEnabled === false && (
+                  <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    <Info className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <p className="text-[11px] text-amber-400">
+                      Email template not configured.{" "}
+                      <a
+                        href="/dashboard/settings"
+                        className="underline hover:text-amber-300"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          window.open("/dashboard/settings", "_blank");
+                        }}
+                      >
+                        Set up in Settings → Domain & Email
+                      </a>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
             <button
@@ -675,9 +824,16 @@ function AddClientModal({
             <button
               onClick={handleSubmit}
               disabled={saving}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-2"
             >
-              {saving ? "Saving..." : "Add Client"}
+              {saving ? (
+                "Saving..."
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  Add Client
+                </>
+              )}
             </button>
           </div>
         </div>
