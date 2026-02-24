@@ -110,13 +110,17 @@ export default function ClientSidebar() {
           <HelpCircle className="w-3 h-3" />
           Help Center
         </div>
-        <a
-          href="#"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-transparent transition-all"
+        <Link
+          href="/client-dashboard/prop-firm-guide"
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+            pathname === "/client-dashboard/prop-firm-guide"
+              ? "text-white bg-white/5 border border-white/5"
+              : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
+          }`}
         >
-          <BookOpen className="w-4 h-4 text-slate-500" />
+          <BookOpen className={`w-4 h-4 ${pathname === "/client-dashboard/prop-firm-guide" ? "text-blue-400" : "text-slate-500"}`} />
           <span className="font-medium text-sm">Get a Prop Firm Account</span>
-        </a>
+        </Link>
         <Link
           href="/client-dashboard/connect-guide"
           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
