@@ -17,6 +17,7 @@ import {
   Settings,
   Cpu,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 import { getCategoryColor } from "@/lib/mock-data";
 import { useSavedAlgorithms } from "@/context/SavedAlgorithmsContext";
@@ -112,6 +113,19 @@ export default function Sidebar() {
             icon={<Users className="w-4 h-4" />}
             label="Clients"
             active={pathname === "/dashboard/clients"}
+          />
+        </div>
+
+        {/* Management */}
+        <div className="space-y-0.5">
+          <div className="text-[10px] uppercase flex font-semibold text-slate-500 tracking-wider mb-2 px-2 items-center justify-between">
+            Management
+          </div>
+          <NavLink
+            href="/dashboard/team"
+            icon={<ShieldCheck className="w-4 h-4" />}
+            label="Team Members"
+            active={pathname === "/dashboard/team"}
           />
         </div>
 
