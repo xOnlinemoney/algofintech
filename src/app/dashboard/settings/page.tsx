@@ -103,6 +103,10 @@ export default function WhiteLabelSettingsPage() {
   const [showTierFeatures, setShowTierFeatures] = useState(false);
   const [showPendingBanner, setShowPendingBanner] = useState(false);
   const [showUpgradeBanner, setShowUpgradeBanner] = useState(true);
+  const [domainStatus, setDomainStatus] = useState<string | null>(null);
+  const [domainVerifiedAt, setDomainVerifiedAt] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyMessage, setVerifyMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const originalSettings = useRef<SettingsData | null>(null);
 
@@ -119,6 +123,10 @@ export default function WhiteLabelSettingsPage() {
         setAgency(data.agency);
         setSettings(data.settings);
         originalSettings.current = { ...data.settings };
+        if (data.domain) {
+          setDomainStatus(data.domain.status);
+          setDomainVerifiedAt(data.domain.verified_at);
+        }
       } catch (err) {
         console.error("Failed to load settings:", err);
       } finally {
@@ -1027,33 +1035,129 @@ export default function WhiteLabelSettingsPage() {
                   <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10">
                     <Globe className="w-[18px] h-[18px]" />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-semibold text-white tracking-tight">Custom Domain</h3>
-                    <p className="text-sm text-slate-400 mt-0.5">Serve the dashboard from your own URL</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg font-semibold text-white tracking-tight">Custom Domain</h3>
+                      {domainStatus && settings.custom_domain && (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                            domainStatus === "verified" || domainStatus === "active"
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                              : domainStatus === "pending"
+                              ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                              : "bg-red-500/10 text-red-400 border border-red-500/20"
+                          }`}
+                        >
+                          {domainStatus === "verified" || domainStatus === "active" ? (
+                            <CheckCircle2 className="w-3 h-3" />
+                          ) : domainStatus === "pending" ? (
+                            <Hourglass className="w-3 h-3" />
+                          ) : (
+                            <AlertTriangle className="w-3 h-3" />
+                          )}
+                          {domainStatus}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-400 mt-0.5">
+                      Serve the client dashboard from your own URL
+                      {domainVerifiedAt && (
+                        <span className="text-slate-600">
+                          {" "}
+                          · Verified {new Date(domainVerifiedAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-1.5">
-                      <label className="text-sm font-medium text-slate-400">Dashboard Domain</label>
+                      <label className="text-sm font-medium text-slate-400">Client Domain</label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">https://</span>
                         <input
                           type="text"
                           value={settings.custom_domain}
-                          onChange={(e) => updateSetting("custom_domain", e.target.value)}
+                          onChange={(e) => {
+                            updateSetting("custom_domain", e.target.value);
+                            setVerifyMessage(null);
+                          }}
                           className="w-full bg-[#020408] border border-white/10 rounded-lg pl-16 pr-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600 transition-colors"
-                          placeholder="app.yourdomain.com"
+                          placeholder="client.yourdomain.com"
                         />
                       </div>
                     </div>
                     <div className="flex items-end">
-                      <button className="w-full h-[46px] rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 hover:text-white transition-colors text-sm font-medium flex items-center justify-center gap-2">
-                        <RefreshCw className="w-4 h-4" />
-                        Verify DNS Records
+                      <button
+                        disabled={verifying || !settings.custom_domain}
+                        onClick={async () => {
+                          if (!agency || !settings.custom_domain) return;
+                          setVerifying(true);
+                          setVerifyMessage(null);
+                          try {
+                            const res = await fetch("/api/agency/verify-domain", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                agency_id: agency.id,
+                                domain: settings.custom_domain.trim().toLowerCase(),
+                              }),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              setDomainStatus("verified");
+                              setDomainVerifiedAt(data.checked_at);
+                              setVerifyMessage({ type: "success", text: data.message });
+                            } else {
+                              setDomainStatus(data.status || "failed");
+                              setVerifyMessage({ type: "error", text: data.message || data.error || "Verification failed" });
+                            }
+                          } catch {
+                            setVerifyMessage({ type: "error", text: "Failed to verify. Please save your settings first and try again." });
+                          } finally {
+                            setVerifying(false);
+                          }
+                        }}
+                        className={`w-full h-[46px] rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                          verifying || !settings.custom_domain
+                            ? "bg-white/5 border-white/5 text-slate-600 cursor-not-allowed"
+                            : "bg-white/5 border-white/10 hover:bg-white/10 text-slate-300 hover:text-white"
+                        }`}
+                      >
+                        {verifying ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4" />
+                        )}
+                        {verifying ? "Verifying..." : "Verify DNS Records"}
                       </button>
                     </div>
                   </div>
+
+                  {/* Verify result message */}
+                  {verifyMessage && (
+                    <div
+                      className={`rounded-lg p-4 flex gap-3 ${
+                        verifyMessage.type === "success"
+                          ? "bg-emerald-500/10 border border-emerald-500/10"
+                          : "bg-red-500/10 border border-red-500/10"
+                      }`}
+                    >
+                      {verifyMessage.type === "success" ? (
+                        <CheckCircle2 className="w-[18px] h-[18px] text-emerald-400 mt-0.5 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-[18px] h-[18px] text-red-400 mt-0.5 shrink-0" />
+                      )}
+                      <div
+                        className={`text-sm ${
+                          verifyMessage.type === "success" ? "text-emerald-300" : "text-red-300"
+                        }`}
+                      >
+                        {verifyMessage.text}
+                      </div>
+                    </div>
+                  )}
 
                   {/* DNS Records Table */}
                   <div className="bg-[#020408] border border-white/10 rounded-lg overflow-hidden">
@@ -1061,7 +1165,12 @@ export default function WhiteLabelSettingsPage() {
                       <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                         Required DNS Records
                       </span>
-                      <button className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Copy All</button>
+                      <button
+                        onClick={() => copyToClipboard("cname.algofintech.com", "cname-all")}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        {copiedField === "cname-all" ? "Copied!" : "Copy All"}
+                      </button>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
@@ -1076,7 +1185,11 @@ export default function WhiteLabelSettingsPage() {
                         <tbody className="divide-y divide-white/5">
                           <tr>
                             <td className="p-3 text-xs font-mono text-emerald-400">CNAME</td>
-                            <td className="p-3 text-xs font-mono text-slate-300">app</td>
+                            <td className="p-3 text-xs font-mono text-slate-300">
+                              {settings.custom_domain
+                                ? settings.custom_domain.split(".")[0]
+                                : "client"}
+                            </td>
                             <td className="p-3 text-xs font-mono text-slate-400">cname.algofintech.com</td>
                             <td className="p-3 text-right">
                               <button
@@ -1094,6 +1207,26 @@ export default function WhiteLabelSettingsPage() {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="rounded-lg bg-[#020408] border border-white/10 p-4 space-y-3">
+                    <div className="text-sm font-medium text-white">Setup Instructions</div>
+                    <ol className="text-xs text-slate-400 space-y-2 list-decimal list-inside">
+                      <li>Go to your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.)</li>
+                      <li>
+                        Add a <span className="text-emerald-400 font-mono">CNAME</span> record with host{" "}
+                        <span className="text-white font-mono">
+                          {settings.custom_domain
+                            ? settings.custom_domain.split(".")[0]
+                            : "client"}
+                        </span>{" "}
+                        pointing to{" "}
+                        <span className="text-white font-mono">cname.algofintech.com</span>
+                      </li>
+                      <li>Save your settings here, then click &quot;Verify DNS Records&quot;</li>
+                      <li>Allow up to 48 hours for DNS propagation</li>
+                    </ol>
                   </div>
 
                   <div className="rounded-lg bg-blue-500/10 border border-blue-500/10 p-4 flex gap-3">

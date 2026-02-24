@@ -40,7 +40,16 @@ function isAdminPath(pathname: string): boolean {
   );
 }
 
-export function middleware(request: NextRequest) {
+// Known AlgoFinTech domains — anything else could be a custom domain
+const KNOWN_HOSTS = ["algofintech.com", "vercel.app"];
+
+function isKnownHost(hostname: string): boolean {
+  return KNOWN_HOSTS.some(
+    (h) => hostname === h || hostname.endsWith("." + h)
+  );
+}
+
+export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
   const { pathname } = request.nextUrl;
 
@@ -129,6 +138,59 @@ export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.host = mainDomain;
     return NextResponse.redirect(url);
+  } else if (!isKnownHost(hostname)) {
+    // ── Custom domain resolution ──────────────────────────────
+    // Hostname is not a known subdomain or our main domain.
+    // Check if it's a custom agency domain via the domain-lookup API.
+    try {
+      const protocol = request.headers.get("x-forwarded-proto") || "https";
+      const baseOrigin = `${protocol}://${hostname}`;
+      const lookupUrl = `${baseOrigin}/api/agency/domain-lookup?domain=${encodeURIComponent(hostname)}`;
+
+      const res = await fetch(lookupUrl, {
+        headers: { "x-internal-lookup": "1" },
+        signal: AbortSignal.timeout(3000),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+
+        // Treat this like a client subdomain
+        if (pathname === "/") {
+          const url = request.nextUrl.clone();
+          url.pathname = "/client-dashboard";
+          const response = NextResponse.redirect(url);
+          response.headers.set("x-agency-id", data.agency_id || "");
+          response.headers.set("x-agency-slug", data.agency_slug || "");
+          return response;
+        }
+
+        // Allow client paths + login/signup
+        if (isClientPath(pathname)) {
+          const response = NextResponse.next();
+          response.headers.set("x-agency-id", data.agency_id || "");
+          response.headers.set("x-agency-slug", data.agency_slug || "");
+          return response;
+        }
+
+        // Block non-client paths on custom domain
+        const url = request.nextUrl.clone();
+        url.pathname = "/client-dashboard";
+        return NextResponse.redirect(url);
+      }
+    } catch (e) {
+      // Lookup failed or timed out — fall through to main domain behavior
+      console.error("Custom domain lookup failed:", e);
+    }
+
+    // If domain lookup failed or returned 404, treat as main domain
+    if (isAgencyPath(pathname)) {
+      return NextResponse.next();
+    }
+    if (isClientPath(pathname)) {
+      return NextResponse.next();
+    }
+    return NextResponse.next();
   } else {
     // On main domain — block agency and client paths
     if (isAgencyPath(pathname)) {

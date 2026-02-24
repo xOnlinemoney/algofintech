@@ -47,6 +47,15 @@ export async function GET(request: NextRequest) {
     // Get settings JSON (white-label config stored here)
     const settings = agency.settings || {};
 
+    // Fetch domain status from agency_domains table
+    const { data: domainRecord } = await supabase
+      .from("agency_domains")
+      .select("domain, status, verified_at, last_check, cname_target")
+      .eq("agency_id", agencyId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
     return NextResponse.json({
       agency: {
         id: agency.id,
@@ -96,6 +105,15 @@ export async function GET(request: NextRequest) {
         api_enabled: settings.api_enabled || false,
         webhook_url: settings.webhook_url || "",
       },
+      domain: domainRecord
+        ? {
+            domain: domainRecord.domain,
+            status: domainRecord.status,
+            verified_at: domainRecord.verified_at,
+            last_check: domainRecord.last_check,
+            cname_target: domainRecord.cname_target,
+          }
+        : null,
     });
   } catch (err) {
     console.error("Agency settings GET error:", err);
@@ -160,6 +178,51 @@ export async function PUT(request: NextRequest) {
         { error: `Failed to update settings: ${updateErr.message}` },
         { status: 500 }
       );
+    }
+
+    // Sync custom_domain to agency_domains table
+    if (newSettings?.custom_domain !== undefined) {
+      const domainValue = (newSettings.custom_domain || "").trim().toLowerCase();
+
+      if (domainValue) {
+        // Upsert: insert or update the domain record
+        // First check if this agency already has a domain record
+        const { data: existingDomain } = await supabase
+          .from("agency_domains")
+          .select("id, domain")
+          .eq("agency_id", agency_id)
+          .limit(1)
+          .single();
+
+        if (existingDomain) {
+          // Update existing record
+          if (existingDomain.domain !== domainValue) {
+            // Domain changed — reset to pending
+            await supabase
+              .from("agency_domains")
+              .update({
+                domain: domainValue,
+                status: "pending",
+                verified_at: null,
+                last_check: null,
+              })
+              .eq("id", existingDomain.id);
+          }
+        } else {
+          // Insert new record
+          await supabase.from("agency_domains").insert({
+            agency_id,
+            domain: domainValue,
+            status: "pending",
+          });
+        }
+      } else {
+        // Domain cleared — delete the record
+        await supabase
+          .from("agency_domains")
+          .delete()
+          .eq("agency_id", agency_id);
+      }
     }
 
     // Also sync contact info to software_keys metadata

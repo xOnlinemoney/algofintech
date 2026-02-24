@@ -32,6 +32,25 @@ CREATE TABLE IF NOT EXISTS agencies (
 CREATE INDEX idx_agencies_slug ON agencies(slug);
 
 
+-- ─── 1b. AGENCY DOMAINS ─────────────────────────────────────
+-- Custom domains that agencies connect for white-label client access
+CREATE TABLE IF NOT EXISTS agency_domains (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agency_id     UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
+  domain        TEXT NOT NULL UNIQUE,                -- e.g. "client.theiragency.com"
+  status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'active', 'failed')),
+  cname_target  TEXT NOT NULL DEFAULT 'cname.algofintech.com',
+  verified_at   TIMESTAMPTZ,
+  last_check    TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_agency_domains_agency ON agency_domains(agency_id);
+CREATE INDEX idx_agency_domains_domain ON agency_domains(domain);
+CREATE INDEX idx_agency_domains_status ON agency_domains(status);
+
+
 -- ─── 2. AGENCY USERS ────────────────────────────────────────
 -- People who log in to manage the agency dashboard
 CREATE TABLE IF NOT EXISTS agency_users (
@@ -404,6 +423,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_agencies_updated_at BEFORE UPDATE ON agencies FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_agency_domains_updated_at BEFORE UPDATE ON agency_domains FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_agency_users_updated_at BEFORE UPDATE ON agency_users FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_algorithms_updated_at BEFORE UPDATE ON algorithms FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_clients_updated_at BEFORE UPDATE ON clients FOR EACH ROW EXECUTE FUNCTION update_updated_at();
