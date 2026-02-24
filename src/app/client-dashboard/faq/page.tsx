@@ -1,47 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import {
-  ChevronDown,
-  Search,
-  HelpCircle,
-  Wallet,
-  Activity,
-  TrendingUp,
-  CreditCard,
-  ShieldCheck,
-  Settings,
-  BookOpen,
-  Link2,
-  Zap,
-  AlertTriangle,
-  ArrowRight,
-  MessageCircleQuestion,
-} from "lucide-react";
+import { ChevronDown, Search, ArrowRight } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────
-interface FAQItem {
+interface FAQItemData {
   q: string;
   a: string;
   link?: { label: string; href: string };
 }
 
-interface FAQCategory {
+interface FAQCategoryData {
   id: string;
   title: string;
-  icon: React.ElementType;
-  color: string;
-  items: FAQItem[];
+  items: FAQItemData[];
 }
 
 // ─── FAQ Data ─────────────────────────────────────────────
-const FAQ_CATEGORIES: FAQCategory[] = [
+const FAQ_CATEGORIES: FAQCategoryData[] = [
   {
     id: "getting-started",
     title: "Getting Started",
-    icon: Zap,
-    color: "text-blue-400",
     items: [
       {
         q: "What is copy trading?",
@@ -59,26 +39,17 @@ const FAQ_CATEGORIES: FAQCategory[] = [
       {
         q: "What trading platforms do you support?",
         a: "We support 5 platforms right now: MetaTrader 5 (MT5), MetaTrader 4 (MT4), Binance, Tradovate, and Interactive Brokers (IBKR). Each one works a little differently, so we have a step-by-step guide for connecting each one.",
-        link: {
-          label: "See Connection Guide",
-          href: "/client-dashboard/connect-guide",
-        },
+        link: { label: "See Connection Guide", href: "/client-dashboard/connect-guide" },
       },
       {
         q: "Is there a minimum amount of money I need to start?",
         a: "That depends on the trading account or prop firm you use. Each platform and firm has different requirements. Some prop firm evaluation accounts start as low as $50-$80 per month. Check out our Prop Firm Guide to compare your options and find one that fits your budget.",
-        link: {
-          label: "View Prop Firm Guide",
-          href: "/client-dashboard/prop-firm-guide",
-        },
+        link: { label: "View Prop Firm Guide", href: "/client-dashboard/prop-firm-guide" },
       },
       {
         q: "What is a prop firm?",
         a: "A prop firm (short for proprietary trading firm) is a company that gives you money to trade with. You pay a small monthly fee to take an evaluation, and if the account passes, they give you a funded account with their money in it. The best part? You keep a big percentage of the profits — usually 80% to 100%. Our service can trade on prop firm accounts for you too!",
-        link: {
-          label: "Learn About Prop Firms",
-          href: "/client-dashboard/prop-firm-guide",
-        },
+        link: { label: "Learn About Prop Firms", href: "/client-dashboard/prop-firm-guide" },
       },
       {
         q: "Do I need to be at my computer all day?",
@@ -87,18 +58,13 @@ const FAQ_CATEGORIES: FAQCategory[] = [
     ],
   },
   {
-    id: "connecting-accounts",
+    id: "connecting",
     title: "Connecting Your Account",
-    icon: Link2,
-    color: "text-emerald-400",
     items: [
       {
         q: "How do I connect my trading account?",
         a: "Go to your Accounts page and click the \"Connect New Account\" button. A popup will show you all the trading platforms we support. Pick the one you use, fill in your login details, and click \"Connect Account\". That's it! We have a full step-by-step guide if you need more help.",
-        link: {
-          label: "View Connection Guide",
-          href: "/client-dashboard/connect-guide",
-        },
+        link: { label: "View Connection Guide", href: "/client-dashboard/connect-guide" },
       },
       {
         q: "Is it safe to give you my account login?",
@@ -111,102 +77,67 @@ const FAQ_CATEGORIES: FAQCategory[] = [
       {
         q: "What information do I need to connect my account?",
         a: "It depends on which platform you use. For MetaTrader (MT4/MT5), you'll need your Login ID, Server name, and Password. For Binance, you need your API Key and Secret Key. For Tradovate, you need your account number, username, and password. For Interactive Brokers, you need your Account ID and API Token. Our connection guide has all the details for each platform.",
-        link: {
-          label: "See What You Need",
-          href: "/client-dashboard/connect-guide",
-        },
+        link: { label: "See What You Need", href: "/client-dashboard/connect-guide" },
       },
       {
         q: "I'm getting an error when trying to connect. What do I do?",
         a: "First, double-check that you typed everything correctly — make sure there are no extra spaces at the beginning or end of your Login ID, password, or API key. Also make sure you picked the right broker and server. If it still doesn't work, try disconnecting and reconnecting. If the problem continues, contact us for help.",
       },
       {
-        q: "My account isn't showing up after I connected it. What happened?",
-        a: "Wait about 10 seconds and then refresh the page. Sometimes it takes a moment for everything to sync up. If it still doesn't show up after refreshing, try disconnecting and reconnecting the account from your Accounts page.",
-        link: {
-          label: "Go to Accounts",
-          href: "/client-dashboard/accounts",
-        },
-      },
-      {
         q: "Can I connect more than one account?",
         a: "Yes! You can connect as many trading accounts as you want. Just go to your Accounts page and click \"Connect New Account\" for each one. Each account will show up separately on your dashboard so you can track them all.",
-        link: {
-          label: "Connect Another Account",
-          href: "/client-dashboard/accounts?connect=1",
-        },
+        link: { label: "Connect Another Account", href: "/client-dashboard/accounts?connect=1" },
       },
       {
         q: "How do I disconnect an account?",
         a: "Go to your Accounts page, find the account you want to remove, click the three-dot menu (⋮) on the right side of the account card, and click \"Disconnect\". The account will stop receiving trades and will be removed from your dashboard.",
-        link: {
-          label: "Go to Accounts",
-          href: "/client-dashboard/accounts",
-        },
+        link: { label: "Go to Accounts", href: "/client-dashboard/accounts" },
       },
       {
         q: "I have a Tradovate account. Is there anything special I need to do?",
         a: "Yes! Before you connect your Tradovate account, you MUST log into your Tradovate account and sign the agreement first. If you don't sign the agreement, the connection to our service will not work. After you've signed it, you can connect your account normally through our connection guide.",
-        link: {
-          label: "Tradovate Connection Steps",
-          href: "/client-dashboard/connect-guide",
-        },
+        link: { label: "Tradovate Connection Steps", href: "/client-dashboard/connect-guide" },
       },
       {
         q: "What if I change my trading account password?",
         a: "If you change your password on your trading platform, you'll need to update it on our side too. Go to your Accounts page, disconnect the account, and then reconnect it with your new password. This makes sure we can still place trades for you.",
-        link: {
-          label: "Go to Accounts",
-          href: "/client-dashboard/accounts",
-        },
+        link: { label: "Go to Accounts", href: "/client-dashboard/accounts" },
+      },
+      {
+        q: "My account isn't showing up after I connected it. What happened?",
+        a: "Wait about 10 seconds and then refresh the page. Sometimes it takes a moment for everything to sync up. If it still doesn't show up after refreshing, try disconnecting and reconnecting the account from your Accounts page.",
+        link: { label: "Go to Accounts", href: "/client-dashboard/accounts" },
       },
     ],
   },
   {
     id: "prop-firms",
     title: "Prop Firm Accounts",
-    icon: BookOpen,
-    color: "text-purple-400",
     items: [
       {
         q: "Which prop firms do you recommend?",
         a: "We have a full guide with our top recommended prop firms. Right now, we recommend: Apex Trader Funding, BluSky Trading, MyFundedFutures (MFF), Take Profit Trader, Elite Trader Funding, and TradeDay. Each one is a little different, so check out our guide to see which one is the best fit for you.",
-        link: {
-          label: "View Prop Firm Guide",
-          href: "/client-dashboard/prop-firm-guide",
-        },
+        link: { label: "View Prop Firm Guide", href: "/client-dashboard/prop-firm-guide" },
       },
       {
         q: "Are there any prop firms I should avoid?",
         a: "Yes. We do NOT recommend Topstep, Earn2Trade, or Bulenox. These firms either have very strict rules that make it hard to succeed, high fees, or they are not compatible with our service. Stick with the firms in our recommended list for the best experience.",
-        link: {
-          label: "See Recommended Firms",
-          href: "/client-dashboard/prop-firm-guide",
-        },
+        link: { label: "See Recommended Firms", href: "/client-dashboard/prop-firm-guide" },
       },
       {
         q: "Do you have any coupon codes or discounts for prop firms?",
         a: "Yes! We have special coupon codes for most of the prop firms we recommend. You can find all the coupon codes on our Prop Firm Guide page — just look for the coupon code section under each firm. Click on the code to copy it, then paste it when you sign up.",
-        link: {
-          label: "Get Coupon Codes",
-          href: "/client-dashboard/prop-firm-guide",
-        },
+        link: { label: "Get Coupon Codes", href: "/client-dashboard/prop-firm-guide" },
       },
       {
         q: "How does a prop firm evaluation work?",
         a: "A prop firm evaluation is basically a test. You pay a monthly fee for an evaluation account (which has simulated money in it). Our service trades on that account, and if it reaches the profit target without breaking any rules, you \"pass\" the evaluation. Once you pass, the prop firm gives you a real funded account with their money, and you get to keep most of the profits (usually 80-100%).",
-        link: {
-          label: "Learn More About Evaluations",
-          href: "/client-dashboard/prop-firm-guide",
-        },
+        link: { label: "Learn More About Evaluations", href: "/client-dashboard/prop-firm-guide" },
       },
       {
         q: "How much does a prop firm account cost?",
         a: "Prices vary depending on the firm and the account size. Smaller accounts (like $25K or $50K) usually cost between $50-$200 per month. Larger accounts (like $150K or $300K) cost more. Many firms also run sales and offer coupon codes that can save you 50-90% off! Check our Prop Firm Guide for current pricing.",
-        link: {
-          label: "Compare Pricing",
-          href: "/client-dashboard/prop-firm-guide",
-        },
+        link: { label: "Compare Pricing", href: "/client-dashboard/prop-firm-guide" },
       },
       {
         q: "What happens if my prop firm account fails the evaluation?",
@@ -215,26 +146,18 @@ const FAQ_CATEGORIES: FAQCategory[] = [
       {
         q: "Can I have multiple prop firm accounts at the same time?",
         a: "Yes! Many of our clients have multiple prop firm accounts connected at the same time. You can connect as many as you want. Some prop firms even let you have multiple accounts with them. Check each firm's rules on our Prop Firm Guide page.",
-        link: {
-          label: "View Prop Firm Guide",
-          href: "/client-dashboard/prop-firm-guide",
-        },
+        link: { label: "View Prop Firm Guide", href: "/client-dashboard/prop-firm-guide" },
       },
       {
         q: "How do I sign up for a prop firm?",
         a: "Go to our Prop Firm Guide, pick the firm you want, and follow the step-by-step signup instructions we've written for each one. Don't forget to use our coupon code when you check out to save money! After you sign up and get your account details, come back here and connect the account to our service.",
-        link: {
-          label: "Signup Guides",
-          href: "/client-dashboard/prop-firm-guide",
-        },
+        link: { label: "Signup Guides", href: "/client-dashboard/prop-firm-guide" },
       },
     ],
   },
   {
     id: "trading-service",
     title: "How the Trading Service Works",
-    icon: Activity,
-    color: "text-cyan-400",
     items: [
       {
         q: "Do I need to do anything after connecting my account?",
@@ -267,58 +190,38 @@ const FAQ_CATEGORIES: FAQCategory[] = [
       {
         q: "Will I lose money?",
         a: "Trading always involves risk, and there will be some losing trades — that's completely normal. No trading strategy wins 100% of the time. What matters is that our strategies are designed to be profitable over time. You can check your performance on the Performance page to see how your account is doing overall.",
-        link: {
-          label: "View Performance",
-          href: "/client-dashboard/performance",
-        },
+        link: { label: "View Performance", href: "/client-dashboard/performance" },
       },
     ],
   },
   {
     id: "dashboard",
     title: "Using Your Dashboard",
-    icon: TrendingUp,
-    color: "text-amber-400",
     items: [
       {
         q: "What can I see on my dashboard?",
         a: "Your dashboard is like a home base where you can see everything at a glance. You'll see your account balances, recent trading activity, performance stats, and quick links to all the other pages. It updates regularly so you always have the latest info.",
-        link: {
-          label: "Go to Dashboard",
-          href: "/client-dashboard",
-        },
+        link: { label: "Go to Dashboard", href: "/client-dashboard" },
       },
       {
         q: "What is the Accounts page for?",
         a: "The Accounts page shows all of your connected trading accounts in one place. You can see each account's balance, status, and platform. You can also connect new accounts or disconnect existing ones from this page.",
-        link: {
-          label: "Go to Accounts",
-          href: "/client-dashboard/accounts",
-        },
+        link: { label: "Go to Accounts", href: "/client-dashboard/accounts" },
       },
       {
         q: "What is the Trading Activity page?",
         a: "The Trading Activity page shows you every trade that has been placed on your accounts. You can see when each trade was opened, what was traded, whether it was a buy or sell, the profit or loss, and more. It's like a detailed history of everything that's happened.",
-        link: {
-          label: "View Trading Activity",
-          href: "/client-dashboard/activity",
-        },
+        link: { label: "View Trading Activity", href: "/client-dashboard/activity" },
       },
       {
         q: "What is the Performance page?",
         a: "The Performance page shows you how your accounts are doing over time. You'll see charts, graphs, and numbers like total return, win rate, and drawdown. This is the best place to check if you want to see the big picture of how your account has been performing.",
-        link: {
-          label: "View Performance",
-          href: "/client-dashboard/performance",
-        },
+        link: { label: "View Performance", href: "/client-dashboard/performance" },
       },
       {
         q: "What is the Payments page?",
         a: "The Payments page is where you can see everything related to billing and payments for our service. You can view your payment history, current plan, and manage your subscription.",
-        link: {
-          label: "Go to Payments",
-          href: "/client-dashboard/payments",
-        },
+        link: { label: "Go to Payments", href: "/client-dashboard/payments" },
       },
       {
         q: "How often does the dashboard update?",
@@ -333,8 +236,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
   {
     id: "performance",
     title: "Understanding Your Performance",
-    icon: TrendingUp,
-    color: "text-green-400",
     items: [
       {
         q: "What does \"Total Return\" mean?",
@@ -359,42 +260,28 @@ const FAQ_CATEGORIES: FAQCategory[] = [
       {
         q: "Why did my account go down today?",
         a: "Losing days are completely normal in trading. No strategy wins every single day. What matters is the overall performance over weeks and months, not individual days. Check your Performance page to see the bigger picture. If you have concerns about your account's performance, don't hesitate to reach out to us.",
-        link: {
-          label: "Check Performance",
-          href: "/client-dashboard/performance",
-        },
+        link: { label: "Check Performance", href: "/client-dashboard/performance" },
       },
     ],
   },
   {
     id: "payments",
     title: "Payments & Billing",
-    icon: CreditCard,
-    color: "text-pink-400",
     items: [
       {
         q: "How do I pay for the service?",
         a: "You can manage all your billing from the Payments page on your dashboard. We accept major credit/debit cards. You can view your current plan, payment history, and update your payment method from there.",
-        link: {
-          label: "Go to Payments",
-          href: "/client-dashboard/payments",
-        },
+        link: { label: "Go to Payments", href: "/client-dashboard/payments" },
       },
       {
         q: "When will I be charged?",
         a: "Billing depends on your subscription plan. Most plans bill monthly on the same date you signed up. You can see your next billing date on the Payments page.",
-        link: {
-          label: "View Billing Details",
-          href: "/client-dashboard/payments",
-        },
+        link: { label: "View Billing Details", href: "/client-dashboard/payments" },
       },
       {
         q: "Can I cancel my subscription?",
         a: "Yes, you can cancel at any time from the Payments page. If you cancel, your accounts will stop receiving trades at the end of your current billing period. You won't be charged again after that.",
-        link: {
-          label: "Manage Subscription",
-          href: "/client-dashboard/payments",
-        },
+        link: { label: "Manage Subscription", href: "/client-dashboard/payments" },
       },
       {
         q: "Is the service fee separate from prop firm fees?",
@@ -405,8 +292,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
   {
     id: "security",
     title: "Account Security",
-    icon: ShieldCheck,
-    color: "text-teal-400",
     items: [
       {
         q: "Is my trading account safe?",
@@ -423,10 +308,7 @@ const FAQ_CATEGORIES: FAQCategory[] = [
       {
         q: "Should I turn on \"Enable Withdrawals\" for my Binance API key?",
         a: "NO! Never turn on \"Enable Withdrawals\" for your Binance API key. We do not need withdrawal access, and keeping it off protects your funds. Only turn on \"Enable Reading\" and \"Enable Spot & Margin Trading\" — that's all we need.",
-        link: {
-          label: "See Binance Setup Guide",
-          href: "/client-dashboard/connect-guide",
-        },
+        link: { label: "See Binance Setup Guide", href: "/client-dashboard/connect-guide" },
       },
       {
         q: "How do I log out of my dashboard?",
@@ -437,8 +319,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
   {
     id: "troubleshooting",
     title: "Troubleshooting & Common Issues",
-    icon: AlertTriangle,
-    color: "text-orange-400",
     items: [
       {
         q: "The page is loading slowly. What should I do?",
@@ -451,10 +331,7 @@ const FAQ_CATEGORIES: FAQCategory[] = [
       {
         q: "My account shows a $0 balance but I know I have money in it.",
         a: "This usually means the connection to your trading platform needs to be refreshed. Try disconnecting the account and reconnecting it. Make sure you're using the correct login details. If the problem persists, your trading platform might be doing maintenance — try again in a few minutes.",
-        link: {
-          label: "Go to Accounts",
-          href: "/client-dashboard/accounts",
-        },
+        link: { label: "Go to Accounts", href: "/client-dashboard/accounts" },
       },
       {
         q: "I don't see any trades happening on my account.",
@@ -463,77 +340,76 @@ const FAQ_CATEGORIES: FAQCategory[] = [
       {
         q: "I connected the wrong account. How do I fix this?",
         a: "No problem! Go to your Accounts page, find the wrong account, click the three-dot menu (⋮), and click \"Disconnect\". Then connect the correct account by clicking \"Connect New Account\" and entering the right details.",
-        link: {
-          label: "Go to Accounts",
-          href: "/client-dashboard/accounts",
-        },
+        link: { label: "Go to Accounts", href: "/client-dashboard/accounts" },
       },
       {
         q: "Where do I find my Login ID, Server name, or API Key?",
         a: "Check the email your broker sent you when you first created your trading account — your login details are usually there. You can also find them inside your trading platform's settings. For step-by-step instructions on where to find everything, see our Connection Guide.",
-        link: {
-          label: "View Connection Guide",
-          href: "/client-dashboard/connect-guide",
-        },
+        link: { label: "View Connection Guide", href: "/client-dashboard/connect-guide" },
       },
       {
         q: "Something looks wrong with my performance numbers.",
         a: "Performance data can sometimes take a moment to update. Try refreshing the page. If the numbers still look off, it could be because of an open trade that hasn't closed yet — open trades can affect your balance temporarily. If you're still concerned, contact us and we'll take a look.",
-        link: {
-          label: "Check Performance",
-          href: "/client-dashboard/performance",
-        },
+        link: { label: "Check Performance", href: "/client-dashboard/performance" },
       },
     ],
   },
 ];
 
-// ─── FAQ Accordion Item ──────────────────────────────────
-function FAQAccordion({
-  question,
-  answer,
-  link,
+// ─── Accordion Item ──────────────────────────────────────
+function AccordionItem({
+  item,
   isOpen,
   onToggle,
 }: {
-  question: string;
-  answer: string;
-  link?: { label: string; href: string };
+  item: FAQItemData;
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState("0px");
+
+  useEffect(() => {
+    if (isOpen && contentRef.current) {
+      setMaxHeight(contentRef.current.scrollHeight + "px");
+    } else {
+      setMaxHeight("0px");
+    }
+  }, [isOpen]);
+
   return (
-    <div className="border border-white/5 rounded-xl overflow-hidden transition-all hover:border-white/10">
+    <div className="group bg-[#13161C] border border-white/5 rounded-xl overflow-hidden transition-all hover:border-white/10">
       <button
         onClick={onToggle}
-        className="w-full flex items-start gap-3 p-4 text-left transition-colors hover:bg-white/[0.02]"
+        className={`w-full flex items-center justify-between p-5 text-left text-sm font-medium transition-colors ${
+          isOpen ? "text-white" : "text-slate-200 group-hover:text-white"
+        }`}
       >
-        <div className="mt-0.5 flex-shrink-0">
-          <HelpCircle className="w-4 h-4 text-blue-400/60" />
-        </div>
-        <span className="flex-1 text-sm font-medium text-slate-200 leading-relaxed">
-          {question}
-        </span>
+        <span>{item.q}</span>
         <ChevronDown
-          className={`w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5 transition-transform duration-200 ${
+          className={`w-4 h-4 text-slate-500 flex-shrink-0 ml-4 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
-      {isOpen && (
-        <div className="px-4 pb-4 pl-11">
-          <p className="text-sm text-slate-400 leading-relaxed">{answer}</p>
-          {link && (
+      <div
+        ref={contentRef}
+        className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
+        style={{ maxHeight }}
+      >
+        <div className="px-5 pb-5 text-xs text-slate-400 leading-relaxed border-t border-white/5 pt-3">
+          {item.a}
+          {item.link && (
             <Link
-              href={link.href}
+              href={item.link.href}
               className="inline-flex items-center gap-1.5 mt-3 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
             >
-              {link.label}
+              {item.link.label}
               <ArrowRight className="w-3 h-3" />
             </Link>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -542,28 +418,30 @@ function FAQAccordion({
 export default function FAQPage() {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(FAQ_CATEGORIES[0].id);
 
   function toggleItem(key: string) {
     setOpenItems((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  // Filter FAQ items based on search
-  const filteredCategories = FAQ_CATEGORIES.map((cat) => ({
-    ...cat,
-    items: cat.items.filter(
-      (item) =>
-        searchQuery === "" ||
-        item.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.a.toLowerCase().includes(searchQuery.toLowerCase())
-    ),
-  })).filter((cat) => cat.items.length > 0);
+  // Filter items by search
+  const isSearching = searchQuery.trim() !== "";
 
-  // Category filter
-  const displayCategories =
-    activeCategory
-      ? filteredCategories.filter((c) => c.id === activeCategory)
-      : filteredCategories;
+  const filteredCategories = isSearching
+    ? FAQ_CATEGORIES.map((cat) => ({
+        ...cat,
+        items: cat.items.filter(
+          (item) =>
+            item.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.a.toLowerCase().includes(searchQuery.toLowerCase())
+        ),
+      })).filter((cat) => cat.items.length > 0)
+    : FAQ_CATEGORIES.filter((cat) => cat.id === activeTab);
+
+  function handleTabClick(id: string) {
+    setActiveTab(id);
+    setSearchQuery("");
+  }
 
   const totalQuestions = FAQ_CATEGORIES.reduce(
     (sum, cat) => sum + cat.items.length,
@@ -571,214 +449,109 @@ export default function FAQPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#020408] text-white">
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        {/* Header */}
-        <div className="mb-10">
-          <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-            <Link
-              href="/client-dashboard"
-              className="hover:text-white transition-colors"
-            >
-              Dashboard
-            </Link>
-            <span>/</span>
-            <span className="text-slate-300">Frequently Asked Questions</span>
-          </div>
-
-          <div className="flex items-center gap-4 mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/5 flex items-center justify-center">
-              <MessageCircleQuestion className="w-6 h-6 text-blue-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                Frequently Asked Questions
-              </h1>
-              <p className="text-sm text-slate-500 mt-0.5">
-                {totalQuestions} answers to help you get started and understand
-                everything
-              </p>
-            </div>
+    <div className="flex-1 overflow-auto pt-6 pr-6 pb-6 pl-6">
+      <div className="max-w-5xl mx-auto flex flex-col gap-12 pb-12">
+        {/* Header Section */}
+        <div className="flex flex-col items-center text-center gap-6 pt-8">
+          <div className="space-y-3 max-w-2xl">
+            <h1 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+              Frequently Asked Questions
+            </h1>
+            <p className="leading-relaxed md:text-base text-sm text-slate-400">
+              Everything you need to know about connecting your accounts, our
+              copy trading service, and managing your dashboard.{" "}
+              <span className="text-slate-500">
+                {totalQuestions} questions answered.
+              </span>
+            </p>
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-8">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search for a question..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#0B0E14] border border-white/5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/30 focus:ring-1 focus:ring-blue-500/20 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-white transition-colors"
-            >
-              Clear
-            </button>
-          )}
-        </div>
+        {/* Search & Filter Section */}
+        <div className="flex flex-col gap-6 sticky top-0 z-10 bg-[#0A0C10]/95 backdrop-blur-sm py-4 -my-4 border-b border-white/5">
+          {/* Search Bar */}
+          <div className="relative max-w-2xl mx-auto w-full group">
+            <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
+            <input
+              type="text"
+              placeholder="Search for questions about accounts, trading, performance..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#13161C] border border-white/10 rounded-xl py-3 pl-12 pr-12 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 placeholder:text-slate-600 transition-all shadow-lg"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-3.5 text-xs text-slate-500 hover:text-white transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
 
-        {/* Category Pills */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          <button
-            onClick={() => setActiveCategory(null)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeCategory === null
-                ? "bg-blue-500/20 text-blue-300 border border-blue-500/20"
-                : "bg-[#0B0E14] text-slate-400 border border-white/5 hover:text-white hover:border-white/10"
-            }`}
-          >
-            All Questions
-          </button>
-          {FAQ_CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            return (
+          {/* Category Tabs */}
+          <div className="flex overflow-x-auto gap-2 pb-2 justify-start md:justify-center scrollbar-hide">
+            {FAQ_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() =>
-                  setActiveCategory(activeCategory === cat.id ? null : cat.id)
-                }
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeCategory === cat.id
-                    ? "bg-blue-500/20 text-blue-300 border border-blue-500/20"
-                    : "bg-[#0B0E14] text-slate-400 border border-white/5 hover:text-white hover:border-white/10"
+                onClick={() => handleTabClick(cat.id)}
+                className={`px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                  !isSearching && activeTab === cat.id
+                    ? "bg-blue-600 text-white border-blue-500"
+                    : "bg-[#13161C] text-slate-400 border-white/5 hover:bg-white/5 hover:text-slate-200"
                 }`}
               >
-                <Icon className="w-3 h-3" />
                 {cat.title}
               </button>
-            );
-          })}
-        </div>
-
-        {/* No results */}
-        {displayCategories.length === 0 && (
-          <div className="text-center py-16">
-            <HelpCircle className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-sm text-slate-400">
-              No questions found matching &quot;{searchQuery}&quot;
-            </p>
-            <button
-              onClick={() => {
-                setSearchQuery("");
-                setActiveCategory(null);
-              }}
-              className="mt-3 text-xs text-blue-400 hover:text-blue-300 transition-colors"
-            >
-              Clear search
-            </button>
-          </div>
-        )}
-
-        {/* FAQ Categories */}
-        <div className="space-y-10">
-          {displayCategories.map((cat) => {
-            const Icon = cat.icon;
-            return (
-              <section key={cat.id}>
-                <div className="flex items-center gap-2.5 mb-4">
-                  <Icon className={`w-5 h-5 ${cat.color}`} />
-                  <h2 className="text-lg font-semibold">{cat.title}</h2>
-                  <span className="text-xs text-slate-600 ml-1">
-                    ({cat.items.length}{" "}
-                    {cat.items.length === 1 ? "question" : "questions"})
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {cat.items.map((item, idx) => {
-                    const key = `${cat.id}-${idx}`;
-                    return (
-                      <FAQAccordion
-                        key={key}
-                        question={item.q}
-                        answer={item.a}
-                        link={item.link}
-                        isOpen={!!openItems[key]}
-                        onToggle={() => toggleItem(key)}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-
-        {/* Quick Links */}
-        <div className="mt-14 p-6 rounded-2xl bg-[#0B0E14] border border-white/5">
-          <h3 className="text-sm font-semibold mb-4 text-slate-300">
-            Quick Links
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {[
-              {
-                label: "Dashboard",
-                href: "/client-dashboard",
-                icon: TrendingUp,
-              },
-              {
-                label: "Accounts",
-                href: "/client-dashboard/accounts",
-                icon: Wallet,
-              },
-              {
-                label: "Trading Activity",
-                href: "/client-dashboard/activity",
-                icon: Activity,
-              },
-              {
-                label: "Performance",
-                href: "/client-dashboard/performance",
-                icon: TrendingUp,
-              },
-              {
-                label: "Payments",
-                href: "/client-dashboard/payments",
-                icon: CreditCard,
-              },
-              {
-                label: "Connect an Account",
-                href: "/client-dashboard/accounts?connect=1",
-                icon: Link2,
-              },
-              {
-                label: "Connection Guide",
-                href: "/client-dashboard/connect-guide",
-                icon: BookOpen,
-              },
-              {
-                label: "Prop Firm Guide",
-                href: "/client-dashboard/prop-firm-guide",
-                icon: BookOpen,
-              },
-              {
-                label: "Settings",
-                href: "/client-dashboard/settings",
-                icon: Settings,
-              },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-[#13161C] border border-white/5 hover:border-white/10 hover:bg-white/[0.03] transition-all text-sm text-slate-300 hover:text-white"
-                >
-                  <Icon className="w-4 h-4 text-slate-500" />
-                  {item.label}
-                </Link>
-              );
-            })}
+            ))}
           </div>
         </div>
 
-        {/* Still need help */}
-        <div className="mt-8 text-center py-10">
-          <p className="text-sm text-slate-500 mb-1">
+        {/* FAQ Content */}
+        <div className="flex flex-col gap-4 min-h-[400px]">
+          {filteredCategories.length === 0 && (
+            <div className="text-center py-16">
+              <p className="text-sm text-slate-400">
+                No questions found matching &quot;{searchQuery}&quot;
+              </p>
+              <button
+                onClick={() => setSearchQuery("")}
+                className="mt-3 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                Clear search
+              </button>
+            </div>
+          )}
+
+          {filteredCategories.map((cat) => (
+            <div key={cat.id} className="flex flex-col gap-3">
+              {/* Category Header */}
+              <div className="flex items-center gap-2 pb-2">
+                <span className="text-sm font-semibold text-white">
+                  {cat.title}
+                </span>
+                <div className="h-px bg-white/10 flex-1"></div>
+              </div>
+
+              {/* Questions */}
+              {cat.items.map((item, idx) => {
+                const key = `${cat.id}-${idx}`;
+                return (
+                  <AccordionItem
+                    key={key}
+                    item={item}
+                    isOpen={!!openItems[key]}
+                    onToggle={() => toggleItem(key)}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Still Have Questions */}
+        <div className="text-center py-8">
+          <p className="text-sm text-slate-400 mb-1">
             Still have questions?
           </p>
           <p className="text-xs text-slate-600">
