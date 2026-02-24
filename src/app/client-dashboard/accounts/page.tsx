@@ -309,19 +309,24 @@ function ConnectModal({
   const selectedPlatform = PLATFORMS.find((p) => p.id === view);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Panel */}
-      <div className="relative w-full max-w-2xl mx-4 rounded-xl bg-[#1a1a1a] border border-white/10 shadow-2xl overflow-hidden">
-        {/* Close */}
+      {/* Panel — mobile: slides up from bottom, fills most of screen; desktop: centered card */}
+      <div className="relative w-full sm:max-w-2xl sm:mx-4 max-h-[92vh] sm:max-h-[85vh] rounded-t-2xl sm:rounded-xl bg-[#1a1a1a] border border-white/10 shadow-2xl flex flex-col overflow-hidden">
+        {/* Mobile drag handle */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
+          <div className="w-10 h-1 rounded-full bg-white/20" />
+        </div>
+
+        {/* Close — bigger tap target on mobile */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors z-10"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-white/5 sm:bg-transparent hover:bg-white/10 text-slate-400 hover:text-white transition-colors z-10"
         >
           <X className="w-5 h-5" />
         </button>
@@ -329,50 +334,50 @@ function ConnectModal({
         {view === "selection" ? (
           /* Platform Selection */
           <div
-            className="p-8"
+            className="p-5 sm:p-8 overflow-y-auto flex-1"
             style={{
               backgroundImage:
                 "linear-gradient(to right, #ffffff05 1px, transparent 1px), linear-gradient(to bottom, #ffffff05 1px, transparent 1px)",
               backgroundSize: "24px 24px",
             }}
           >
-            <div className="text-center mb-8">
-              <h2 className="text-xl font-semibold text-white tracking-tight">
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="text-lg sm:text-xl font-semibold text-white tracking-tight">
                 Connect New Trading Account
               </h2>
-              <p className="text-sm text-slate-400 mt-2">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1.5 sm:mt-2">
                 Choose your trading platform to get started
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {PLATFORMS.map((plat) => (
                 <button
                   key={plat.id}
                   onClick={() => plat.available && setView(plat.id)}
-                  className={`group relative flex flex-col items-center p-6 bg-[#0B0E14] border border-white/5 rounded-xl transition-all duration-300 ${
+                  className={`group relative flex flex-col items-center p-4 sm:p-6 bg-[#0B0E14] border border-white/5 rounded-xl transition-all duration-300 ${
                     plat.available
-                      ? "hover:border-blue-500/50 hover:bg-blue-500/5 cursor-pointer"
+                      ? "hover:border-blue-500/50 hover:bg-blue-500/5 active:bg-blue-500/10 cursor-pointer"
                       : "opacity-50 cursor-not-allowed"
                   }`}
                 >
                   <div
-                    className="w-12 h-12 rounded-xl border border-white/10 flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform"
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl border border-white/10 flex items-center justify-center shadow-lg mb-3 sm:mb-4 group-hover:scale-110 transition-transform"
                     style={{ backgroundColor: plat.color }}
                   >
                     <span
-                      className="text-sm font-bold"
+                      className="text-xs sm:text-sm font-bold"
                       style={{ color: plat.textColor }}
                     >
                       {plat.short}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold text-white mb-1">
+                  <h3 className="text-xs sm:text-sm font-semibold text-white mb-0.5 sm:mb-1">
                     {plat.name}
                   </h3>
-                  <p className="text-[10px] text-slate-500">{plat.desc}</p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-500">{plat.desc}</p>
                   {plat.available && (
-                    <span className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="absolute top-2 right-2 sm:top-3 sm:right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                       <ArrowRight className="w-4 h-4 text-blue-500" />
                     </span>
                   )}
@@ -382,20 +387,20 @@ function ConnectModal({
           </div>
         ) : (
           /* Connection Form */
-          <div>
-            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3 bg-[#131313]">
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="px-5 sm:px-6 py-3 sm:py-4 border-b border-white/5 flex items-center gap-3 bg-[#131313] shrink-0">
               <button
                 onClick={() => setView("selection")}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white p-1"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h3 className="font-medium text-white">
+              <h3 className="font-medium text-white text-sm sm:text-base">
                 Connect {selectedPlatform?.name || "Account"}
               </h3>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
               {/* MT form fields */}
               {(view === "mt5" || view === "mt4") && (
                 <>
@@ -418,7 +423,7 @@ function ConnectModal({
                       <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-500 pointer-events-none" />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-xs font-medium text-slate-400 mb-1.5">
                         Login ID
@@ -631,30 +636,30 @@ function ConnectModal({
 
             {/* Error Display */}
             {error && (
-              <div className="mx-6 mb-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+              <div className="mx-5 sm:mx-6 mb-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
                 {error}
               </div>
             )}
 
-            {/* Modal Footer */}
-            <div className="p-6 pt-0 flex justify-end gap-3">
+            {/* Modal Footer — sticky at bottom */}
+            <div className="p-4 sm:p-6 pt-3 sm:pt-4 border-t border-white/5 flex justify-end gap-3 shrink-0 bg-[#1a1a1a]">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-medium text-slate-300 hover:text-white transition-colors"
+                className="px-4 py-2.5 sm:py-2 text-xs font-medium text-slate-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConnect}
                 disabled={connecting}
-                className={`px-6 py-2 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-2 ${
+                className={`px-5 sm:px-6 py-2.5 sm:py-2 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-2 ${
                   connecting
                     ? "bg-slate-600 cursor-not-allowed"
                     : view === "binance"
-                      ? "bg-yellow-600 hover:bg-yellow-500"
+                      ? "bg-yellow-600 hover:bg-yellow-500 active:bg-yellow-400"
                       : view === "tradovate"
-                        ? "bg-sky-600 hover:bg-sky-500"
-                        : "bg-blue-600 hover:bg-blue-500"
+                        ? "bg-sky-600 hover:bg-sky-500 active:bg-sky-400"
+                        : "bg-blue-600 hover:bg-blue-500 active:bg-blue-400"
                 }`}
               >
                 <span>
