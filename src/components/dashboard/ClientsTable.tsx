@@ -871,6 +871,7 @@ function AddClientModal({
                   onChange={(e) => setMaxAccounts(e.target.value)}
                   className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
                 >
+                  <option value="1">1 Account</option>
                   <option value="5">5 Accounts</option>
                   <option value="10">10 Accounts</option>
                   <option value="20">20 Accounts</option>
