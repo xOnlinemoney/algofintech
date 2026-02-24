@@ -65,6 +65,7 @@ interface SettingsData {
   sender_name: string;
   reply_to_email: string;
   use_custom_smtp: boolean;
+  smtp_provider: string;
   smtp_host: string;
   smtp_port: string;
   smtp_user: string;
@@ -1436,69 +1437,224 @@ export default function WhiteLabelSettingsPage() {
                     </label>
                   </div>
 
-                  {/* SMTP Configuration Fields */}
+                  {/* SMTP Provider Selection & Configuration */}
                   {settings.use_custom_smtp && (
-                    <div className="pt-4 space-y-4 border-t border-white/5 ml-[52px]">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-slate-400">SMTP Host</label>
-                          <input
-                            type="text"
-                            value={settings.smtp_host || ""}
-                            onChange={(e) => updateSetting("smtp_host", e.target.value)}
-                            className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
-                            placeholder="smtp.gmail.com"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-slate-400">SMTP Port</label>
-                          <input
-                            type="number"
-                            value={settings.smtp_port || "587"}
-                            onChange={(e) => updateSetting("smtp_port", e.target.value)}
-                            className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
-                            placeholder="587"
-                          />
+                    <div className="pt-4 space-y-5 border-t border-white/5 ml-[52px]">
+                      {/* Provider Picker */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Provider</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Gmail Card */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateSetting("smtp_provider", "gmail");
+                              updateSetting("smtp_host", "smtp.gmail.com");
+                              updateSetting("smtp_port", "587");
+                            }}
+                            className={`relative flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${
+                              (settings.smtp_provider || "") === "gmail"
+                                ? "border-blue-500 bg-blue-500/5"
+                                : "border-white/10 bg-[#020408] hover:border-white/20"
+                            }`}
+                          >
+                            {(settings.smtp_provider || "") === "gmail" && (
+                              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                <Check className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none">
+                                <path d="M22 6.5V17.5C22 18.88 20.88 20 19.5 20H4.5C3.12 20 2 18.88 2 17.5V6.5C2 5.12 3.12 4 4.5 4H19.5C20.88 4 22 5.12 22 6.5Z" fill="#EA4335" fillOpacity="0.1" stroke="#EA4335" strokeWidth="1.5"/>
+                                <path d="M22 6.5L12 13L2 6.5" stroke="#EA4335" strokeWidth="1.5" strokeLinecap="round"/>
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-white">Gmail</div>
+                              <div className="text-[11px] text-slate-500">Google Workspace / Gmail</div>
+                            </div>
+                          </button>
+
+                          {/* Other / Custom Card */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateSetting("smtp_provider", "other");
+                              // Don't auto-fill, let user enter manually
+                              if ((settings.smtp_provider || "") === "gmail") {
+                                updateSetting("smtp_host", "");
+                                updateSetting("smtp_port", "587");
+                              }
+                            }}
+                            className={`relative flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${
+                              (settings.smtp_provider || "") === "other"
+                                ? "border-blue-500 bg-blue-500/5"
+                                : "border-white/10 bg-[#020408] hover:border-white/20"
+                            }`}
+                          >
+                            {(settings.smtp_provider || "") === "other" && (
+                              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                <Check className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                              <SettingsIcon className="w-5 h-5 text-slate-400" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-white">Other</div>
+                              <div className="text-[11px] text-slate-500">Custom SMTP server</div>
+                            </div>
+                          </button>
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-slate-400">SMTP Username</label>
-                          <input
-                            type="text"
-                            value={settings.smtp_user || ""}
-                            onChange={(e) => updateSetting("smtp_user", e.target.value)}
-                            className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
-                            placeholder="your-email@gmail.com"
-                          />
+
+                      {/* Gmail Config */}
+                      {(settings.smtp_provider || "") === "gmail" && (
+                        <div className="space-y-4">
+                          {/* Gmail-specific info banner */}
+                          <div className="rounded-xl bg-gradient-to-r from-red-500/5 via-amber-500/5 to-blue-500/5 border border-white/10 p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center">
+                                <Mail className="w-3.5 h-3.5 text-red-400" />
+                              </div>
+                              <span className="text-sm font-medium text-white">Gmail Setup Guide</span>
+                            </div>
+                            <ol className="text-xs text-slate-400 space-y-1.5 list-decimal list-inside">
+                              <li>Enable <span className="text-white">2-Step Verification</span> on your Google account</li>
+                              <li>Go to <span className="text-blue-400">myaccount.google.com/apppasswords</span></li>
+                              <li>Create an App Password for &quot;Mail&quot;</li>
+                              <li>Use that 16-character password below (not your regular password)</li>
+                            </ol>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-slate-400">Gmail Address</label>
+                            <input
+                              type="email"
+                              value={settings.smtp_user || ""}
+                              onChange={(e) => {
+                                updateSetting("smtp_user", e.target.value);
+                                updateSetting("smtp_from_email", e.target.value);
+                              }}
+                              className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                              placeholder="your-email@gmail.com"
+                            />
+                            <p className="text-[10px] text-slate-600">This will also be used as the &quot;From&quot; address</p>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-slate-400">App Password</label>
+                            <input
+                              type="password"
+                              value={settings.smtp_pass || ""}
+                              onChange={(e) => updateSetting("smtp_pass", e.target.value)}
+                              className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600 font-mono tracking-widest"
+                              placeholder="xxxx xxxx xxxx xxxx"
+                            />
+                            <p className="text-[10px] text-slate-600">16-character app password from Google (no spaces needed)</p>
+                          </div>
+
+                          {/* Auto-configured fields (read-only display) */}
+                          <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3 space-y-2">
+                            <span className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold">Auto-Configured</span>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-500">SMTP Server</span>
+                              <span className="text-slate-300 font-mono">smtp.gmail.com</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-500">Port</span>
+                              <span className="text-slate-300 font-mono">587 (TLS)</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-500">Encryption</span>
+                              <span className="text-slate-300">STARTTLS</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-slate-400">SMTP Password</label>
-                          <input
-                            type="password"
-                            value={settings.smtp_pass || ""}
-                            onChange={(e) => updateSetting("smtp_pass", e.target.value)}
-                            className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
-                            placeholder="••••••••••••"
-                          />
+                      )}
+
+                      {/* Other / Custom SMTP Config */}
+                      {(settings.smtp_provider || "") === "other" && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="md:col-span-2 space-y-1.5">
+                              <label className="text-sm font-medium text-slate-400">SMTP Host</label>
+                              <input
+                                type="text"
+                                value={settings.smtp_host || ""}
+                                onChange={(e) => updateSetting("smtp_host", e.target.value)}
+                                className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                                placeholder="e.g. mail.yourdomain.com"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-sm font-medium text-slate-400">Port</label>
+                              <div className="relative">
+                                <select
+                                  value={settings.smtp_port || "587"}
+                                  onChange={(e) => updateSetting("smtp_port", e.target.value)}
+                                  className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white appearance-none focus:outline-none focus:border-blue-500"
+                                >
+                                  <option value="587">587 (TLS)</option>
+                                  <option value="465">465 (SSL)</option>
+                                  <option value="25">25 (Unencrypted)</option>
+                                  <option value="2525">2525 (Alt)</option>
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4 pointer-events-none" />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-sm font-medium text-slate-400">Username</label>
+                              <input
+                                type="text"
+                                value={settings.smtp_user || ""}
+                                onChange={(e) => updateSetting("smtp_user", e.target.value)}
+                                className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                                placeholder="SMTP username or email"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-sm font-medium text-slate-400">Password</label>
+                              <input
+                                type="password"
+                                value={settings.smtp_pass || ""}
+                                onChange={(e) => updateSetting("smtp_pass", e.target.value)}
+                                className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                                placeholder="••••••••••••"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-slate-400">From Email Address</label>
+                            <input
+                              type="email"
+                              value={settings.smtp_from_email || ""}
+                              onChange={(e) => updateSetting("smtp_from_email", e.target.value)}
+                              className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                              placeholder="noreply@yourdomain.com"
+                            />
+                          </div>
+
+                          <div className="rounded-lg bg-blue-500/10 border border-blue-500/10 p-3 flex gap-2">
+                            <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                            <p className="text-xs text-slate-300">
+                              Common providers: Outlook (<span className="text-white font-mono text-[11px]">smtp-mail.outlook.com:587</span>), Yahoo (<span className="text-white font-mono text-[11px]">smtp.mail.yahoo.com:587</span>), Zoho (<span className="text-white font-mono text-[11px]">smtp.zoho.com:587</span>), SendGrid (<span className="text-white font-mono text-[11px]">smtp.sendgrid.net:587</span>)
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-slate-400">From Email Address</label>
-                        <input
-                          type="email"
-                          value={settings.smtp_from_email || ""}
-                          onChange={(e) => updateSetting("smtp_from_email", e.target.value)}
-                          className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
-                          placeholder="noreply@yourdomain.com"
-                        />
-                      </div>
-                      <div className="rounded-lg bg-blue-500/10 border border-blue-500/10 p-3 flex gap-2">
-                        <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
-                        <p className="text-xs text-slate-300">
-                          For Gmail, use an <span className="text-white font-medium">App Password</span> (not your regular password). Go to Google Account → Security → 2-Step Verification → App Passwords.
-                        </p>
-                      </div>
+                      )}
+
+                      {/* No provider selected yet */}
+                      {!(settings.smtp_provider || "") && (
+                        <div className="rounded-lg bg-white/[0.02] border border-dashed border-white/10 p-6 text-center">
+                          <Mail className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                          <p className="text-sm text-slate-500">Select an email provider above to configure your SMTP settings</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
