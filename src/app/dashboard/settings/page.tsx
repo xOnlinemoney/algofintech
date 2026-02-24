@@ -2055,18 +2055,56 @@ const DEFAULT_ONBOARDING_TEMPLATE: EmailTemplate = {
   body: "Hi {{client_name}},\n\nYour account has been created. Here are your login credentials:\n\nLicense Key: {{license_key}}\n\nTo get started, visit: {{signup_url}}\n\nIf you need help, reach out to us at {{support_email}}.\n\nBest regards,\n{{agency_name}}",
 };
 
-const DYNAMIC_FIELDS = [
-  { field: "client_first_name", label: "First name" },
-  { field: "client_last_name", label: "Last name" },
-  { field: "client_name", label: "Full name" },
-  { field: "client_email", label: "Client email" },
-  { field: "client_license_key", label: "License key" },
-  { field: "license_key", label: "License key (alt)" },
-  { field: "agency_name", label: "Agency name" },
-  { field: "agency_domain", label: "Agency domain" },
-  { field: "signup_url", label: "Full signup URL" },
-  { field: "support_email", label: "Support email" },
+const DEFAULT_TEAM_INVITE_TEMPLATE: EmailTemplate = {
+  enabled: true,
+  subject: "You've Been Invited to Join {{agency_name}}",
+  body: "Hi {{member_first_name}},\n\nYou've been invited to join the {{agency_name}} team as a {{member_role}}.\n\nTo accept your invitation and set up your account, click the link below:\n\n{{invite_url}}\n\nThis invitation was sent to {{member_email}}. If you didn't expect this, you can safely ignore it.\n\nWelcome aboard!\n{{agency_name}}",
+};
+
+const TEMPLATE_OPTIONS = [
+  {
+    value: "client_onboarding",
+    label: "Client Onboarding",
+    desc: "Sent when you add a new client with \"Send Email\" enabled",
+  },
+  {
+    value: "team_invite",
+    label: "Team Member Invite",
+    desc: "Sent when you invite a team member to join your agency",
+  },
 ];
+
+const DYNAMIC_FIELDS_BY_TEMPLATE: Record<string, { field: string; label: string }[]> = {
+  client_onboarding: [
+    { field: "client_first_name", label: "First name" },
+    { field: "client_last_name", label: "Last name" },
+    { field: "client_name", label: "Full name" },
+    { field: "client_email", label: "Client email" },
+    { field: "client_license_key", label: "License key" },
+    { field: "license_key", label: "License key (alt)" },
+    { field: "agency_name", label: "Agency name" },
+    { field: "agency_domain", label: "Agency domain" },
+    { field: "signup_url", label: "Full signup URL" },
+    { field: "support_email", label: "Support email" },
+  ],
+  team_invite: [
+    { field: "member_first_name", label: "First name" },
+    { field: "member_last_name", label: "Last name" },
+    { field: "member_name", label: "Full name" },
+    { field: "member_email", label: "Member email" },
+    { field: "member_role", label: "Role" },
+    { field: "member_department", label: "Department" },
+    { field: "invite_url", label: "Invite/login URL" },
+    { field: "agency_name", label: "Agency name" },
+    { field: "agency_domain", label: "Agency domain" },
+    { field: "support_email", label: "Support email" },
+  ],
+};
+
+const DEFAULT_TEMPLATES: Record<string, EmailTemplate> = {
+  client_onboarding: DEFAULT_ONBOARDING_TEMPLATE,
+  team_invite: DEFAULT_TEAM_INVITE_TEMPLATE,
+};
 
 function EmailTemplateEditor({
   settings,
@@ -2076,9 +2114,13 @@ function EmailTemplateEditor({
   updateSetting: <K extends keyof SettingsData>(key: K, value: SettingsData[K]) => void;
 }) {
   const templates = settings.email_templates || {};
-  const currentTemplate = templates.client_onboarding || DEFAULT_ONBOARDING_TEMPLATE;
   const [showPreview, setShowPreview] = useState(false);
-  const [selectedTemplate] = useState("client_onboarding");
+  const [selectedTemplate, setSelectedTemplate] = useState("client_onboarding");
+
+  const currentDefault = DEFAULT_TEMPLATES[selectedTemplate] || DEFAULT_ONBOARDING_TEMPLATE;
+  const currentTemplate = templates[selectedTemplate] || currentDefault;
+  const dynamicFields = DYNAMIC_FIELDS_BY_TEMPLATE[selectedTemplate] || [];
+  const templateOption = TEMPLATE_OPTIONS.find((t) => t.value === selectedTemplate);
 
   function updateTemplate(updates: Partial<EmailTemplate>) {
     const newTemplates = {
@@ -2096,14 +2138,13 @@ function EmailTemplateEditor({
     const agencyName = settings.business_name || "Your Agency";
     const domain = settings.custom_domain || "app.algofintech.com";
     const sampleFields: Record<string, string> = {
-      // Standard fields
+      // Client onboarding fields
       client_name: "John Smith",
       client_email: "john@example.com",
       license_key: "ABCD-EFGH-JKLM-NPQR",
       agency_name: agencyName,
       signup_url: `https://${domain}/client-signup`,
       support_email: settings.support_email || settings.reply_to_email || "support@agency.com",
-      // Alternate / extended fields
       client_first_name: "John",
       client_last_name: "Smith",
       first_name: "John",
@@ -2111,6 +2152,14 @@ function EmailTemplateEditor({
       client_license_key: "ABCD-EFGH-JKLM-NPQR",
       agency_domain: domain,
       domain: domain,
+      // Team invite fields
+      member_first_name: "Jane",
+      member_last_name: "Doe",
+      member_name: "Jane Doe",
+      member_email: "jane@example.com",
+      member_role: "Sales Rep",
+      member_department: "Sales Team",
+      invite_url: `https://${domain}/team-login`,
     };
 
     let subject = currentTemplate.subject || "";
@@ -2133,7 +2182,7 @@ function EmailTemplateEditor({
         <div className="min-w-0 flex-1">
           <h3 className="text-lg font-semibold text-white tracking-tight">Email Templates</h3>
           <p className="text-sm text-slate-400 mt-0.5">
-            Customize the emails sent to your clients
+            Customize the emails sent to your clients and team members
           </p>
         </div>
       </div>
@@ -2145,14 +2194,16 @@ function EmailTemplateEditor({
           <div className="relative">
             <select
               value={selectedTemplate}
-              disabled
-              className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white appearance-none focus:outline-none focus:border-blue-500 cursor-not-allowed"
+              onChange={(e) => { setSelectedTemplate(e.target.value); setShowPreview(false); }}
+              className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white appearance-none focus:outline-none focus:border-blue-500"
             >
-              <option value="client_onboarding">Client Onboarding</option>
+              {TEMPLATE_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4 pointer-events-none" />
           </div>
-          <p className="text-[10px] text-slate-600">Sent when you add a new client with &quot;Send Email&quot; enabled</p>
+          <p className="text-[10px] text-slate-600">{templateOption?.desc}</p>
         </div>
 
         {/* Enable Toggle */}
@@ -2185,7 +2236,7 @@ function EmailTemplateEditor({
                 value={currentTemplate.subject}
                 onChange={(e) => updateTemplate({ subject: e.target.value })}
                 className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
-                placeholder="Welcome to {{agency_name}}"
+                placeholder={currentDefault.subject}
               />
             </div>
 
@@ -2197,7 +2248,7 @@ function EmailTemplateEditor({
                 onChange={(e) => updateTemplate({ body: e.target.value })}
                 rows={10}
                 className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600 font-mono resize-y"
-                placeholder="Hi {{client_name}},..."
+                placeholder={currentDefault.body}
               />
             </div>
 
@@ -2208,7 +2259,7 @@ function EmailTemplateEditor({
               </label>
               <p className="text-[10px] text-slate-600">Click to copy. Paste into subject or body above.</p>
               <div className="flex flex-wrap gap-2">
-                {DYNAMIC_FIELDS.map((f) => (
+                {dynamicFields.map((f) => (
                   <DynamicFieldPill key={f.field} field={f.field} label={f.label} />
                 ))}
               </div>
@@ -2252,7 +2303,7 @@ function EmailTemplateEditor({
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => updateTemplate(DEFAULT_ONBOARDING_TEMPLATE)}
+                onClick={() => updateTemplate(currentDefault)}
                 className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
               >
                 <RefreshCw className="w-3 h-3" />

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Service unavailable." }, { status: 503 });
 
     const body = await req.json();
-    const { agency_id, name, email, role, department, invited_by } = body;
+    const { agency_id, name, first_name, last_name, email, role, department, invited_by, send_email } = body;
 
     if (!agency_id || !name || !email || !role) {
       return NextResponse.json(
@@ -196,11 +197,128 @@ export async function POST(req: NextRequest) {
       console.error("Failed to create invite:", inviteErr);
     }
 
+    // Send invitation email if requested
+    let emailSent = false;
+    let emailError = "";
+    if (send_email) {
+      try {
+        // Load agency settings for template + SMTP
+        const { data: agency } = await supabase
+          .from("agencies")
+          .select("name, slug, settings, primary_color")
+          .eq("id", agency_id)
+          .single();
+
+        const agencySettings = agency?.settings || {};
+        const templates = agencySettings.email_templates || {};
+        const tmpl = templates.team_invite;
+
+        if (!tmpl?.enabled) {
+          emailError = "Team invite email template is not enabled.";
+          console.log("Team invite email skipped — template not enabled");
+        } else {
+          // Build invite/login URL
+          const customDomain = agencySettings.custom_domain;
+          const agencySlug = agency?.slug || agencySettings.slug || "";
+          const domain = customDomain || (agencySlug ? `${agencySlug}.algofintech.com` : "algofintech.com");
+          const inviteUrl = `https://${domain}/team-login`;
+
+          // Role display names
+          const roleLabels: Record<string, string> = {
+            admin: "Admin",
+            sales: "Sales Rep",
+            support: "Support / VA",
+            developer: "IT / Developer",
+          };
+
+          const fName = first_name?.trim() || name.split(" ")[0] || "";
+          const lName = last_name?.trim() || name.split(" ").slice(1).join(" ") || "";
+
+          const dynamicFields: Record<string, string> = {
+            member_first_name: fName,
+            member_last_name: lName,
+            member_name: name,
+            member_email: normalizedEmail,
+            member_role: roleLabels[role] || role,
+            member_department: department || "—",
+            invite_url: inviteUrl,
+            agency_name: agency?.name || "Our Agency",
+            agency_domain: domain,
+            support_email: agencySettings.support_email || agencySettings.reply_to_email || "",
+          };
+
+          let subject = tmpl.subject || `You've been invited to join ${agency?.name || "our team"}`;
+          let textBody = tmpl.body || "";
+          for (const [k, v] of Object.entries(dynamicFields)) {
+            subject = subject.replace(new RegExp(`\\{\\{${k}\\}\\}`, "g"), v);
+            textBody = textBody.replace(new RegExp(`\\{\\{${k}\\}\\}`, "g"), v);
+          }
+
+          // Build HTML
+          const agencyName = agency?.name || "Agency";
+          const primaryColor = agency?.primary_color || "#3b82f6";
+          const htmlBody = textBody.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background-color:${primaryColor};padding:24px 32px;"><h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${agencyName}</h1></td></tr><tr><td style="padding:32px;color:#374151;font-size:15px;line-height:1.7;">${htmlBody}</td></tr><tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px;">Sent by ${agencyName}</td></tr></table></td></tr></table></body></html>`;
+
+          // Build SMTP transport
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let transportConfig: any;
+          if (agencySettings.smtp_host) {
+            const port = Number(agencySettings.smtp_port) || 587;
+            const smtpPass = (agencySettings.smtp_pass || "").replace(/\s/g, "");
+            transportConfig = {
+              host: agencySettings.smtp_host,
+              port,
+              secure: port === 465,
+              auth: { user: (agencySettings.smtp_user || "").trim(), pass: smtpPass },
+              ...(port === 587 ? { requireTLS: true } : {}),
+            };
+          } else if (process.env.DEFAULT_SMTP_HOST) {
+            const port = Number(process.env.DEFAULT_SMTP_PORT) || 587;
+            transportConfig = {
+              host: process.env.DEFAULT_SMTP_HOST,
+              port,
+              secure: port === 465,
+              auth: { user: process.env.DEFAULT_SMTP_USER || "", pass: process.env.DEFAULT_SMTP_PASS || "" },
+              ...(port === 587 ? { requireTLS: true } : {}),
+            };
+          } else {
+            emailError = "No SMTP configuration found.";
+          }
+
+          if (transportConfig && !emailError) {
+            const transporter = nodemailer.createTransport(transportConfig);
+            await transporter.verify();
+
+            const fromEmail = agencySettings.smtp_from_email || agencySettings.smtp_user || agencySettings.reply_to_email || process.env.DEFAULT_SMTP_FROM || "noreply@algofintech.com";
+            const fromName = agencySettings.sender_name || agencyName;
+
+            const info = await transporter.sendMail({
+              from: `"${fromName}" <${fromEmail}>`,
+              to: `"${name}" <${normalizedEmail}>`,
+              replyTo: agencySettings.reply_to_email || fromEmail,
+              subject,
+              text: textBody,
+              html,
+            });
+            console.log("Team invite email sent:", info.messageId);
+            emailSent = true;
+          }
+        }
+      } catch (emailErr) {
+        const errMsg = (emailErr as Error).message || String(emailErr);
+        console.error("Failed to send team invite email:", errMsg);
+        emailError = `Email failed: ${errMsg}`;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       member,
       invite,
       invite_token: token,
+      email_sent: emailSent,
+      email_error: emailError || undefined,
     }, { status: 201 });
   } catch (err) {
     console.error("Team invite error:", err);

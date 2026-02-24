@@ -29,6 +29,7 @@ import {
   LayoutGrid,
   Hourglass,
   UserCheck,
+  Eye,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -749,6 +750,41 @@ function InviteModal({
   const [department, setDepartment] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [sendEmail, setSendEmail] = useState(false);
+  const [emailTemplateEnabled, setEmailTemplateEnabled] = useState<boolean | null>(null);
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  const [agencySettings, setAgencySettings] = useState<{
+    business_name: string;
+    custom_domain: string;
+    support_email: string;
+    reply_to_email: string;
+    slug: string;
+    email_templates: Record<string, { enabled: boolean; subject: string; body: string }>;
+  } | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
+  // Load agency settings for email template preview
+  useEffect(() => {
+    fetch(`/api/agency/settings?agency_id=${agencyId}`)
+      .then((res) => res.json())
+      .then((json) => {
+        const s = json.settings || {};
+        const templates = s.email_templates || {};
+        const teamInvite = templates.team_invite;
+        setEmailTemplateEnabled(teamInvite?.enabled === true);
+        if (teamInvite?.enabled) setSendEmail(true);
+        setAgencySettings({
+          business_name: s.business_name || json.agency?.name || "",
+          custom_domain: s.custom_domain || "",
+          support_email: s.support_email || "",
+          reply_to_email: s.reply_to_email || "",
+          slug: json.agency?.slug || "",
+          email_templates: templates,
+        });
+      })
+      .catch(() => setEmailTemplateEnabled(false));
+  }, [agencyId]);
 
   const roles = [
     {
@@ -777,6 +813,53 @@ function InviteModal({
     },
   ];
 
+  const roleLabels: Record<string, string> = {
+    admin: "Admin",
+    sales: "Sales Rep",
+    support: "Support / VA",
+    developer: "IT / Developer",
+  };
+
+  const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+
+  const DEFAULT_TEAM_TEMPLATE = {
+    enabled: true,
+    subject: "You've Been Invited to Join {{agency_name}}",
+    body: "Hi {{member_first_name}},\n\nYou've been invited to join the {{agency_name}} team as a {{member_role}}.\n\nTo accept your invitation and set up your account, click the link below:\n\n{{invite_url}}\n\nThis invitation was sent to {{member_email}}. If you didn't expect this, you can safely ignore it.\n\nWelcome aboard!\n{{agency_name}}",
+  };
+
+  function getEmailPreview() {
+    if (!agencySettings) return { subject: "", body: "" };
+    const tmpl = agencySettings.email_templates?.team_invite || DEFAULT_TEAM_TEMPLATE;
+    const agencyName = agencySettings.business_name || "Your Agency";
+    const domain = agencySettings.custom_domain || `${agencySettings.slug || "app"}.algofintech.com`;
+    const inviteUrl = `https://${domain}/team-login`;
+    const supportEmail = agencySettings.support_email || agencySettings.reply_to_email || "support@agency.com";
+    const fName = firstName.trim() || "First";
+    const lName = lastName.trim() || "Last";
+
+    const fields: Record<string, string> = {
+      member_first_name: fName,
+      member_last_name: lName,
+      member_name: fullName || "Team Member",
+      member_email: email || "member@example.com",
+      member_role: roleLabels[role] || role,
+      member_department: department || "—",
+      invite_url: inviteUrl,
+      agency_name: agencyName,
+      agency_domain: domain,
+      support_email: supportEmail,
+    };
+
+    let subject = tmpl.subject || "";
+    let body = tmpl.body || "";
+    for (const [key, val] of Object.entries(fields)) {
+      subject = subject.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val);
+      body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val);
+    }
+    return { subject, body };
+  }
+
   async function handleSend() {
     if (!firstName.trim() || !email.trim()) {
       setError("First name and email are required.");
@@ -791,15 +874,22 @@ function InviteModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           agency_id: agencyId,
-          name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          name: fullName,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
           email: email.trim(),
           role,
           department: department || null,
+          send_email: sendEmail,
         }),
       });
       const json = await res.json();
 
       if (res.ok) {
+        setEmailSent(json.email_sent === true);
+        if (json.email_error) {
+          setEmailError(json.email_error);
+        }
         onSuccess();
         onClose();
       } else {
@@ -947,6 +1037,77 @@ function InviteModal({
                 <option value="IT">IT</option>
               </select>
             </div>
+          </div>
+
+          {/* Send Email Toggle */}
+          <div className="space-y-3 pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-medium text-white">Send Invitation Email</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (emailTemplateEnabled) {
+                    setSendEmail(!sendEmail);
+                  }
+                }}
+                className={`w-10 h-6 rounded-full transition-colors relative shrink-0 ${
+                  sendEmail && emailTemplateEnabled ? "bg-blue-500" : "bg-white/10"
+                } ${!emailTemplateEnabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  sendEmail && emailTemplateEnabled ? "left-5" : "left-1"
+                }`} />
+              </button>
+            </div>
+            {emailTemplateEnabled === false && (
+              <p className="text-[11px] text-amber-400/80">
+                Team invite email template is disabled. Enable it in Settings → Domain & Email → Email Templates.
+              </p>
+            )}
+
+            {/* Email Preview */}
+            {sendEmail && emailTemplateEnabled && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailPreview(!showEmailPreview)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  {showEmailPreview ? "Hide Preview" : "Preview Email"}
+                  <ChevronDown className={`w-3 h-3 transition-transform ${showEmailPreview ? "rotate-180" : ""}`} />
+                </button>
+
+                {showEmailPreview && (() => {
+                  const preview = getEmailPreview();
+                  return (
+                    <div className="bg-[#020408] border border-white/10 rounded-lg overflow-hidden">
+                      <div className="px-3 py-2 border-b border-white/10 bg-white/5">
+                        <span className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Email Preview</span>
+                      </div>
+                      <div className="p-3 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold w-14 shrink-0 pt-0.5">To:</span>
+                          <span className="text-xs text-slate-300">{email || "member@example.com"}</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold w-14 shrink-0 pt-0.5">Subject:</span>
+                          <span className="text-xs text-white font-medium">{preview.subject}</span>
+                        </div>
+                        <div className="border-t border-white/5 pt-2">
+                          <div className="bg-white/[0.02] rounded-lg p-3 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+                            {preview.body}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         </div>
 
