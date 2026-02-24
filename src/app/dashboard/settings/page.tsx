@@ -107,6 +107,8 @@ export default function WhiteLabelSettingsPage() {
   const [domainVerifiedAt, setDomainVerifiedAt] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyMessage, setVerifyMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [dnsResults, setDnsResults] = useState<any>(null);
 
   const originalSettings = useRef<SettingsData | null>(null);
 
@@ -1095,6 +1097,7 @@ export default function WhiteLabelSettingsPage() {
                           if (!agency || !settings.custom_domain) return;
                           setVerifying(true);
                           setVerifyMessage(null);
+                          setDnsResults(null);
                           try {
                             const res = await fetch("/api/agency/verify-domain", {
                               method: "POST",
@@ -1112,6 +1115,10 @@ export default function WhiteLabelSettingsPage() {
                             } else {
                               setDomainStatus(data.status || "failed");
                               setVerifyMessage({ type: "error", text: data.message || data.error || "Verification failed" });
+                            }
+                            // Store full DNS results for display
+                            if (data.dns_records || data.issues || data.expected_target) {
+                              setDnsResults(data);
                             }
                           } catch {
                             setVerifyMessage({ type: "error", text: "Failed to verify. Please save your settings first and try again." });
@@ -1159,38 +1166,90 @@ export default function WhiteLabelSettingsPage() {
                     </div>
                   )}
 
-                  {/* DNS Records Table */}
+                  {/* DNS Records Found (after verify click) */}
+                  {dnsResults && dnsResults.dns_records && dnsResults.dns_records.length > 0 && (
+                    <div className="bg-[#020408] border border-white/10 rounded-lg overflow-hidden">
+                      <div className="px-4 py-3 border-b border-white/10 bg-white/5">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                          Current DNS Records Found
+                        </span>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="p-3 text-xs font-medium text-slate-500 w-20">Type</th>
+                              <th className="p-3 text-xs font-medium text-slate-500">Value</th>
+                              <th className="p-3 text-xs font-medium text-slate-500 w-24 text-right">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/5">
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            {dnsResults.dns_records.map((rec: any, i: number) => (
+                              <tr key={i}>
+                                <td className={`p-3 text-xs font-mono ${
+                                  rec.type === "CNAME" ? "text-emerald-400" : rec.type === "A" ? "text-amber-400" : "text-blue-400"
+                                }`}>{rec.type}</td>
+                                <td className="p-3 text-xs font-mono text-slate-300">{rec.value}</td>
+                                <td className="p-3 text-right">
+                                  {rec.status === "correct" ? (
+                                    <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                                      <Check className="w-3 h-3" /> Correct
+                                    </span>
+                                  ) : rec.status === "incorrect" ? (
+                                    <span className="inline-flex items-center gap-1 text-xs text-red-400">
+                                      <AlertTriangle className="w-3 h-3" /> Wrong
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-slate-500">Info</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Issues list */}
+                  {dnsResults && dnsResults.issues && dnsResults.issues.length > 0 && (
+                    <div className="bg-red-500/5 border border-red-500/10 rounded-lg p-4 space-y-2">
+                      <div className="text-xs font-semibold text-red-400 uppercase tracking-wider">Issues Detected</div>
+                      {dnsResults.issues.map((issue: string, i: number) => (
+                        <div key={i} className="flex gap-2 text-xs text-red-300">
+                          <span className="text-red-500 mt-0.5 shrink-0">•</span>
+                          <span>{issue}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Required DNS Record — uses Vercel's exact target */}
                   {(() => {
                     const d = (settings.custom_domain || "").trim().toLowerCase();
                     const parts = d.split(".").filter(Boolean);
-                    // Root domain = exactly 2 parts (domain.com) or domain.co.uk style
                     const isRootDomain =
                       parts.length <= 2 ||
                       (parts.length === 3 &&
                         ["co", "com", "org", "net"].includes(parts[parts.length - 2]));
-                    // For subdomain: host = everything before the root domain
-                    // e.g. "client.agency.com" → host = "client", root = "agency.com"
-                    // e.g. "app.dashboard.agency.com" → host = "app.dashboard", root = "agency.com"
-                    const rootDomain = isRootDomain
-                      ? d
-                      : parts.slice(-2).join(".");
                     const subdomainHost = isRootDomain
                       ? "@"
                       : parts.slice(0, -2).join(".");
+                    // Use the exact CNAME target from Vercel if available
+                    const cnameTarget = dnsResults?.expected_target || "cname.vercel-dns.com";
 
                     return (
                       <>
                         <div className="bg-[#020408] border border-white/10 rounded-lg overflow-hidden">
                           <div className="px-4 py-3 border-b border-white/10 bg-white/5 flex items-center justify-between">
                             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                              Required DNS Records
+                              Required DNS Record
                             </span>
                             <button
                               onClick={() =>
                                 copyToClipboard(
-                                  isRootDomain
-                                    ? "76.76.21.21"
-                                    : "cname.vercel-dns.com",
+                                  isRootDomain ? "76.76.21.21" : cnameTarget,
                                   "cname-all"
                                 )
                               }
@@ -1203,19 +1262,17 @@ export default function WhiteLabelSettingsPage() {
                             <table className="w-full text-left border-collapse">
                               <thead>
                                 <tr className="border-b border-white/10">
-                                  <th className="p-3 text-xs font-medium text-slate-500 w-24">Type</th>
-                                  <th className="p-3 text-xs font-medium text-slate-500 w-48">Host / Name</th>
-                                  <th className="p-3 text-xs font-medium text-slate-500">Value / Points To</th>
-                                  <th className="p-3 text-xs font-medium text-slate-500 w-16 text-right">Copy</th>
+                                  <th className="p-3 text-xs font-medium text-slate-500 w-20">Type</th>
+                                  <th className="p-3 text-xs font-medium text-slate-500 w-32">Host</th>
+                                  <th className="p-3 text-xs font-medium text-slate-500">Points To</th>
+                                  <th className="p-3 text-xs font-medium text-slate-500 w-14 text-right">Copy</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-white/5">
                                 {isRootDomain ? (
                                   <tr>
                                     <td className="p-3 text-xs font-mono text-amber-400">A</td>
-                                    <td className="p-3 text-xs font-mono text-slate-300">
-                                      @ <span className="text-slate-600 ml-1">({d || "yourdomain.com"})</span>
-                                    </td>
+                                    <td className="p-3 text-xs font-mono text-slate-300">@</td>
                                     <td className="p-3 text-xs font-mono text-slate-400">76.76.21.21</td>
                                     <td className="p-3 text-right">
                                       <button
@@ -1233,14 +1290,11 @@ export default function WhiteLabelSettingsPage() {
                                 ) : (
                                   <tr>
                                     <td className="p-3 text-xs font-mono text-emerald-400">CNAME</td>
-                                    <td className="p-3 text-xs font-mono text-slate-300">
-                                      {subdomainHost}{" "}
-                                      <span className="text-slate-600 ml-1">(.{rootDomain})</span>
-                                    </td>
-                                    <td className="p-3 text-xs font-mono text-slate-400">cname.vercel-dns.com</td>
+                                    <td className="p-3 text-xs font-mono text-slate-300">{subdomainHost}</td>
+                                    <td className="p-3 text-xs font-mono text-slate-400 break-all">{cnameTarget}</td>
                                     <td className="p-3 text-right">
                                       <button
-                                        onClick={() => copyToClipboard("cname.vercel-dns.com", "cname")}
+                                        onClick={() => copyToClipboard(cnameTarget, "cname")}
                                         className="text-slate-500 hover:text-white transition-colors"
                                       >
                                         {copiedField === "cname" ? (
@@ -1257,7 +1311,7 @@ export default function WhiteLabelSettingsPage() {
                           </div>
                         </div>
 
-                        {/* Example preview */}
+                        {/* Client URL preview */}
                         {d && (
                           <div className="rounded-lg bg-white/[0.02] border border-white/5 px-4 py-3 flex items-center gap-3">
                             <Globe className="w-4 h-4 text-slate-500 shrink-0" />
@@ -1285,7 +1339,7 @@ export default function WhiteLabelSettingsPage() {
                               <li>
                                 Add a <span className="text-emerald-400 font-mono">CNAME</span> record with host{" "}
                                 <span className="text-white font-mono">{subdomainHost}</span> pointing to{" "}
-                                <span className="text-white font-mono">cname.vercel-dns.com</span>
+                                <span className="text-white font-mono break-all">{cnameTarget}</span>
                               </li>
                             )}
                             <li>Save your settings here, then click &quot;Verify DNS Records&quot;</li>
