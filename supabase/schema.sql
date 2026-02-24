@@ -25,6 +25,12 @@ CREATE TABLE IF NOT EXISTS agencies (
   plan          TEXT NOT NULL DEFAULT 'starter' CHECK (plan IN ('starter', 'pro', 'enterprise')),
   logo_url      TEXT,
   primary_color TEXT DEFAULT '#3b82f6',         -- brand color hex
+  contact_email TEXT,
+  contact_phone TEXT,
+  contact_name  TEXT,
+  website       TEXT,
+  status        TEXT NOT NULL DEFAULT 'active',
+  settings      JSONB DEFAULT '{}',             -- all whitelabel config: branding, smtp, email_templates, etc.
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
