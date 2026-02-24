@@ -7,6 +7,21 @@ export default function ClientHeader() {
   const [tradingActive, setTradingActive] = useState(true);
   const [updatedAgo, setUpdatedAgo] = useState("just now");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [clientName, setClientName] = useState("");
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("client_session");
+      if (stored) {
+        const session = JSON.parse(stored);
+        if (session.client_name) {
+          setClientName(session.client_name);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -44,7 +59,7 @@ export default function ClientHeader() {
           </button>
         </h1>
         <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span>Welcome back, Alex</span>
+          <span>Welcome back, {clientName ? clientName.split(" ")[0] : "there"}</span>
           <span className="w-1 h-1 rounded-full bg-slate-700" />
           <span className="flex items-center gap-1">
             Updated {updatedAgo} <RefreshCw className="w-2.5 h-2.5" />
@@ -86,7 +101,14 @@ export default function ClientHeader() {
 
           <button className="flex items-center gap-2 pl-2 pr-1 py-1 hover:bg-white/5 rounded-full transition-colors">
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center text-white text-xs font-bold border border-white/10 shadow-inner">
-              AL
+              {clientName
+                ? clientName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()
+                : ""}
             </div>
             <ChevronDown className="w-4 h-4 text-slate-500" />
           </button>
