@@ -71,18 +71,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Determine subdomain
+  // Determine subdomain — only for KNOWN hosts (algofintech.com, vercel.app)
+  // Custom domains like client.analyticalgo.com should NOT match these,
+  // even if they start with "client." — they go through custom domain resolution instead.
+  const knownHost = isKnownHost(hostname);
+
   const isAgencySubdomain =
-    hostname.startsWith("agency.") ||
-    hostname.startsWith("agency-"); // Vercel preview URLs use dashes
+    knownHost &&
+    (hostname.startsWith("agency.") ||
+      hostname.startsWith("agency-")); // Vercel preview URLs use dashes
 
   const isClientSubdomain =
-    hostname.startsWith("client.") ||
-    hostname.startsWith("client-"); // Vercel preview URLs use dashes
+    knownHost &&
+    (hostname.startsWith("client.") ||
+      hostname.startsWith("client-")); // Vercel preview URLs use dashes
 
   const isAdminSubdomain =
-    hostname.startsWith("admin.") ||
-    hostname.startsWith("admin-"); // Vercel preview URLs use dashes
+    knownHost &&
+    (hostname.startsWith("admin.") ||
+      hostname.startsWith("admin-")); // Vercel preview URLs use dashes
 
   if (isAdminSubdomain) {
     // Root on admin subdomain → redirect to /dashboard
@@ -138,58 +145,62 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.host = mainDomain;
     return NextResponse.redirect(url);
-  } else if (!isKnownHost(hostname)) {
+  } else if (!knownHost) {
     // ── Custom domain resolution ──────────────────────────────
     // Hostname is not a known subdomain or our main domain.
-    // Check if it's a custom agency domain via the domain-lookup API.
+    // Check if it's a verified custom agency domain via Supabase directly.
     try {
-      const protocol = request.headers.get("x-forwarded-proto") || "https";
-      const baseOrigin = `${protocol}://${hostname}`;
-      const lookupUrl = `${baseOrigin}/api/agency/domain-lookup?domain=${encodeURIComponent(hostname)}`;
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-      const res = await fetch(lookupUrl, {
-        headers: { "x-internal-lookup": "1" },
-        signal: AbortSignal.timeout(3000),
-      });
+      if (supabaseUrl && supabaseKey) {
+        const lookupRes = await fetch(
+          `${supabaseUrl}/rest/v1/agency_domains?domain=eq.${encodeURIComponent(
+            hostname.toLowerCase()
+          )}&status=in.(%22verified%22,%22active%22)&select=agency_id,domain,status&limit=1`,
+          {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+            },
+            signal: AbortSignal.timeout(3000),
+          }
+        );
 
-      if (res.ok) {
-        const data = await res.json();
+        if (lookupRes.ok) {
+          const records = await lookupRes.json();
+          if (records && records.length > 0) {
+            const domainRecord = records[0];
 
-        // Treat this like a client subdomain
-        if (pathname === "/") {
-          const url = request.nextUrl.clone();
-          url.pathname = "/client-dashboard";
-          const response = NextResponse.redirect(url);
-          response.headers.set("x-agency-id", data.agency_id || "");
-          response.headers.set("x-agency-slug", data.agency_slug || "");
-          return response;
+            // Custom domain is verified — route as client subdomain
+            if (pathname === "/") {
+              const url = request.nextUrl.clone();
+              url.pathname = "/client-dashboard";
+              return NextResponse.redirect(url);
+            }
+
+            // Allow client paths + login/signup
+            if (isClientPath(pathname)) {
+              const response = NextResponse.next();
+              response.headers.set("x-agency-id", domainRecord.agency_id || "");
+              return response;
+            }
+
+            // Redirect non-client paths to client dashboard
+            const url = request.nextUrl.clone();
+            url.pathname = "/client-dashboard";
+            return NextResponse.redirect(url);
+          }
         }
-
-        // Allow client paths + login/signup
-        if (isClientPath(pathname)) {
-          const response = NextResponse.next();
-          response.headers.set("x-agency-id", data.agency_id || "");
-          response.headers.set("x-agency-slug", data.agency_slug || "");
-          return response;
-        }
-
-        // Block non-client paths on custom domain
-        const url = request.nextUrl.clone();
-        url.pathname = "/client-dashboard";
-        return NextResponse.redirect(url);
       }
     } catch (e) {
-      // Lookup failed or timed out — fall through to main domain behavior
+      // Lookup failed or timed out — fall through to allow normal routing
       console.error("Custom domain lookup failed:", e);
     }
 
-    // If domain lookup failed or returned 404, treat as main domain
-    if (isAgencyPath(pathname)) {
-      return NextResponse.next();
-    }
-    if (isClientPath(pathname)) {
-      return NextResponse.next();
-    }
+    // If domain lookup failed or not found, allow normal routing
     return NextResponse.next();
   } else {
     // On main domain — block agency and client paths
