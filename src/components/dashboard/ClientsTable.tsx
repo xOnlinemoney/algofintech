@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu, KeyRound, Copy, RefreshCw, Send } from "lucide-react";
+import { Search, ChevronDown, Plus, X, Mail, Phone, Trash2, Info, Check, Filter as FilterIcon, Layers, Cpu, KeyRound, Copy, RefreshCw, Send, Eye } from "lucide-react";
 import { formatCurrencyFull, formatLiquidity, getStatusColor } from "@/lib/mock-data";
 import type { Client, ClientStatus } from "@/lib/types";
 
@@ -417,6 +417,20 @@ function generateSoftwareKey(): string {
 }
 
 // ─── Add Client Modal ────────────────────────────────────
+interface AgencyEmailSettings {
+  business_name: string;
+  custom_domain: string;
+  support_email: string;
+  reply_to_email: string;
+  email_templates: Record<string, { enabled: boolean; subject: string; body: string }>;
+}
+
+const DEFAULT_TEMPLATE = {
+  enabled: true,
+  subject: "Welcome to {{agency_name}} — Your Account is Ready!",
+  body: "Hi {{client_name}},\n\nYour account has been created. Here are your login credentials:\n\nLicense Key: {{license_key}}\n\nTo get started, visit: {{signup_url}}\n\nIf you need help, reach out to us at {{support_email}}.\n\nBest regards,\n{{agency_name}}",
+};
+
 function AddClientModal({
   onClose,
   onClientAdded,
@@ -424,7 +438,8 @@ function AddClientModal({
   onClose: () => void;
   onClientAdded: () => void;
 }) {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [maxAccounts, setMaxAccounts] = useState<string>("unlimited");
@@ -437,10 +452,13 @@ function AddClientModal({
   const [keyFieldCopied, setKeyFieldCopied] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [emailTemplateEnabled, setEmailTemplateEnabled] = useState<boolean | null>(null);
+  const [agencySettings, setAgencySettings] = useState<AgencyEmailSettings | null>(null);
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
 
   const autoId = `CL-${Math.floor(1000 + Math.random() * 9000)}`;
+  const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
 
-  // Check if email template is configured
+  // Load agency settings (for email template + preview)
   useEffect(() => {
     try {
       const raw = localStorage.getItem("agency_session");
@@ -455,8 +473,14 @@ function AddClientModal({
               const templates = settings.email_templates || {};
               const onboarding = templates.client_onboarding;
               setEmailTemplateEnabled(onboarding?.enabled === true);
-              // Default sendEmail to true if template is enabled
               if (onboarding?.enabled) setSendEmail(true);
+              setAgencySettings({
+                business_name: settings.business_name || json.agency?.name || "",
+                custom_domain: settings.custom_domain || "",
+                support_email: settings.support_email || "",
+                reply_to_email: settings.reply_to_email || "",
+                email_templates: templates,
+              });
             })
             .catch(() => setEmailTemplateEnabled(false));
         }
@@ -465,6 +489,34 @@ function AddClientModal({
       setEmailTemplateEnabled(false);
     }
   }, []);
+
+  // Build email preview with live form data
+  function getEmailPreview() {
+    if (!agencySettings) return { subject: "", body: "" };
+    const template = agencySettings.email_templates?.client_onboarding || DEFAULT_TEMPLATE;
+    const agencyName = agencySettings.business_name || "Your Agency";
+    const signupUrl = agencySettings.custom_domain
+      ? `https://${agencySettings.custom_domain}/client-signup`
+      : "https://algofintech.com/client-signup";
+    const supportEmail = agencySettings.support_email || agencySettings.reply_to_email || "support@agency.com";
+
+    const fields: Record<string, string> = {
+      client_name: fullName || "Client Name",
+      client_email: email || "client@example.com",
+      license_key: licenseKey,
+      agency_name: agencyName,
+      signup_url: signupUrl,
+      support_email: supportEmail,
+    };
+
+    let subject = template.subject || "";
+    let body = template.body || "";
+    for (const [key, val] of Object.entries(fields)) {
+      subject = subject.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val);
+      body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val);
+    }
+    return { subject, body };
+  }
 
   function handleRegenerateKey() {
     setLicenseKey(generateSoftwareKey());
@@ -477,15 +529,14 @@ function AddClientModal({
   }
 
   async function handleSubmit() {
-    if (!name.trim() || !email.trim()) {
-      setError("Client name and email are required.");
+    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      setError("First name, last name, and email are required.");
       return;
     }
     setError("");
     setSaving(true);
 
     try {
-      // Get agency_id from session
       let agencyId = "";
       try {
         const raw = localStorage.getItem("agency_session");
@@ -499,7 +550,9 @@ function AddClientModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
+          name: fullName,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
           email: email.trim(),
           phone: phone.trim() || null,
           max_accounts: maxAccounts === "unlimited" ? null : Number(maxAccounts),
@@ -537,6 +590,8 @@ function AddClientModal({
     window.location.reload();
   }
 
+  const emailPreview = getEmailPreview();
+
   // ── Success State: Show generated software key ──
   if (createdKey) {
     return (
@@ -562,7 +617,7 @@ function AddClientModal({
                   <Check className="w-7 h-7 text-emerald-400" />
                 </div>
                 <p className="text-sm text-slate-300 text-center">
-                  <span className="text-white font-medium">{name}</span> has been added successfully.
+                  <span className="text-white font-medium">{fullName}</span> has been added successfully.
                 </p>
                 {emailSent && (
                   <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1.5">
@@ -628,9 +683,9 @@ function AddClientModal({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       ></div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg">
-        <div className="bg-[#1a1d24] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[90vh]">
+        <div className="bg-[#1a1d24] border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
             <h2 className="text-base font-semibold text-white tracking-tight">
               ADD CLIENT
             </h2>
@@ -641,27 +696,45 @@ function AddClientModal({
               <X className="w-[18px] h-[18px]" />
             </button>
           </div>
-          <div className="p-6 space-y-5">
+          <div className="p-6 space-y-5 overflow-y-auto">
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2 text-sm text-red-400">
                 {error}
               </div>
             )}
+
+            {/* First Name + Last Name */}
             <div className="flex items-center gap-4">
               <label className="w-36 text-sm text-slate-300 shrink-0">
-                Client Name
+                First Name
                 <span className="text-red-500">*</span>
               </label>
               <div className="flex-1">
                 <input
                   type="text"
-                  placeholder="Enter client name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="First name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
                 />
               </div>
             </div>
+            <div className="flex items-center gap-4">
+              <label className="w-36 text-sm text-slate-300 shrink-0">
+                Last Name
+                <span className="text-red-500">*</span>
+              </label>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Last name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full bg-[#2a2d35] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                />
+              </div>
+            </div>
+
             <div className="flex items-center gap-4">
               <label className="w-36 text-sm text-slate-300 shrink-0">
                 Client ID
@@ -813,8 +886,52 @@ function AddClientModal({
                 )}
               </div>
             </div>
+
+            {/* Email Preview (only when send email is on + template exists) */}
+            {sendEmail && emailTemplateEnabled && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailPreview(!showEmailPreview)}
+                  className="flex items-center gap-2 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  {showEmailPreview ? "Hide Email Preview" : "Preview Email"}
+                  <ChevronDown className={`w-3 h-3 transition-transform ${showEmailPreview ? "rotate-180" : ""}`} />
+                </button>
+
+                {showEmailPreview && (
+                  <div className="bg-[#0B0E14] border border-white/10 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-white/10 bg-white/[0.03] flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Email Preview</span>
+                      <span className="text-[10px] text-slate-600">Updates live as you type</span>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {/* To */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold w-14 shrink-0">To:</span>
+                        <span className="text-xs text-slate-300">
+                          {fullName || "Client Name"} &lt;{email || "client@example.com"}&gt;
+                        </span>
+                      </div>
+                      {/* Subject */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold w-14 shrink-0">Subject:</span>
+                        <span className="text-xs text-white font-medium">{emailPreview.subject}</span>
+                      </div>
+                      {/* Body */}
+                      <div className="border-t border-white/5 pt-3">
+                        <div className="bg-white/[0.02] rounded-lg p-3 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed font-sans max-h-[200px] overflow-y-auto">
+                          {emailPreview.body}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
+          <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3 shrink-0">
             <button
               onClick={onClose}
               className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium rounded-lg transition-colors border border-white/10"

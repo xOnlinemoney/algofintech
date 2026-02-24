@@ -61,9 +61,13 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, email, phone, max_accounts, agency_id, license_key, send_email } = body;
+    const { name, first_name, last_name, email, phone, max_accounts, agency_id, license_key, send_email } = body;
+    // Support both combined "name" and split first/last — prefer split if available
+    const resolvedName = (first_name && last_name)
+      ? `${first_name.trim()} ${last_name.trim()}`
+      : (name || "").trim();
 
-    if (!name || !email) {
+    if (!resolvedName || !email) {
       return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
     }
 
@@ -145,7 +149,7 @@ export async function POST(req: NextRequest) {
     const row = {
       client_id: clientId,
       agency_id: resolvedAgencyId,
-      name,
+      name: resolvedName,
       email,
       phone: phone || null,
       avatar_gradient: gradient,
@@ -221,9 +225,9 @@ export async function POST(req: NextRequest) {
               agency_id: resolvedAgencyId,
               template_type: "client_onboarding",
               to_email: email,
-              to_name: name,
+              to_name: resolvedName,
               dynamic_fields: {
-                client_name: name,
+                client_name: resolvedName,
                 client_email: email,
                 license_key: softwareKey,
                 signup_url: signupUrl,
