@@ -10,6 +10,15 @@ function getSupabase() {
   return createClient(url, key);
 }
 
+const VERCEL_API = "https://api.vercel.com";
+
+function getVercelConfig() {
+  const token = process.env.VERCEL_API_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !projectId) return null;
+  return { token, projectId };
+}
+
 export const dynamic = "force-dynamic";
 
 // GET: fetch agency settings for the logged-in agency
@@ -180,13 +189,12 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Sync custom_domain to agency_domains table
+    // Sync custom_domain to agency_domains table + register with Vercel
     if (newSettings?.custom_domain !== undefined) {
       const domainValue = (newSettings.custom_domain || "").trim().toLowerCase();
 
       if (domainValue) {
         // Upsert: insert or update the domain record
-        // First check if this agency already has a domain record
         const { data: existingDomain } = await supabase
           .from("agency_domains")
           .select("id, domain")
@@ -194,9 +202,10 @@ export async function PUT(request: NextRequest) {
           .limit(1)
           .single();
 
+        const domainChanged = !existingDomain || existingDomain.domain !== domainValue;
+
         if (existingDomain) {
-          // Update existing record
-          if (existingDomain.domain !== domainValue) {
+          if (domainChanged) {
             // Domain changed — reset to pending
             await supabase
               .from("agency_domains")
@@ -205,6 +214,7 @@ export async function PUT(request: NextRequest) {
                 status: "pending",
                 verified_at: null,
                 last_check: null,
+                cname_target: "cname.vercel-dns.com",
               })
               .eq("id", existingDomain.id);
           }
@@ -214,10 +224,66 @@ export async function PUT(request: NextRequest) {
             agency_id,
             domain: domainValue,
             status: "pending",
+            cname_target: "cname.vercel-dns.com",
           });
         }
+
+        // Register domain with Vercel project (if config is available)
+        if (domainChanged) {
+          const vercel = getVercelConfig();
+          if (vercel) {
+            try {
+              // Remove old domain from Vercel if it changed
+              if (existingDomain && existingDomain.domain !== domainValue) {
+                await fetch(
+                  `${VERCEL_API}/v9/projects/${vercel.projectId}/domains/${encodeURIComponent(existingDomain.domain)}`,
+                  {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${vercel.token}` },
+                  }
+                ).catch(() => {});
+              }
+
+              // Add new domain to Vercel project
+              await fetch(
+                `${VERCEL_API}/v10/projects/${vercel.projectId}/domains`,
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${vercel.token}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ name: domainValue }),
+                }
+              );
+            } catch (vercelErr) {
+              console.error("Vercel domain registration error:", vercelErr);
+              // Non-blocking — domain will be registered on verify click too
+            }
+          }
+        }
       } else {
-        // Domain cleared — delete the record
+        // Domain cleared — remove from Vercel and delete the record
+        const { data: existingDomain } = await supabase
+          .from("agency_domains")
+          .select("id, domain")
+          .eq("agency_id", agency_id)
+          .limit(1)
+          .single();
+
+        if (existingDomain) {
+          const vercel = getVercelConfig();
+          if (vercel) {
+            await fetch(
+              `${VERCEL_API}/v9/projects/${vercel.projectId}/domains/${encodeURIComponent(existingDomain.domain)}`,
+              {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${vercel.token}` },
+              }
+            ).catch(() => {});
+          }
+        }
+
         await supabase
           .from("agency_domains")
           .delete()

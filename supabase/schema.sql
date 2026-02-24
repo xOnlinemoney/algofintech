@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS agency_domains (
   agency_id     UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
   domain        TEXT NOT NULL UNIQUE,                -- e.g. "client.theiragency.com"
   status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'active', 'failed')),
-  cname_target  TEXT NOT NULL DEFAULT 'cname.algofintech.com',
+  cname_target  TEXT NOT NULL DEFAULT 'cname.vercel-dns.com',
   verified_at   TIMESTAMPTZ,
   last_check    TIMESTAMPTZ,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),

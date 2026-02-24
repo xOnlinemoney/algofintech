@@ -1190,7 +1190,7 @@ export default function WhiteLabelSettingsPage() {
                                 copyToClipboard(
                                   isRootDomain
                                     ? "76.76.21.21"
-                                    : "cname.algofintech.com",
+                                    : "cname.vercel-dns.com",
                                   "cname-all"
                                 )
                               }
@@ -1237,10 +1237,10 @@ export default function WhiteLabelSettingsPage() {
                                       {subdomainHost}{" "}
                                       <span className="text-slate-600 ml-1">(.{rootDomain})</span>
                                     </td>
-                                    <td className="p-3 text-xs font-mono text-slate-400">cname.algofintech.com</td>
+                                    <td className="p-3 text-xs font-mono text-slate-400">cname.vercel-dns.com</td>
                                     <td className="p-3 text-right">
                                       <button
-                                        onClick={() => copyToClipboard("cname.algofintech.com", "cname")}
+                                        onClick={() => copyToClipboard("cname.vercel-dns.com", "cname")}
                                         className="text-slate-500 hover:text-white transition-colors"
                                       >
                                         {copiedField === "cname" ? (
@@ -1285,7 +1285,7 @@ export default function WhiteLabelSettingsPage() {
                               <li>
                                 Add a <span className="text-emerald-400 font-mono">CNAME</span> record with host{" "}
                                 <span className="text-white font-mono">{subdomainHost}</span> pointing to{" "}
-                                <span className="text-white font-mono">cname.algofintech.com</span>
+                                <span className="text-white font-mono">cname.vercel-dns.com</span>
                               </li>
                             )}
                             <li>Save your settings here, then click &quot;Verify DNS Records&quot;</li>

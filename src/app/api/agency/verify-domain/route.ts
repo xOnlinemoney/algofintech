@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import dns from "dns/promises";
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,14 +12,21 @@ function getSupabase() {
 
 export const dynamic = "force-dynamic";
 
-const EXPECTED_CNAME = "cname.algofintech.com";
+const VERCEL_API = "https://api.vercel.com";
+
+function getVercelConfig() {
+  const token = process.env.VERCEL_API_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !projectId) return null;
+  return { token, projectId };
+}
 
 /**
  * POST /api/agency/verify-domain
  * Body: { agency_id: string, domain: string }
  *
- * Performs a DNS CNAME lookup on the provided domain and checks
- * if it points to our CNAME target. Updates the agency_domains record.
+ * Calls Vercel's domain verification API to check if the domain
+ * is properly configured. Updates the agency_domains record.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +45,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
+    const vercel = getVercelConfig();
+    if (!vercel) {
+      return NextResponse.json(
+        { error: "Vercel API not configured. Please add VERCEL_API_TOKEN and VERCEL_PROJECT_ID to your environment variables." },
+        { status: 503 }
+      );
+    }
+
     // Verify the domain belongs to this agency
     const { data: domainRecord, error: lookupErr } = await supabase
       .from("agency_domains")
@@ -54,87 +68,145 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Perform DNS CNAME lookup
-    let dnsResult: {
-      success: boolean;
-      found_cname: string | null;
-      error_code: string | null;
-      message: string;
-    };
-
-    try {
-      const records = await dns.resolveCname(domain.toLowerCase());
-      const found = records[0] || null;
-      const isCorrect = records.some(
-        (r) => r.toLowerCase() === EXPECTED_CNAME.toLowerCase()
-      );
-
-      if (isCorrect) {
-        dnsResult = {
-          success: true,
-          found_cname: found,
-          error_code: null,
-          message: "DNS records verified successfully! Your domain is ready.",
-        };
-      } else {
-        dnsResult = {
-          success: false,
-          found_cname: found,
-          error_code: "WRONG_CNAME",
-          message: `CNAME record found but points to "${found}" instead of "${EXPECTED_CNAME}". Please update your DNS records.`,
-        };
+    // Step 1: Trigger Vercel domain verification
+    const verifyRes = await fetch(
+      `${VERCEL_API}/v9/projects/${vercel.projectId}/domains/${encodeURIComponent(domain.toLowerCase())}/verify`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${vercel.token}`,
+          "Content-Type": "application/json",
+        },
       }
-    } catch (dnsErr: unknown) {
-      const code = (dnsErr as { code?: string }).code || "UNKNOWN";
-      let message = "DNS verification failed.";
+    );
 
-      if (code === "ENOTFOUND" || code === "ENODATA") {
-        message =
-          "No CNAME record found for this domain. Please add a CNAME record pointing to " +
-          EXPECTED_CNAME +
-          " and try again. DNS changes can take up to 48 hours to propagate.";
-      } else if (code === "ETIMEOUT") {
-        message =
-          "DNS lookup timed out. This might be a temporary issue — please try again in a few minutes.";
-      } else {
-        message = `DNS lookup error (${code}). Please check your domain configuration and try again.`;
-      }
-
-      dnsResult = {
-        success: false,
-        found_cname: null,
-        error_code: code,
-        message,
-      };
-    }
-
-    // Update the domain record
     const now = new Date().toISOString();
-    const newStatus = dnsResult.success ? "verified" : "failed";
 
-    const updateData: Record<string, unknown> = {
-      status: newStatus,
-      last_check: now,
-    };
+    if (!verifyRes.ok) {
+      const errData = await verifyRes.json().catch(() => ({}));
 
-    if (dnsResult.success) {
-      updateData.verified_at = now;
+      // If domain not found on Vercel project, try adding it first
+      if (verifyRes.status === 404) {
+        // Try to add the domain to the Vercel project
+        const addRes = await fetch(
+          `${VERCEL_API}/v10/projects/${vercel.projectId}/domains`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${vercel.token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ name: domain.toLowerCase() }),
+          }
+        );
+
+        if (addRes.ok) {
+          const addData = await addRes.json();
+
+          // Domain was added — check if it needs verification
+          if (addData.verified === false && addData.verification) {
+            // Domain added but DNS not yet pointing correctly
+            const verificationInfo = addData.verification[0];
+            await supabase
+              .from("agency_domains")
+              .update({ status: "pending", last_check: now })
+              .eq("id", domainRecord.id);
+
+            return NextResponse.json({
+              success: false,
+              status: "pending",
+              domain,
+              message: `Domain added to project but DNS is not yet configured. Add a ${verificationInfo?.type || "CNAME"} record for "${verificationInfo?.domain || domain}" pointing to "${verificationInfo?.value || "cname.vercel-dns.com"}". Then click verify again.`,
+              verification: addData.verification,
+              checked_at: now,
+            });
+          }
+
+          // Domain added and verified!
+          await supabase
+            .from("agency_domains")
+            .update({ status: "verified", verified_at: now, last_check: now })
+            .eq("id", domainRecord.id);
+
+          return NextResponse.json({
+            success: true,
+            status: "verified",
+            domain,
+            message: "Domain verified and active! SSL certificate will be provisioned automatically.",
+            checked_at: now,
+          });
+        }
+
+        const addErrData = await addRes.json().catch(() => ({}));
+        await supabase
+          .from("agency_domains")
+          .update({ status: "failed", last_check: now })
+          .eq("id", domainRecord.id);
+
+        return NextResponse.json({
+          success: false,
+          status: "failed",
+          domain,
+          message: addErrData?.error?.message || "Failed to register domain with hosting provider. Please check the domain and try again.",
+          checked_at: now,
+        });
+      }
+
+      // Other Vercel API errors
+      await supabase
+        .from("agency_domains")
+        .update({ status: "failed", last_check: now })
+        .eq("id", domainRecord.id);
+
+      return NextResponse.json({
+        success: false,
+        status: "failed",
+        domain,
+        message: errData?.error?.message || "Verification failed. Please check your DNS records and try again.",
+        checked_at: now,
+      });
     }
 
-    await supabase
-      .from("agency_domains")
-      .update(updateData)
-      .eq("id", domainRecord.id);
+    // Verification API responded OK — parse the result
+    const verifyData = await verifyRes.json();
 
-    return NextResponse.json({
-      success: dnsResult.success,
-      status: newStatus,
-      domain,
-      expected_cname: EXPECTED_CNAME,
-      found_cname: dnsResult.found_cname,
-      message: dnsResult.message,
-      checked_at: now,
-    });
+    if (verifyData.verified === true) {
+      // DNS is correct and domain is verified
+      await supabase
+        .from("agency_domains")
+        .update({ status: "verified", verified_at: now, last_check: now })
+        .eq("id", domainRecord.id);
+
+      return NextResponse.json({
+        success: true,
+        status: "verified",
+        domain,
+        message: "Domain verified successfully! SSL certificate will be provisioned automatically.",
+        checked_at: now,
+      });
+    } else {
+      // Not yet verified — provide helpful info
+      const verificationInfo = verifyData.verification?.[0];
+      await supabase
+        .from("agency_domains")
+        .update({ status: "pending", last_check: now })
+        .eq("id", domainRecord.id);
+
+      let message = "DNS records not yet detected. ";
+      if (verificationInfo) {
+        message += `Please ensure you have a ${verificationInfo.type} record for "${verificationInfo.domain}" pointing to "${verificationInfo.value}". `;
+      }
+      message += "DNS changes can take up to 48 hours to propagate.";
+
+      return NextResponse.json({
+        success: false,
+        status: "pending",
+        domain,
+        message,
+        verification: verifyData.verification,
+        checked_at: now,
+      });
+    }
   } catch (err) {
     console.error("Domain verification error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
