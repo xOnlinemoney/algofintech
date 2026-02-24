@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -190,12 +191,13 @@ export async function POST(req: NextRequest) {
 
     // Send onboarding email if requested (non-blocking — don't fail client creation)
     let emailSent = false;
+    let emailError = "";
     if (send_email) {
       try {
         // Look up agency settings to check if template is enabled
         const { data: agency } = await supabase
           .from("agencies")
-          .select("name, settings, primary_color")
+          .select("name, slug, settings, primary_color")
           .eq("id", resolvedAgencyId)
           .single();
 
@@ -203,10 +205,13 @@ export async function POST(req: NextRequest) {
         const templates = settings.email_templates || {};
         const onboarding = templates.client_onboarding;
 
-        if (onboarding?.enabled) {
+        if (!onboarding?.enabled) {
+          emailError = "Email template is not enabled.";
+          console.log("Onboarding email skipped — template not enabled");
+        } else {
           // Build the signup URL + domain
           const customDomain = settings.custom_domain;
-          const agencySlug = settings.slug || agency?.name?.toLowerCase().replace(/\s+/g, "") || "";
+          const agencySlug = agency?.slug || settings.slug || agency?.name?.toLowerCase().replace(/\s+/g, "") || "";
           const domain = customDomain || (agencySlug ? `${agencySlug}.algofintech.com` : "algofintech.com");
           const signupUrl = `https://${domain}/client-signup`;
 
@@ -215,41 +220,119 @@ export async function POST(req: NextRequest) {
           const fName = first_name?.trim() || nameParts[0] || "";
           const lName = last_name?.trim() || nameParts.slice(1).join(" ") || "";
 
-          // Call our email API — provide all field name variants
-          const baseUrl = req.nextUrl.origin;
-          await fetch(`${baseUrl}/api/agency/send-email`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              agency_id: resolvedAgencyId,
-              template_type: "client_onboarding",
-              to_email: email,
-              to_name: resolvedName,
-              dynamic_fields: {
-                // Standard fields
-                client_name: resolvedName,
-                client_email: email,
-                license_key: softwareKey,
-                signup_url: signupUrl,
-                // Alternate / extended fields
-                client_first_name: fName,
-                client_last_name: lName,
-                first_name: fName,
-                last_name: lName,
-                client_license_key: softwareKey,
-                agency_domain: domain,
-                domain: domain,
+          // Interpolate template fields
+          const dynamicFields: Record<string, string> = {
+            client_name: resolvedName,
+            client_email: email,
+            license_key: softwareKey,
+            signup_url: signupUrl,
+            agency_name: agency?.name || "Our Agency",
+            support_email: settings.support_email || settings.reply_to_email || "",
+            client_first_name: fName,
+            client_last_name: lName,
+            first_name: fName,
+            last_name: lName,
+            client_license_key: softwareKey,
+            agency_domain: domain,
+            domain: domain,
+          };
+
+          let subject = onboarding.subject || `Welcome from ${agency?.name || "Agency"}`;
+          let textBody = onboarding.body || "";
+          for (const [key, val] of Object.entries(dynamicFields)) {
+            subject = subject.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val);
+            textBody = textBody.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val);
+          }
+
+          // Build HTML email
+          const agencyName = agency?.name || "Agency";
+          const primaryColor = agency?.primary_color || "#3b82f6";
+          const htmlBody = textBody.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><tr><td style="background-color:${primaryColor};padding:24px 32px;"><h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${agencyName}</h1></td></tr><tr><td style="padding:32px;color:#374151;font-size:15px;line-height:1.7;">${htmlBody}</td></tr><tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px;">Sent by ${agencyName}</td></tr></table></td></tr></table></body></html>`;
+
+          // Build nodemailer transport — inline instead of calling the separate API
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let transportConfig: any;
+
+          if (settings.smtp_host) {
+            const port = Number(settings.smtp_port) || 587;
+            transportConfig = {
+              host: settings.smtp_host,
+              port,
+              secure: port === 465,
+              auth: {
+                user: settings.smtp_user || "",
+                pass: settings.smtp_pass || "",
               },
-            }),
-          });
-          emailSent = true;
+            };
+            // Gmail / port 587 needs STARTTLS
+            if (port === 587) {
+              transportConfig.requireTLS = true;
+            }
+          } else if (process.env.DEFAULT_SMTP_HOST) {
+            const port = Number(process.env.DEFAULT_SMTP_PORT) || 587;
+            transportConfig = {
+              host: process.env.DEFAULT_SMTP_HOST,
+              port,
+              secure: port === 465,
+              auth: {
+                user: process.env.DEFAULT_SMTP_USER || "",
+                pass: process.env.DEFAULT_SMTP_PASS || "",
+              },
+            };
+            if (port === 587) {
+              transportConfig.requireTLS = true;
+            }
+          } else {
+            emailError = "No SMTP configuration found. Please configure SMTP in Settings → Domain & Email.";
+            console.error("Email skipped — no SMTP config");
+          }
+
+          if (transportConfig) {
+            console.log("SMTP config:", { host: transportConfig.host, port: transportConfig.port, user: transportConfig.auth?.user, secure: transportConfig.secure });
+
+            const transporter = nodemailer.createTransport(transportConfig);
+
+            // Verify SMTP connection before sending
+            try {
+              await transporter.verify();
+              console.log("SMTP connection verified successfully");
+            } catch (verifyErr) {
+              console.error("SMTP verification failed:", verifyErr);
+              emailError = `SMTP connection failed: ${(verifyErr as Error).message}`;
+            }
+
+            if (!emailError) {
+              const fromEmail = settings.smtp_from_email || settings.smtp_user || settings.reply_to_email || process.env.DEFAULT_SMTP_FROM || "noreply@algofintech.com";
+              const fromName = settings.sender_name || agencyName;
+
+              const info = await transporter.sendMail({
+                from: `"${fromName}" <${fromEmail}>`,
+                to: `"${resolvedName}" <${email}>`,
+                replyTo: settings.reply_to_email || fromEmail,
+                subject,
+                text: textBody,
+                html,
+              });
+
+              console.log("Email sent successfully! Message ID:", info.messageId);
+              emailSent = true;
+            }
+          }
         }
       } catch (emailErr) {
-        console.error("Failed to send onboarding email (non-blocking):", emailErr);
+        const errMsg = (emailErr as Error).message || String(emailErr);
+        console.error("Failed to send onboarding email:", errMsg);
+        emailError = `Email failed: ${errMsg}`;
       }
     }
 
-    return NextResponse.json({ message: "Client created!", data, email_sent: emailSent }, { status: 201 });
+    return NextResponse.json({
+      message: "Client created!",
+      data,
+      email_sent: emailSent,
+      email_error: emailError || undefined,
+    }, { status: 201 });
   } catch (err) {
     console.error("API error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });

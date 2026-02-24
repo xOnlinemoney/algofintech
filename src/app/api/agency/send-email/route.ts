@@ -128,25 +128,29 @@ export async function POST(req: NextRequest) {
 
     if (settings.smtp_host) {
       // Agency's custom SMTP
+      const port = Number(settings.smtp_port) || 587;
       transportConfig = {
         host: settings.smtp_host,
-        port: Number(settings.smtp_port) || 587,
-        secure: Number(settings.smtp_port) === 465,
+        port,
+        secure: port === 465,
         auth: {
           user: settings.smtp_user || "",
           pass: settings.smtp_pass || "",
         },
+        ...(port === 587 ? { requireTLS: true } : {}),
       } as nodemailer.TransportOptions;
     } else if (process.env.DEFAULT_SMTP_HOST) {
       // Platform default SMTP
+      const port = Number(process.env.DEFAULT_SMTP_PORT) || 587;
       transportConfig = {
         host: process.env.DEFAULT_SMTP_HOST,
-        port: Number(process.env.DEFAULT_SMTP_PORT) || 587,
-        secure: Number(process.env.DEFAULT_SMTP_PORT) === 465,
+        port,
+        secure: port === 465,
         auth: {
           user: process.env.DEFAULT_SMTP_USER || "",
           pass: process.env.DEFAULT_SMTP_PASS || "",
         },
+        ...(port === 587 ? { requireTLS: true } : {}),
       } as nodemailer.TransportOptions;
     } else {
       return NextResponse.json(
@@ -160,6 +164,7 @@ export async function POST(req: NextRequest) {
     // 4. Send email
     const fromEmail =
       settings.smtp_from_email ||
+      settings.smtp_user ||
       settings.reply_to_email ||
       process.env.DEFAULT_SMTP_FROM ||
       "noreply@algofintech.com";

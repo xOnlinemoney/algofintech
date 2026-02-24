@@ -584,6 +584,9 @@ function AddClientModal({
       onClientAdded();
       setCreatedKey(json.data?.software_key || licenseKey);
       setEmailSent(json.email_sent === true);
+      if (json.email_error) {
+        setError(json.email_error);
+      }
       setSaving(false);
     } catch {
       setError("Network error. Please try again.");
@@ -637,6 +640,12 @@ function AddClientModal({
                   <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1.5">
                     <Send className="w-3.5 h-3.5 text-emerald-400" />
                     <span className="text-xs text-emerald-400 font-medium">Onboarding email sent to {email}</span>
+                  </div>
+                )}
+                {sendEmail && !emailSent && error && (
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                    <Mail className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    <span className="text-xs text-red-400">{error}</span>
                   </div>
                 )}
               </div>
