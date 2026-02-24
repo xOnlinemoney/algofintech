@@ -127,15 +127,16 @@ export async function POST(req: NextRequest) {
     let transportConfig: nodemailer.TransportOptions;
 
     if (settings.smtp_host) {
-      // Agency's custom SMTP
+      // Agency's custom SMTP — strip spaces from password (Gmail app passwords often have spaces)
       const port = Number(settings.smtp_port) || 587;
+      const smtpPass = (settings.smtp_pass || "").replace(/\s/g, "");
       transportConfig = {
         host: settings.smtp_host,
         port,
         secure: port === 465,
         auth: {
-          user: settings.smtp_user || "",
-          pass: settings.smtp_pass || "",
+          user: (settings.smtp_user || "").trim(),
+          pass: smtpPass,
         },
         ...(port === 587 ? { requireTLS: true } : {}),
       } as nodemailer.TransportOptions;

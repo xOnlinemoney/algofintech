@@ -27,6 +27,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Loader2,
+  Send,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -120,6 +121,8 @@ export default function WhiteLabelSettingsPage() {
   const [domainVerifiedAt, setDomainVerifiedAt] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyMessage, setVerifyMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [smtpTesting, setSmtpTesting] = useState(false);
+  const [smtpTestResult, setSmtpTestResult] = useState<{ type: "success" | "error"; text: string } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dnsResults, setDnsResults] = useState<any>(null);
 
@@ -215,6 +218,35 @@ export default function WhiteLabelSettingsPage() {
       console.error("Save error:", err);
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Test SMTP connection
+  async function handleTestSmtp() {
+    if (!settings) return;
+    setSmtpTesting(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await fetch("/api/agency/test-smtp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          smtp_host: settings.smtp_host,
+          smtp_port: settings.smtp_port,
+          smtp_user: settings.smtp_user,
+          smtp_pass: settings.smtp_pass,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setSmtpTestResult({ type: "success", text: json.message || "Connection successful!" });
+      } else {
+        setSmtpTestResult({ type: "error", text: json.error || "Connection failed." });
+      }
+    } catch {
+      setSmtpTestResult({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setSmtpTesting(false);
     }
   }
 
@@ -1547,11 +1579,11 @@ export default function WhiteLabelSettingsPage() {
                             <input
                               type="password"
                               value={settings.smtp_pass || ""}
-                              onChange={(e) => updateSetting("smtp_pass", e.target.value)}
+                              onChange={(e) => updateSetting("smtp_pass", e.target.value.replace(/\s/g, ""))}
                               className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600 font-mono tracking-widest"
-                              placeholder="xxxx xxxx xxxx xxxx"
+                              placeholder="xxxxxxxxxxxxxxxx"
                             />
-                            <p className="text-[10px] text-slate-600">16-character app password from Google (no spaces needed)</p>
+                            <p className="text-[10px] text-slate-600">16-character app password from Google (spaces are removed automatically)</p>
                           </div>
 
                           {/* Auto-configured fields (read-only display) */}
@@ -1570,6 +1602,35 @@ export default function WhiteLabelSettingsPage() {
                               <span className="text-slate-300">STARTTLS</span>
                             </div>
                           </div>
+
+                          {/* Test Connection Button */}
+                          <button
+                            type="button"
+                            onClick={handleTestSmtp}
+                            disabled={smtpTesting || !settings.smtp_user || !settings.smtp_pass}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 disabled:bg-white/5 disabled:text-slate-600 border border-emerald-500/30 disabled:border-white/10 rounded-lg text-sm font-medium text-emerald-400 transition-all"
+                          >
+                            {smtpTesting ? (
+                              <>
+                                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4 31.4" strokeLinecap="round" /></svg>
+                                Testing Connection...
+                              </>
+                            ) : (
+                              <>
+                                <Send className="w-3.5 h-3.5" />
+                                Test Connection
+                              </>
+                            )}
+                          </button>
+                          {smtpTestResult && (
+                            <div className={`rounded-lg px-3 py-2.5 text-xs ${
+                              smtpTestResult.type === "success"
+                                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                                : "bg-red-500/10 border border-red-500/20 text-red-400"
+                            }`}>
+                              {smtpTestResult.text}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1645,6 +1706,35 @@ export default function WhiteLabelSettingsPage() {
                               Common providers: Outlook (<span className="text-white font-mono text-[11px]">smtp-mail.outlook.com:587</span>), Yahoo (<span className="text-white font-mono text-[11px]">smtp.mail.yahoo.com:587</span>), Zoho (<span className="text-white font-mono text-[11px]">smtp.zoho.com:587</span>), SendGrid (<span className="text-white font-mono text-[11px]">smtp.sendgrid.net:587</span>)
                             </p>
                           </div>
+
+                          {/* Test Connection Button */}
+                          <button
+                            type="button"
+                            onClick={handleTestSmtp}
+                            disabled={smtpTesting || !settings.smtp_host || !settings.smtp_user || !settings.smtp_pass}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 disabled:bg-white/5 disabled:text-slate-600 border border-emerald-500/30 disabled:border-white/10 rounded-lg text-sm font-medium text-emerald-400 transition-all"
+                          >
+                            {smtpTesting ? (
+                              <>
+                                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4 31.4" strokeLinecap="round" /></svg>
+                                Testing Connection...
+                              </>
+                            ) : (
+                              <>
+                                <Send className="w-3.5 h-3.5" />
+                                Test Connection
+                              </>
+                            )}
+                          </button>
+                          {smtpTestResult && (
+                            <div className={`rounded-lg px-3 py-2.5 text-xs ${
+                              smtpTestResult.type === "success"
+                                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                                : "bg-red-500/10 border border-red-500/20 text-red-400"
+                            }`}>
+                              {smtpTestResult.text}
+                            </div>
+                          )}
                         </div>
                       )}
 

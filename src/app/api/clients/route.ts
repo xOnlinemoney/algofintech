@@ -256,13 +256,15 @@ export async function POST(req: NextRequest) {
 
           if (settings.smtp_host) {
             const port = Number(settings.smtp_port) || 587;
+            // Strip spaces from password (Gmail app passwords are often copied with spaces)
+            const smtpPass = (settings.smtp_pass || "").replace(/\s/g, "");
             transportConfig = {
               host: settings.smtp_host,
               port,
               secure: port === 465,
               auth: {
-                user: settings.smtp_user || "",
-                pass: settings.smtp_pass || "",
+                user: (settings.smtp_user || "").trim(),
+                pass: smtpPass,
               },
             };
             // Gmail / port 587 needs STARTTLS
