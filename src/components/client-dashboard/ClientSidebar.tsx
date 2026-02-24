@@ -126,7 +126,7 @@ export default function ClientSidebar() {
           }`}
         >
           <Link2 className={`w-4 h-4 ${pathname === "/client-dashboard/connect-guide" ? "text-blue-400" : "text-slate-500"}`} />
-          <span className="font-medium text-sm">Connect Your Account</span>
+          <span className="font-medium text-sm">How to Connect Your Account</span>
         </Link>
         <a
           href="#"

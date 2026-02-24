@@ -590,15 +590,67 @@ function TradovateGuide() {
         </div>
       </div>
 
+      {/* Important: Sign Agreement First */}
+      <div className="bg-orange-500/5 border border-orange-500/15 rounded-xl p-5 space-y-3">
+        <h3 className="text-sm font-semibold text-orange-300 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" />
+          Important: Sign Your Tradovate Agreement First
+        </h3>
+        <p className="text-xs text-orange-200/70">
+          Before you give us your login details, you <span className="text-orange-300 font-semibold">must</span> log into your
+          Tradovate account and sign the account agreement. If you skip this step,
+          the connection to our service <span className="text-orange-300 font-semibold">will not work</span>.
+        </p>
+        <div className="space-y-2 ml-1">
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 rounded bg-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
+              <span className="text-orange-300 text-xs font-bold">1</span>
+            </div>
+            <p className="text-xs text-orange-200/70">
+              Log into your Tradovate account at <span className="text-orange-300 font-medium">tradovate.com</span> or through the Tradovate app
+            </p>
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 rounded bg-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
+              <span className="text-orange-300 text-xs font-bold">2</span>
+            </div>
+            <p className="text-xs text-orange-200/70">
+              Look for the <span className="text-orange-300 font-medium">account agreement</span> — Tradovate will show it to you when you first log in or under your account settings
+            </p>
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 rounded bg-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
+              <span className="text-orange-300 text-xs font-bold">3</span>
+            </div>
+            <p className="text-xs text-orange-200/70">
+              <span className="text-orange-300 font-medium">Read and sign</span> the agreement — once it&apos;s signed, your account is ready to connect
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+          <p className="text-xs text-orange-300 font-medium">
+            If you try to connect without signing the agreement, you will get an error. Make sure this is done first!
+          </p>
+        </div>
+      </div>
+
       <div className="space-y-0">
-        <StepCard number={1} title="Click on Tradovate">
+        <StepCard number={1} title="Sign in to Tradovate and sign the agreement">
+          <p>
+            Before anything else, log into your Tradovate account and make sure you
+            have <span className="text-white font-medium">signed the account agreement</span>.
+            Without this, the connection will fail. See the orange box above for details.
+          </p>
+        </StepCard>
+
+        <StepCard number={2} title="Click on Tradovate">
           <p>
             In the platform selection window, click the{" "}
             <span className="text-white font-medium">Tradovate</span> box.
           </p>
         </StepCard>
 
-        <StepCard number={2} title="Choose your account type">
+        <StepCard number={3} title="Choose your account type">
           <p>
             You&apos;ll see two buttons:{" "}
             <span className="text-white font-medium">Demo</span> and{" "}
@@ -617,7 +669,7 @@ function TradovateGuide() {
           </div>
         </StepCard>
 
-        <StepCard number={3} title="Enter your Account Number">
+        <StepCard number={4} title="Enter your Account Number">
           <p>
             Type your Tradovate account number into the{" "}
             <span className="text-white font-medium">
@@ -627,7 +679,7 @@ function TradovateGuide() {
           </p>
         </StepCard>
 
-        <StepCard number={4} title="Enter your Username">
+        <StepCard number={5} title="Enter your Username">
           <p>
             Type your Tradovate username into the{" "}
             <span className="text-white font-medium">&quot;Username&quot;</span> box.
@@ -636,14 +688,14 @@ function TradovateGuide() {
           </p>
         </StepCard>
 
-        <StepCard number={5} title="Enter your Password">
+        <StepCard number={6} title="Enter your Password">
           <p>
             Type your Tradovate password into the{" "}
             <span className="text-white font-medium">&quot;Password&quot;</span> box.
           </p>
         </StepCard>
 
-        <StepCard number={6} title='Click "Connect Account"'>
+        <StepCard number={7} title='Click "Connect Account"'>
           <p>
             Click the blue{" "}
             <span className="text-white font-medium">&quot;Connect Account&quot;</span>{" "}
@@ -651,7 +703,7 @@ function TradovateGuide() {
           </p>
         </StepCard>
 
-        <StepCard number={7} title="You're done!">
+        <StepCard number={8} title="You're done!">
           <p>
             Your Tradovate account will now show up on your{" "}
             <a
