@@ -98,6 +98,13 @@ export async function GET(request: NextRequest) {
         sender_name: settings.sender_name || "",
         reply_to_email: settings.reply_to_email || "",
         use_custom_smtp: settings.use_custom_smtp || false,
+        smtp_provider: settings.smtp_provider || "",
+        smtp_host: settings.smtp_host || "",
+        smtp_port: settings.smtp_port || "587",
+        smtp_user: settings.smtp_user || "",
+        smtp_pass: settings.smtp_pass || "",
+        smtp_from_email: settings.smtp_from_email || "",
+        email_templates: settings.email_templates || {},
         // Business Details
         business_address: settings.business_address || "",
         business_city: settings.business_city || "",
