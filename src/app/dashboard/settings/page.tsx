@@ -2159,7 +2159,7 @@ function EmailTemplateEditor({
       member_email: "jane@example.com",
       member_role: "Sales Rep",
       member_department: "Sales Team",
-      invite_url: `https://${domain}/agency-login`,
+      invite_url: "https://agency.algofintech.com/agency-login",
     };
 
     let subject = currentTemplate.subject || "";

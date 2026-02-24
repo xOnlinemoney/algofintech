@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
           const customDomain = agencySettings.custom_domain;
           const agencySlug = agency?.slug || agencySettings.slug || "";
           const domain = customDomain || (agencySlug ? `${agencySlug}.algofintech.com` : "algofintech.com");
-          const inviteUrl = `https://${domain}/agency-login`;
+          const inviteUrl = "https://agency.algofintech.com/agency-login";
 
           // Role display names
           const roleLabels: Record<string, string> = {
