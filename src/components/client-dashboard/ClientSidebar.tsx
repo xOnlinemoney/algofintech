@@ -16,6 +16,7 @@ import {
   BookOpen,
   Link2,
   MessageCircleQuestion,
+  X,
 } from "lucide-react";
 
 interface ClientSession {
@@ -23,6 +24,11 @@ interface ClientSession {
   client_name: string;
   client_email: string;
   agency_name: string;
+}
+
+interface ClientSidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 const NAV_ITEMS = [
@@ -33,7 +39,7 @@ const NAV_ITEMS = [
   { href: "/client-dashboard/payments", icon: CreditCard, label: "Payments" },
 ];
 
-export default function ClientSidebar() {
+export default function ClientSidebar({ mobileOpen, onMobileClose }: ClientSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState<ClientSession | null>(null);
@@ -54,6 +60,11 @@ export default function ClientSidebar() {
     router.push("/client-login");
   }
 
+  // Close mobile menu when navigating
+  function handleNavClick() {
+    if (onMobileClose) onMobileClose();
+  }
+
   const agencyName = session?.agency_name || "AlgoFinTech";
   const userName = session?.client_name || "Client";
   const userInitials = userName
@@ -62,8 +73,8 @@ export default function ClientSidebar() {
     .join("")
     .slice(0, 2);
 
-  return (
-    <aside className="hidden md:flex w-64 flex-col border-r border-white/5 bg-[#020408] flex-shrink-0 z-20">
+  const sidebarContent = (
+    <>
       {/* Logo / Agency Name */}
       <div className="h-16 flex items-center px-6 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors group">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center shadow-lg shadow-blue-900/20 mr-3 group-hover:scale-105 transition-transform">
@@ -77,6 +88,15 @@ export default function ClientSidebar() {
             Client Portal
           </span>
         </div>
+        {/* Close button — mobile only */}
+        {onMobileClose && (
+          <button
+            onClick={onMobileClose}
+            className="md:hidden p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -91,6 +111,7 @@ export default function ClientSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={handleNavClick}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
                 isActive
                   ? "text-white bg-white/5 border border-white/5"
@@ -112,6 +133,7 @@ export default function ClientSidebar() {
         </div>
         <Link
           href="/client-dashboard/prop-firm-guide"
+          onClick={handleNavClick}
           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
             pathname === "/client-dashboard/prop-firm-guide"
               ? "text-white bg-white/5 border border-white/5"
@@ -123,6 +145,7 @@ export default function ClientSidebar() {
         </Link>
         <Link
           href="/client-dashboard/connect-guide"
+          onClick={handleNavClick}
           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
             pathname === "/client-dashboard/connect-guide"
               ? "text-white bg-white/5 border border-white/5"
@@ -134,6 +157,7 @@ export default function ClientSidebar() {
         </Link>
         <Link
           href="/client-dashboard/faq"
+          onClick={handleNavClick}
           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
             pathname === "/client-dashboard/faq"
               ? "text-white bg-white/5 border border-white/5"
@@ -173,6 +197,30 @@ export default function ClientSidebar() {
           <span className="text-xs font-medium text-slate-500 group-hover:text-red-400 transition-colors">Log Out</span>
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar — always visible on md+ */}
+      <aside className="hidden md:flex w-64 flex-col border-r border-white/5 bg-[#020408] flex-shrink-0 z-20">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile overlay — visible when mobileOpen is true */}
+      {mobileOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+            onClick={onMobileClose}
+          />
+          {/* Slide-in sidebar */}
+          <aside className="md:hidden fixed inset-y-0 left-0 w-72 flex flex-col bg-[#020408] border-r border-white/10 z-50 animate-slide-in-left shadow-2xl shadow-black/50">
+            {sidebarContent}
+          </aside>
+        </>
+      )}
+    </>
   );
 }

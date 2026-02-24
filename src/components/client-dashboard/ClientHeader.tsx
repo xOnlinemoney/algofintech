@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, ChevronDown, Menu, RefreshCw, X } from "lucide-react";
+import { Bell, ChevronDown, Menu, RefreshCw } from "lucide-react";
 
-export default function ClientHeader() {
+interface ClientHeaderProps {
+  onMobileMenuToggle?: () => void;
+}
+
+export default function ClientHeader({ onMobileMenuToggle }: ClientHeaderProps) {
   const [tradingActive, setTradingActive] = useState(true);
   const [updatedAgo, setUpdatedAgo] = useState("just now");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [clientName, setClientName] = useState("");
 
   useEffect(() => {
@@ -46,29 +49,33 @@ export default function ClientHeader() {
   }
 
   return (
-    <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#020408]/80 backdrop-blur-md sticky top-0 z-10">
+    <header className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-white/5 bg-[#020408]/80 backdrop-blur-md sticky top-0 z-10">
       {/* Left */}
-      <div className="flex flex-col justify-center">
-        <h1 className="text-white font-semibold text-lg tracking-tight flex items-center gap-2">
-          Dashboard
-          <button
-            className="md:hidden ml-2 text-slate-400 hover:text-white"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-        </h1>
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span>Welcome back, {clientName ? clientName.split(" ")[0] : "there"}</span>
-          <span className="w-1 h-1 rounded-full bg-slate-700" />
-          <span className="flex items-center gap-1">
-            Updated {updatedAgo} <RefreshCw className="w-2.5 h-2.5" />
-          </span>
+      <div className="flex items-center gap-3">
+        {/* Hamburger — mobile only */}
+        <button
+          className="md:hidden p-2 -ml-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+          onClick={onMobileMenuToggle}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <div className="flex flex-col justify-center">
+          <h1 className="text-white font-semibold text-lg tracking-tight">
+            Dashboard
+          </h1>
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span>Welcome back, {clientName ? clientName.split(" ")[0] : "there"}</span>
+            <span className="hidden sm:inline w-1 h-1 rounded-full bg-slate-700" />
+            <span className="hidden sm:flex items-center gap-1">
+              Updated {updatedAgo} <RefreshCw className="w-2.5 h-2.5" />
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 md:gap-6">
         {/* Trading Toggle */}
         <div className="hidden sm:flex items-center gap-3 pl-4 pr-1 py-1 rounded-full bg-[#0B0E14] border border-white/5">
           <span
@@ -93,7 +100,7 @@ export default function ClientHeader() {
         </div>
 
         {/* Icons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <button className="relative p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-full transition-colors">
             <Bell className="w-5 h-5" />
             <span className="absolute top-1.5 right-2 w-2 h-2 bg-blue-500 rounded-full border border-[#020408]" />
@@ -110,7 +117,7 @@ export default function ClientHeader() {
                     .toUpperCase()
                 : ""}
             </div>
-            <ChevronDown className="w-4 h-4 text-slate-500" />
+            <ChevronDown className="w-4 h-4 text-slate-500 hidden sm:block" />
           </button>
         </div>
       </div>
