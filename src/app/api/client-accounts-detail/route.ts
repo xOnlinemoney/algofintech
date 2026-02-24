@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     // Look up the client UUID from the display ID
     const { data: clientRow } = await supabase
       .from("clients")
-      .select("id, agency_id")
+      .select("id, agency_id, max_accounts")
       .eq("client_id", clientDisplayId)
       .single();
 
@@ -147,6 +147,7 @@ export async function GET(req: NextRequest) {
         },
         accounts: detailedAccounts,
       },
+      max_accounts: clientRow.max_accounts ?? null,
     });
   } catch (err) {
     console.error("client-accounts-detail error:", err);

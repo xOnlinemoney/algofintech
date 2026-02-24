@@ -1127,6 +1127,7 @@ function ClientAccountsInner() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [clientId, setClientId] = useState("");
+  const [maxAccounts, setMaxAccounts] = useState<number | null>(null);
 
   // Auto-open connect modal if ?connect=1 is in URL
   useEffect(() => {
@@ -1165,6 +1166,10 @@ function ClientAccountsInner() {
       const json = await res.json();
       if (json.data) {
         setData(json.data);
+      }
+      // Also fetch max_accounts from the client record
+      if (json.max_accounts !== undefined) {
+        setMaxAccounts(json.max_accounts);
       }
     } catch {
       // No data — keep empty
@@ -1219,13 +1224,27 @@ function ClientAccountsInner() {
               Manage your trading platforms and monitor account balances
             </p>
           </div>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all shadow-lg shadow-blue-600/20 text-xs font-medium border border-blue-500"
-          >
-            <Plus className="w-4 h-4" />
-            Connect New Account
-          </button>
+          <div className="flex items-center gap-3">
+            {maxAccounts != null && (
+              <span className="text-xs text-slate-500">
+                {data.summary.total_accounts}/{maxAccounts} accounts
+              </span>
+            )}
+            <button
+              onClick={() => setModalOpen(true)}
+              disabled={maxAccounts != null && data.summary.total_accounts >= maxAccounts}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-medium border ${
+                maxAccounts != null && data.summary.total_accounts >= maxAccounts
+                  ? "bg-slate-700 text-slate-400 border-slate-600 cursor-not-allowed opacity-60"
+                  : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 border-blue-500"
+              }`}
+            >
+              <Plus className="w-4 h-4" />
+              {maxAccounts != null && data.summary.total_accounts >= maxAccounts
+                ? "Account Limit Reached"
+                : "Connect New Account"}
+            </button>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -1239,9 +1258,14 @@ function ClientAccountsInner() {
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Connected Accounts
               </p>
-              <p className="text-2xl font-semibold text-white tracking-tight mt-0.5">
-                {data.summary.total_accounts}
-              </p>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <p className="text-2xl font-semibold text-white tracking-tight">
+                  {data.summary.total_accounts}
+                </p>
+                {maxAccounts != null && (
+                  <span className="text-sm text-slate-500 font-medium">/ {maxAccounts}</span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1301,6 +1325,20 @@ function ClientAccountsInner() {
             </div>
           </div>
         </div>
+
+        {/* Account Limit Warning */}
+        {maxAccounts != null && data.summary.total_accounts >= maxAccounts && (
+          <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-300">Account limit reached</p>
+              <p className="text-xs text-amber-400/70 mt-0.5">
+                You have connected the maximum of {maxAccounts} account{maxAccounts > 1 ? "s" : ""} allowed on your plan.
+                Contact your account manager to increase your limit.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Account Cards */}
         {data.accounts.length > 0 ? (

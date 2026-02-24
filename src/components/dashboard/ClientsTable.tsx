@@ -70,6 +70,7 @@ export default function ClientsGrid() {
             joined_at: (row.joined_at as string) || new Date().toISOString(),
             last_active: (row.last_active as string) || new Date().toISOString(),
             software_key: (row.software_key as string) || null,
+            max_accounts: row.max_accounts != null ? Number(row.max_accounts) : null,
           }));
           setDbClients(mapped);
         }
@@ -167,6 +168,20 @@ export default function ClientsGrid() {
               key={client.id}
               client={client}
               onDelete={() => setDeleteTarget(client)}
+              onUpdateMaxAccounts={async (newMax: number | null) => {
+                try {
+                  const res = await fetch("/api/clients", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: client.id, max_accounts: newMax }),
+                  });
+                  if (res.ok) {
+                    setDbClients((prev) =>
+                      prev.map((c) => (c.id === client.id ? { ...c, max_accounts: newMax } : c))
+                    );
+                  }
+                } catch { /* silent */ }
+              }}
             />
           ))}
           {filtered.length === 0 && (
@@ -182,9 +197,19 @@ export default function ClientsGrid() {
         <DeleteConfirmModal
           clientName={deleteTarget.name}
           onClose={() => setDeleteTarget(null)}
-          onConfirm={() => {
-            // Future: Supabase delete
-            setDeleteTarget(null);
+          onConfirm={async () => {
+            try {
+              const res = await fetch(`/api/clients?id=${deleteTarget.id}`, { method: "DELETE" });
+              if (res.ok) {
+                setDbClients((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+                setDeleteTarget(null);
+              } else {
+                const json = await res.json().catch(() => ({}));
+                alert(json.error || "Failed to delete client.");
+              }
+            } catch {
+              alert("Network error. Please try again.");
+            }
           }}
         />
       )}
@@ -213,9 +238,11 @@ export default function ClientsGrid() {
 function ClientCard({
   client,
   onDelete,
+  onUpdateMaxAccounts,
 }: {
   client: Client;
   onDelete: () => void;
+  onUpdateMaxAccounts: (newMax: number | null) => void;
 }) {
   const status = getStatusColor(client.status);
   const initials = client.name
@@ -331,6 +358,29 @@ function ClientCard({
         </div>
       </div>
 
+      {/* Max Accounts Limit */}
+      <div className="flex items-center gap-2 bg-white/[0.03] border border-white/5 rounded-lg px-3 py-1.5 -mt-1">
+        <FilterIcon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+        <span className="text-xs text-slate-400">Max Accounts</span>
+        <div className="ml-auto relative">
+          <select
+            value={client.max_accounts != null ? String(client.max_accounts) : "unlimited"}
+            onChange={(e) => {
+              const val = e.target.value;
+              onUpdateMaxAccounts(val === "unlimited" ? null : Number(val));
+            }}
+            className="bg-transparent border border-white/10 rounded px-2 py-0.5 text-xs text-white font-medium appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 pr-5"
+          >
+            <option value="1" className="bg-[#1a1d24]">1</option>
+            <option value="5" className="bg-[#1a1d24]">5</option>
+            <option value="10" className="bg-[#1a1d24]">10</option>
+            <option value="20" className="bg-[#1a1d24]">20</option>
+            <option value="unlimited" className="bg-[#1a1d24]">∞</option>
+          </select>
+          <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+        </div>
+      </div>
+
       {/* Manage Button */}
       <Link
         href={`/dashboard/clients/${client.client_id}`}
@@ -350,8 +400,16 @@ function DeleteConfirmModal({
 }: {
   clientName: string;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
 }) {
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleConfirm() {
+    setDeleting(true);
+    await onConfirm();
+    setDeleting(false);
+  }
+
   return (
     <div className="fixed inset-0 z-50">
       <div
@@ -382,8 +440,8 @@ function DeleteConfirmModal({
                 </p>
                 <p className="text-xs text-slate-400 mb-3">{clientName}</p>
                 <p className="text-xs text-slate-500">
-                  This action cannot be undone. The client will be permanently
-                  removed from the database.
+                  This action cannot be undone. The client and all their connected
+                  accounts will be permanently removed.
                 </p>
               </div>
             </div>
@@ -391,15 +449,17 @@ function DeleteConfirmModal({
           <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium rounded-lg transition-colors border border-white/10"
+              disabled={deleting}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium rounded-lg transition-colors border border-white/10 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
-              onClick={onConfirm}
-              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+              onClick={handleConfirm}
+              disabled={deleting}
+              className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
             >
-              Delete Client
+              {deleting ? "Deleting..." : "Delete Client"}
             </button>
           </div>
         </div>

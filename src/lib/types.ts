@@ -62,6 +62,7 @@ export interface Client {
   joined_at: string;
   last_active: string;
   software_key?: string | null;
+  max_accounts?: number | null;
 }
 
 // ─── Client Account (trading accounts under a client) ────

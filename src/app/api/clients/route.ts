@@ -340,3 +340,81 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
+
+// ─── DELETE: Remove a client and their associated data ──────
+export async function DELETE(req: NextRequest) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) {
+      return NextResponse.json({ error: "Supabase not configured." }, { status: 503 });
+    }
+
+    const clientId = req.nextUrl.searchParams.get("id");
+    if (!clientId) {
+      return NextResponse.json({ error: "Client id is required." }, { status: 400 });
+    }
+
+    // Delete associated software_keys first (FK constraint)
+    await supabase.from("software_keys").delete().eq("client_id", clientId);
+
+    // Delete associated client_accounts
+    await supabase.from("client_accounts").delete().eq("client_id", clientId);
+
+    // Delete the client
+    const { error } = await supabase.from("clients").delete().eq("id", clientId);
+
+    if (error) {
+      console.error("Delete client error:", error);
+      return NextResponse.json({ error: `Failed to delete client: ${error.message}` }, { status: 500 });
+    }
+
+    return NextResponse.json({ message: "Client deleted." }, { status: 200 });
+  } catch (err) {
+    console.error("API error:", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+  }
+}
+
+// ─── PUT: Update a client (e.g. max_accounts) ──────────────
+export async function PUT(req: NextRequest) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) {
+      return NextResponse.json({ error: "Supabase not configured." }, { status: 503 });
+    }
+
+    const body = await req.json();
+    const { id, max_accounts } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Client id is required." }, { status: 400 });
+    }
+
+    // Build update object — only include fields that are provided
+    const updates: Record<string, unknown> = {};
+    if (max_accounts !== undefined) {
+      updates.max_accounts = max_accounts; // null = unlimited
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No fields to update." }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from("clients")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Update client error:", error);
+      return NextResponse.json({ error: `Failed to update client: ${error.message}` }, { status: 500 });
+    }
+
+    return NextResponse.json({ message: "Client updated.", data }, { status: 200 });
+  } catch (err) {
+    console.error("API error:", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+  }
+}
