@@ -383,19 +383,6 @@ function ApexGuide() {
             Never pay full price. Always enter a coupon code before paying.
           </TipItem>
           <TipItem>
-            Start with smaller contract sizes — you do not have to use all 17
-            contracts right away.
-          </TipItem>
-          <TipItem>
-            Close all your trades before{" "}
-            <span className="text-white font-medium">
-              4:59 PM Eastern Time
-            </span>{" "}
-            every day. If you leave a trade open, it could get auto-closed and
-            you might fail.
-          </TipItem>
-          <TipItem>You cannot hold trades overnight.</TipItem>
-          <TipItem>
             After passing, you pay a $105/month activation fee (or $280
             one-time) to start your funded account.
           </TipItem>
@@ -476,8 +463,7 @@ function BluSkyGuide() {
           The drawdown on BluSky&apos;s 150K Static Growth plan is only $1,000.
           This means your account cannot drop below $149,000 — ever. Even a
           small losing streak can end your account. You are also limited to just
-          1 mini contract (or 100 micros). Trade very carefully and use tight
-          stop-losses.
+          1 mini contract (or 100 micros).
         </p>
         <p className="text-xs text-orange-200/70">
           The upside is that the drawdown is{" "}
@@ -592,7 +578,6 @@ function BluSkyGuide() {
           <TipItem>The <span className="text-white font-medium">30OFF</span> code gives you a lifetime discount — every renewal stays at 30% off.</TipItem>
           <TipItem>If you fail your evaluation, your account resets for free when your subscription renews.</TipItem>
           <TipItem>Take advantage of the free one-on-one coaching and Discord community they offer.</TipItem>
-          <TipItem>Do not hold hedging positions (both long and short at the same time) — this will get your account closed immediately.</TipItem>
           <TipItem>Your progress carries over between months. If you don&apos;t finish in 30 days, just let it renew and keep going.</TipItem>
         </div>
       </div>
@@ -748,8 +733,6 @@ function MFFGuide() {
         <div className="space-y-2">
           <TipItem>The Rapid Plan is the best value — $130 cheaper/month than the Pro Plan, with daily payouts and a 90/10 split.</TipItem>
           <TipItem>You only need <span className="text-white font-medium">2 trading days</span> to pass — one of the lowest minimums in the industry.</TipItem>
-          <TipItem>The 50% consistency rule means you need to spread profits across at least 2–3 days.</TipItem>
-          <TipItem>You must make at least 1 trade per week on your funded account, or it can be closed.</TipItem>
           <TipItem>No activation fees on any plan — once you pass, you go straight to your funded account.</TipItem>
           <TipItem>Cancel your subscription right after passing to avoid being charged for another month.</TipItem>
         </div>
@@ -986,11 +969,9 @@ function EliteGuide() {
           <Info className="w-4 h-4" /> Tips for New Users
         </h3>
         <div className="space-y-2">
-          <TipItem>The trailing drawdown follows unrealized profits — if your open trade is up $2,000 and comes back down, your drawdown line has already moved up.</TipItem>
           <TipItem>The 100% profit split on the first $12,500 is very generous — most firms only give 80–90%.</TipItem>
           <TipItem>A free NinjaTrader license is included with every evaluation.</TipItem>
           <TipItem>They have a rewards program — earn points for every dollar spent that can be used for free resets.</TipItem>
-          <TipItem>Once funded, you need 10 Active Trading Days per payout cycle ($200+ in realized profit per day).</TipItem>
         </div>
       </div>
     </div>
@@ -1125,7 +1106,6 @@ function TradeDayGuide() {
         </h3>
         <div className="space-y-2">
           <TipItem>TradeDay has <span className="text-white font-medium">no activation fee</span> — once you pass, you go straight to your funded account for free.</TipItem>
-          <TipItem>Their 30% consistency rule is stricter than the 50% rule at other firms. Spread your profits across more days.</TipItem>
           <TipItem>TradeDay uses Tradovate as its primary broker, so the integration is excellent and seamless.</TipItem>
           <TipItem>Day-one payouts are available after you pass — processed within 24 hours.</TipItem>
           <TipItem>You can hold up to 6 accounts at the same time.</TipItem>
@@ -1434,19 +1414,6 @@ export default function PropFirmGuidePage() {
             </div>
           </div>
 
-          <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-5 space-y-3">
-            <h3 className="text-xs font-semibold text-blue-300 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              While Trading
-            </h3>
-            <div className="space-y-2">
-              <TipItem>Close all trades before the market closes each day. Most firms require this by <span className="text-white font-medium">4:59 PM Eastern Time</span>.</TipItem>
-              <TipItem>Never hold trades overnight or over the weekend.</TipItem>
-              <TipItem>Watch your drawdown carefully — it is the #1 reason people fail evaluations.</TipItem>
-              <TipItem>Start with a small number of contracts and work your way up. Just because you can trade 15 contracts doesn&apos;t mean you should.</TipItem>
-              <TipItem>Be patient. There is no time limit at most firms, so take your time and trade carefully.</TipItem>
-            </div>
-          </div>
         </div>
 
         {/* Troubleshooting */}
