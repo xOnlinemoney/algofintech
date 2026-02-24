@@ -204,19 +204,18 @@ export async function POST(req: NextRequest) {
         const onboarding = templates.client_onboarding;
 
         if (onboarding?.enabled) {
-          // Build the signup URL
+          // Build the signup URL + domain
           const customDomain = settings.custom_domain;
-          const agencySlug = settings.slug || "";
-          let signupUrl = "";
-          if (customDomain) {
-            signupUrl = `https://${customDomain}/client-signup`;
-          } else if (agencySlug) {
-            signupUrl = `https://${agencySlug}.algofintech.com/client-signup`;
-          } else {
-            signupUrl = `https://algofintech.com/client-signup`;
-          }
+          const agencySlug = settings.slug || agency?.name?.toLowerCase().replace(/\s+/g, "") || "";
+          const domain = customDomain || (agencySlug ? `${agencySlug}.algofintech.com` : "algofintech.com");
+          const signupUrl = `https://${domain}/client-signup`;
 
-          // Call our email API
+          // Split name for first/last
+          const nameParts = resolvedName.split(" ");
+          const fName = first_name?.trim() || nameParts[0] || "";
+          const lName = last_name?.trim() || nameParts.slice(1).join(" ") || "";
+
+          // Call our email API — provide all field name variants
           const baseUrl = req.nextUrl.origin;
           await fetch(`${baseUrl}/api/agency/send-email`, {
             method: "POST",
@@ -227,10 +226,19 @@ export async function POST(req: NextRequest) {
               to_email: email,
               to_name: resolvedName,
               dynamic_fields: {
+                // Standard fields
                 client_name: resolvedName,
                 client_email: email,
                 license_key: softwareKey,
                 signup_url: signupUrl,
+                // Alternate / extended fields
+                client_first_name: fName,
+                client_last_name: lName,
+                first_name: fName,
+                last_name: lName,
+                client_license_key: softwareKey,
+                agency_domain: domain,
+                domain: domain,
               },
             }),
           });

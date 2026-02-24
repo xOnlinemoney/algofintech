@@ -1966,11 +1966,15 @@ const DEFAULT_ONBOARDING_TEMPLATE: EmailTemplate = {
 };
 
 const DYNAMIC_FIELDS = [
-  { field: "client_name", label: "Client name" },
+  { field: "client_first_name", label: "First name" },
+  { field: "client_last_name", label: "Last name" },
+  { field: "client_name", label: "Full name" },
   { field: "client_email", label: "Client email" },
-  { field: "license_key", label: "License key" },
+  { field: "client_license_key", label: "License key" },
+  { field: "license_key", label: "License key (alt)" },
   { field: "agency_name", label: "Agency name" },
-  { field: "signup_url", label: "Signup page" },
+  { field: "agency_domain", label: "Agency domain" },
+  { field: "signup_url", label: "Full signup URL" },
   { field: "support_email", label: "Support email" },
 ];
 
@@ -1999,15 +2003,24 @@ function EmailTemplateEditor({
 
   // Build preview with sample data
   function getPreviewHtml() {
+    const agencyName = settings.business_name || "Your Agency";
+    const domain = settings.custom_domain || "app.algofintech.com";
     const sampleFields: Record<string, string> = {
+      // Standard fields
       client_name: "John Smith",
       client_email: "john@example.com",
       license_key: "ABCD-EFGH-JKLM-NPQR",
-      agency_name: settings.business_name || "Your Agency",
-      signup_url: settings.custom_domain
-        ? `https://${settings.custom_domain}/client-signup`
-        : "https://algofintech.com/client-signup",
+      agency_name: agencyName,
+      signup_url: `https://${domain}/client-signup`,
       support_email: settings.support_email || settings.reply_to_email || "support@agency.com",
+      // Alternate / extended fields
+      client_first_name: "John",
+      client_last_name: "Smith",
+      first_name: "John",
+      last_name: "Smith",
+      client_license_key: "ABCD-EFGH-JKLM-NPQR",
+      agency_domain: domain,
+      domain: domain,
     };
 
     let subject = currentTemplate.subject || "";

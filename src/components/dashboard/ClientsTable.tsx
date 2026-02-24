@@ -422,6 +422,7 @@ interface AgencyEmailSettings {
   custom_domain: string;
   support_email: string;
   reply_to_email: string;
+  slug: string;
   email_templates: Record<string, { enabled: boolean; subject: string; body: string }>;
 }
 
@@ -479,6 +480,7 @@ function AddClientModal({
                 custom_domain: settings.custom_domain || "",
                 support_email: settings.support_email || "",
                 reply_to_email: settings.reply_to_email || "",
+                slug: json.agency?.slug || "",
                 email_templates: templates,
               });
             })
@@ -495,18 +497,30 @@ function AddClientModal({
     if (!agencySettings) return { subject: "", body: "" };
     const template = agencySettings.email_templates?.client_onboarding || DEFAULT_TEMPLATE;
     const agencyName = agencySettings.business_name || "Your Agency";
-    const signupUrl = agencySettings.custom_domain
-      ? `https://${agencySettings.custom_domain}/client-signup`
-      : "https://algofintech.com/client-signup";
+    const domain = agencySettings.custom_domain || `${agencySettings.slug || "app"}.algofintech.com`;
+    const signupUrl = `https://${domain}/client-signup`;
     const supportEmail = agencySettings.support_email || agencySettings.reply_to_email || "support@agency.com";
+    const fName = firstName.trim() || "First";
+    const lName = lastName.trim() || "Last";
 
+    // Provide BOTH standard field names AND common alternate names
+    // so any template format works
     const fields: Record<string, string> = {
+      // Standard fields
       client_name: fullName || "Client Name",
       client_email: email || "client@example.com",
       license_key: licenseKey,
       agency_name: agencyName,
       signup_url: signupUrl,
       support_email: supportEmail,
+      // Alternate / extended fields
+      client_first_name: fName,
+      client_last_name: lName,
+      first_name: fName,
+      last_name: lName,
+      client_license_key: licenseKey,
+      agency_domain: domain,
+      domain: domain,
     };
 
     let subject = template.subject || "";
