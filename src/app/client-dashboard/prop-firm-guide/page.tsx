@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAgencyBranding } from "@/hooks/useAgencyBranding";
 import {
   ChevronDown,
   ChevronRight,
@@ -1132,6 +1133,7 @@ const FIRMS = [
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════
 export default function PropFirmGuidePage() {
+  const { agencyName } = useAgencyBranding();
   const [activeTab, setActiveTab] = useState("apex");
 
   const guideComponents: Record<string, React.ReactNode> = {
@@ -1448,7 +1450,7 @@ export default function PropFirmGuidePage() {
 
         {/* Footer */}
         <div className="pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-slate-600">
-          <p>&copy; 2025 Algo FinTech Inc.</p>
+          <p>&copy; {new Date().getFullYear()} {agencyName || "Your Agency"}.</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <a href="/privacy-policy" className="hover:text-slate-400">Privacy Policy</a>
             <a href="/cookie-policy" className="hover:text-slate-400">Terms of Service</a>

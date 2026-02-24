@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useAgencyBranding } from "@/hooks/useAgencyBranding";
 import {
   DollarSign,
   TrendingUp,
@@ -521,6 +522,7 @@ function PerformanceCalendar({ data }: { data: CalendarDay[] }) {
 
 /* ========== Main Page ========== */
 export default function PerformancePage() {
+  const { agencyName } = useAgencyBranding();
   const [data, setData] = useState<PerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
@@ -1121,7 +1123,7 @@ export default function PerformancePage() {
 
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-slate-600">
-          <p>&copy; 2024 AlgoFinTech Inc. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} {agencyName || "Your Agency"}. All rights reserved.</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <a href="#" className="hover:text-slate-400">Privacy Policy</a>
             <a href="#" className="hover:text-slate-400">Terms of Service</a>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAgencyBranding } from "@/hooks/useAgencyBranding";
 import {
   ArrowRight,
   ShieldCheck,
@@ -452,7 +453,7 @@ function BinanceGuide() {
             <span className="text-yellow-300 font-medium">
               &quot;Create API&quot;
             </span>{" "}
-            and name it (e.g., &quot;AlgoFinTech&quot;)
+            and name it (e.g., &quot;Trading Bot&quot;)
           </li>
           <li>Complete the security check</li>
           <li>
@@ -861,6 +862,7 @@ function FAQItem({
 // ─── Main Page ────────────────────────────────────────────
 export default function ConnectGuidePage() {
   const router = useRouter();
+  const { agencyName } = useAgencyBranding();
   const [activeTab, setActiveTab] = useState("mt5");
 
   const guideComponents: Record<string, React.ReactNode> = {
@@ -1180,7 +1182,7 @@ export default function ConnectGuidePage() {
 
         {/* Footer */}
         <div className="pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-slate-600">
-          <p>&copy; 2025 Algo FinTech Inc. Secure Connections.</p>
+          <p>&copy; {new Date().getFullYear()} {agencyName || "Your Agency"}. Secure Connections.</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <a href="/privacy-policy" className="hover:text-slate-400">
               Privacy Policy

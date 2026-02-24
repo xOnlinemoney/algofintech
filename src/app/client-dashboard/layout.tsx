@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ClientSidebar from "@/components/client-dashboard/ClientSidebar";
 import ClientHeader from "@/components/client-dashboard/ClientHeader";
+import { useAgencyBranding } from "@/hooks/useAgencyBranding";
 
 export default function ClientDashboardLayout({
   children,
@@ -10,6 +11,14 @@ export default function ClientDashboardLayout({
   children: React.ReactNode;
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { agencyName } = useAgencyBranding();
+
+  // Dynamically set page title to agency name so clients never see "AlgoFinTech"
+  useEffect(() => {
+    if (agencyName) {
+      document.title = `${agencyName} - Client Portal`;
+    }
+  }, [agencyName]);
 
   return (
     <div className="overflow-hidden h-screen w-screen">

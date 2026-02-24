@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAgencyBranding } from "@/hooks/useAgencyBranding";
 import {
   Link as LinkIcon,
   Wallet,
@@ -1116,6 +1117,7 @@ export default function ClientAccountsPage() {
 
 function ClientAccountsInner() {
   const searchParams = useSearchParams();
+  const { agencyName } = useAgencyBranding();
   const [data, setData] = useState<PageData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -1328,7 +1330,7 @@ function ClientAccountsInner() {
 
         {/* Bottom Footer */}
         <div className="mt-8 pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-slate-600">
-          <p>&copy; 2025 Algo FinTech Inc. Secure Connections.</p>
+          <p>&copy; {new Date().getFullYear()} {agencyName || "Your Agency"}. Secure Connections.</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <a href="/privacy-policy" className="hover:text-slate-400">
               Privacy Policy

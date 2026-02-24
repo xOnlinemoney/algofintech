@@ -65,7 +65,7 @@ export default function ClientSidebar({ mobileOpen, onMobileClose }: ClientSideb
     if (onMobileClose) onMobileClose();
   }
 
-  const agencyName = session?.agency_name || "AlgoFinTech";
+  const agencyName = session?.agency_name || "";
   const userName = session?.client_name || "Client";
   const userInitials = userName
     .split(" ")

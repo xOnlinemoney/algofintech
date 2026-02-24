@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAgencyBranding } from "@/hooks/useAgencyBranding";
 import {
   Wallet,
   BarChart,
@@ -146,6 +147,7 @@ function EmptyState({ icon, title, description }: { icon: React.ReactNode; title
 // ─── Main Page ───────────────────────────────────────────
 export default function ClientDashboardPage() {
   const router = useRouter();
+  const { agencyName } = useAgencyBranding();
   const [data, setData] = useState<DashboardData>(EMPTY_DATA);
   const [clientName, setClientName] = useState("");
   const [showAlert, setShowAlert] = useState(false);
@@ -689,7 +691,7 @@ export default function ClientDashboardPage() {
 
       {/* Footer */}
       <div className="mt-8 pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-slate-600">
-        <p>© 2025 Algo FinTech Inc. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} {agencyName || "Your Agency"}. All rights reserved.</p>
         <div className="flex gap-4 mt-2 md:mt-0">
           <a href="/privacy-policy" className="hover:text-slate-400">Privacy Policy</a>
           <a href="/cookie-policy" className="hover:text-slate-400">Terms of Service</a>
