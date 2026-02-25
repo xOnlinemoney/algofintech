@@ -138,8 +138,6 @@ function TradeModal({ trade, onClose }: { trade: Trade | null; onClose: () => vo
         {/* Tabs */}
         <div className="border-b border-white/5 px-6 flex gap-6">
           <button className="py-3 text-xs font-medium text-white border-b-2 border-blue-500">Overview</button>
-          <button className="py-3 text-xs font-medium text-slate-400 hover:text-white transition-colors">Chart</button>
-          <button className="py-3 text-xs font-medium text-slate-400 hover:text-white transition-colors">Algorithm Logic</button>
         </div>
 
         {/* Content */}
@@ -244,6 +242,149 @@ function TradeModal({ trade, onClose }: { trade: Trade | null; onClose: () => vo
   );
 }
 
+// ─── Day Trades Modal (Calendar Click) ──────────────────
+function DayTradesModal({ date, trades, onClose, onViewTrade }: { date: string; trades: Trade[]; onClose: () => void; onViewTrade: (t: Trade) => void }) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  if (!trades.length) return null;
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const dayPnl = trades.reduce((s, t) => s + (t.pnl || 0), 0);
+  const wins = trades.filter(t => t.pnl > 0).length;
+  const losses = trades.filter(t => t.pnl < 0).length;
+  const displayDate = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl mx-4 rounded-xl bg-[#0B0E14] border border-white/10 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-white/5 bg-[#020408] flex items-center justify-between shrink-0">
+          <div>
+            <h3 className="text-base font-semibold text-white">{displayDate}</h3>
+            <div className="flex items-center gap-4 mt-1">
+              <span className="text-xs text-slate-400">{trades.length} trade{trades.length !== 1 ? "s" : ""}</span>
+              <span className="text-xs text-emerald-400">{wins}W</span>
+              <span className="text-xs text-red-400">{losses}L</span>
+              <span className={`text-xs font-medium ${dayPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                {dayPnl >= 0 ? "+" : ""}{fmt(dayPnl)}
+              </span>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Trade List */}
+        <div className="overflow-y-auto flex-1 divide-y divide-white/5">
+          {trades.map(trade => {
+            const isOpen = expandedIds.has(trade.id);
+            const opened = fmtDate(trade.opened_at);
+            const closed = trade.closed_at ? fmtDate(trade.closed_at) : null;
+
+            return (
+              <div key={trade.id}>
+                {/* Collapsible Header */}
+                <button
+                  onClick={() => toggleExpand(trade.id)}
+                  className="w-full px-6 py-3.5 flex items-center justify-between hover:bg-white/[0.02] transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-6 h-6 rounded flex items-center justify-center text-[8px] font-bold shrink-0" style={{ backgroundColor: trade.account.platform_color, color: trade.account.platform_text_color }}>
+                      {trade.account.platform_short}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-white">{trade.symbol}</span>
+                        <span className={`text-[10px] ${trade.trade_type === "Buy" ? "text-emerald-400" : "text-red-400"}`}>{trade.trade_type}</span>
+                        {trade.algorithm_name && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: `${trade.algorithm_color}1a`, color: trade.algorithm_color }}>
+                            {trade.algorithm_name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        {opened.time}{closed ? ` → ${closed.time}` : " (Open)"}
+                        {trade.duration && ` · ${trade.duration}`}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-sm font-medium ${trade.pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {trade.pnl >= 0 ? "+" : ""}{fmt(trade.pnl)}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                  </div>
+                </button>
+
+                {/* Expanded Details */}
+                {isOpen && (
+                  <div className="px-6 pb-4 bg-[#020408]/50">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                      {/* Col 1 - Trade Info */}
+                      <div className="space-y-2">
+                        <h5 className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Trade Info</h5>
+                        <div className="flex justify-between"><span className="text-slate-500">Trade ID:</span><span className="text-white font-mono">#{trade.trade_id}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Account:</span><span className="text-white">{trade.account.platform}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Size:</span><span className="text-white">{trade.position_size}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Entry:</span><span className="text-white font-mono">{fmtPrice(trade.entry_price)}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">{trade.status === "Open" ? "Current:" : "Exit:"}</span><span className={`font-mono ${trade.pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtPrice(trade.exit_price || trade.current_price || trade.entry_price)}</span></div>
+                      </div>
+                      {/* Col 2 - Timing */}
+                      <div className="space-y-2">
+                        <h5 className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Timing</h5>
+                        <div className="flex justify-between"><span className="text-slate-500">Opened:</span><span className="text-white">{opened.date} {opened.time}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Closed:</span><span className={closed ? "text-white" : "text-slate-500"}>{closed ? `${closed.date} ${closed.time}` : "Open"}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Duration:</span><span className="text-white">{trade.duration || "—"}</span></div>
+                        {trade.stop_loss && <div className="flex justify-between"><span className="text-slate-500">SL:</span><span className="text-red-400 font-mono">{fmtPrice(trade.stop_loss)}</span></div>}
+                        {trade.take_profit && <div className="flex justify-between"><span className="text-slate-500">TP:</span><span className="text-emerald-400 font-mono">{fmtPrice(trade.take_profit)}</span></div>}
+                      </div>
+                      {/* Col 3 - P&L */}
+                      <div className="space-y-2">
+                        <h5 className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">P&L Breakdown</h5>
+                        <div className="flex justify-between"><span className="text-slate-500">Gross P&L:</span><span className={`font-mono ${trade.pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>{trade.pnl >= 0 ? "+" : ""}{fmt(trade.pnl)}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Commission:</span><span className="text-white font-mono">{fmt(trade.commission)}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Swap:</span><span className="text-white font-mono">{fmt(trade.swap)}</span></div>
+                        <div className="flex justify-between border-t border-white/5 pt-2 mt-1">
+                          <span className="text-white font-medium">Net P&L:</span>
+                          <span className={`font-medium font-mono ${trade.net_pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>{trade.net_pnl >= 0 ? "+" : ""}{fmt(trade.net_pnl)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* View Full Details button */}
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onViewTrade(trade); }}
+                        className="flex items-center gap-1.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        <Eye className="w-3 h-3" /> View Full Details
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3 border-t border-white/5 bg-[#020408] flex justify-between items-center shrink-0">
+          <span className="text-[10px] text-slate-500">{trades.length} trade{trades.length !== 1 ? "s" : ""} on this day</span>
+          <button onClick={onClose} className="px-4 py-2 text-xs font-medium text-slate-300 hover:text-white transition-colors">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Expanded Row ────────────────────────────────────────
 function ExpandedRow({ trade }: { trade: Trade }) {
   const opened = fmtDate(trade.opened_at);
@@ -313,7 +454,7 @@ function fmtShort(n: number) {
   return `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function PerformanceCalendar({ trades }: { trades: Trade[] }) {
+function PerformanceCalendar({ trades, onDayClick }: { trades: Trade[]; onDayClick?: (dateKey: string, dayTrades: Trade[]) => void }) {
   const [monthOffset, setMonthOffset] = useState(0);
   const now = new Date();
   const viewDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -323,14 +464,17 @@ function PerformanceCalendar({ trades }: { trades: Trade[] }) {
   const firstDay = new Date(year, month, 1).getDay();
   const monthName = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-  // Build daily PnL map from trades
+  // Build daily PnL map and trades-by-day map from trades
   const pnlMap = new Map<string, number>();
+  const tradesMap = new Map<string, Trade[]>();
   trades.forEach(t => {
     const dateStr = t.closed_at || t.opened_at;
     if (!dateStr) return;
     const d = new Date(dateStr);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     pnlMap.set(key, (pnlMap.get(key) || 0) + (t.pnl || 0));
+    if (!tradesMap.has(key)) tradesMap.set(key, []);
+    tradesMap.get(key)!.push(t);
   });
 
   const days: (number | null)[] = [];
@@ -380,8 +524,13 @@ function PerformanceCalendar({ trades }: { trades: Trade[] }) {
             else if (pnl >= -30) bg = "bg-red-500/20";
             else bg = "bg-red-500/40";
           }
+          const dayTrades = tradesMap.get(dateKey) || [];
           return (
-            <div key={d} className={`aspect-square rounded-lg ${bg} flex flex-col items-center justify-center cursor-pointer relative group transition-transform hover:scale-110 hover:z-10`}>
+            <div
+              key={d}
+              className={`aspect-square rounded-lg ${bg} flex flex-col items-center justify-center cursor-pointer relative group transition-transform hover:scale-110 hover:z-10`}
+              onClick={() => dayTrades.length > 0 && onDayClick?.(dateKey, dayTrades)}
+            >
               <span className={`text-[10px] ${future ? "text-slate-700" : pnl !== undefined && pnl >= 150 ? "text-white" : todayD ? "text-blue-400" : pnl === undefined ? "text-slate-600" : "text-slate-400"}`}>{d}</span>
               {pnl !== undefined && (
                 <span className={`text-[8px] ${pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
@@ -424,6 +573,8 @@ export default function TradingActivityPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [modalTrade, setModalTrade] = useState<Trade | null>(null);
+  const [dayModalDate, setDayModalDate] = useState<string | null>(null);
+  const [dayModalTrades, setDayModalTrades] = useState<Trade[]>([]);
   const [page, setPage] = useState(1);
   const perPage = 25;
 
@@ -497,6 +648,14 @@ export default function TradingActivityPage() {
   return (
     <>
       <TradeModal trade={modalTrade} onClose={() => setModalTrade(null)} />
+      {dayModalDate && dayModalTrades.length > 0 && (
+        <DayTradesModal
+          date={dayModalDate}
+          trades={dayModalTrades}
+          onClose={() => { setDayModalDate(null); setDayModalTrades([]); }}
+          onViewTrade={(t) => { setDayModalDate(null); setDayModalTrades([]); setModalTrade(t); }}
+        />
+      )}
 
       <div className="p-4 lg:p-8">
         {/* Page Header */}
@@ -841,7 +1000,7 @@ export default function TradingActivityPage() {
         {/* Daily Performance Calendar */}
         {d.trades.length > 0 && (
           <div className="mt-6">
-            <PerformanceCalendar trades={d.trades} />
+            <PerformanceCalendar trades={d.trades} onDayClick={(dateKey, dayTrades) => { setDayModalDate(dateKey); setDayModalTrades(dayTrades); }} />
           </div>
         )}
 
