@@ -464,19 +464,18 @@ export default function UploadTradesPage() {
             <div className="bg-[#070a10] border border-white/5 rounded-xl p-5 space-y-3">
               <h3 className="text-sm font-semibold text-white">CSV Format</h3>
               <p className="text-xs text-slate-400">
-                Your CSV needs an <span className="text-indigo-300 font-medium">account_number</span> column
-                plus the standard Tradovate trade columns. Optionally add <span className="text-slate-300">agency</span> and <span className="text-slate-300">client</span> columns.
-                All trades for all accounts go in one file — the system groups them automatically.
+                Upload your Tradovate trade CSV. If it includes an <span className="text-indigo-300 font-medium">account_number</span> column,
+                trades will be grouped by account automatically. If it&apos;s missing or empty, you can
+                <span className="text-amber-300 font-medium"> assign all trades to a specific account</span> after uploading.
               </p>
               <div className="overflow-x-auto">
                 <div className="bg-black/40 border border-white/5 rounded-lg p-3 text-[10px] font-mono text-slate-400 whitespace-nowrap">
-                  <span className="text-indigo-300">account_number</span>,<span className="text-slate-500">agency</span>,<span className="text-slate-500">client</span>,symbol,_priceFormat,_priceFormatType,_tickSize,buyFillId,sellFillId,qty,buyPrice,sellPrice,pnl,boughtTimestamp,soldTimestamp,duration
+                  <span className="text-slate-500">account_number</span>,<span className="text-slate-500">agency</span>,<span className="text-slate-500">client</span>,symbol,_priceFormat,_priceFormatType,_tickSize,buyFillId,sellFillId,qty,buyPrice,sellPrice,pnl,boughtTimestamp,soldTimestamp,duration
                 </div>
               </div>
               <p className="text-[10px] text-slate-600">
-                The account_number must match the account numbers in your system (e.g. APEX41449900000221).
-                Agency and client columns are optional. If your CSV is missing the account_number column,
-                you&apos;ll be able to assign all trades to a specific account after uploading.
+                The <span className="text-slate-500">account_number</span>, <span className="text-slate-500">agency</span>, and <span className="text-slate-500">client</span> columns are all optional.
+                Without them, you&apos;ll pick the target agency, client, and account from dropdowns after uploading.
               </p>
             </div>
           </>

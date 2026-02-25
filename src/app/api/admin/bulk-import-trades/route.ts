@@ -158,10 +158,12 @@ export async function POST(req: NextRequest) {
 
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i]);
+      // Skip truly empty rows
+      if (cols.every((c) => c.trim() === "")) continue;
       // When assign_account_id is provided, all rows go to a single "ASSIGNED" bucket
       const acctNum = assignAccountId
         ? "ASSIGNED"
-        : (cols[accountCol] || "").trim().toUpperCase().replace(/[-\s]/g, "");
+        : (accountCol >= 0 ? (cols[accountCol] || "").trim().toUpperCase().replace(/[-\s]/g, "") : "");
       if (!assignAccountId && !acctNum) continue;
 
       if (!rowsByAccount.has(acctNum)) {
