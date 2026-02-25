@@ -1,115 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllFAQItems, FAQItem } from "@/lib/faq-data";
+import Anthropic from "@anthropic-ai/sdk";
+import { KNOWLEDGE_BASE } from "@/lib/knowledge-base";
 
 export const dynamic = "force-dynamic";
 
-// ─── Smart FAQ Search Engine ───────────────────────────────
-// Searches ONLY the knowledge base. Returns the best match
-// or indicates no match found (triggers live agent handoff).
+// ─── AI Chat Agent powered by Claude Haiku 4.5 ─────────────
+// Uses the full knowledge base as context and ONLY answers from it.
+// Returns structured responses with optional page links.
 
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 1);
-}
-
-// Common stop words to ignore in matching
-const STOP_WORDS = new Set([
-  "i", "me", "my", "we", "our", "you", "your", "the", "a", "an", "is",
-  "are", "was", "were", "be", "been", "being", "have", "has", "had",
-  "do", "does", "did", "will", "would", "could", "should", "can",
-  "may", "might", "shall", "to", "of", "in", "for", "on", "with",
-  "at", "by", "from", "as", "into", "about", "that", "this", "it",
-  "its", "or", "and", "but", "if", "so", "not", "no", "just", "also",
-  "than", "too", "very", "what", "how", "when", "where", "which",
-  "who", "whom", "why", "all", "each", "every", "any", "some", "up",
-  "out", "there", "here", "then", "them", "they", "their",
-]);
-
-function getKeywords(text: string): string[] {
-  return tokenize(text).filter((w) => !STOP_WORDS.has(w));
-}
-
-// Keyword synonyms / related terms for better matching
-const SYNONYMS: Record<string, string[]> = {
-  connect: ["link", "add", "attach", "setup", "set"],
-  disconnect: ["remove", "unlink", "delete", "detach"],
-  password: ["login", "credential", "credentials", "pass"],
-  money: ["funds", "balance", "cash", "capital", "deposit"],
-  cost: ["price", "pricing", "fee", "fees", "expensive", "cheap"],
-  trade: ["trading", "trades", "traded"],
-  profit: ["profits", "gain", "gains", "earnings", "pnl"],
-  loss: ["losses", "losing", "lost", "drawdown"],
-  account: ["accounts"],
-  platform: ["platforms", "broker", "brokers"],
-  safe: ["safety", "secure", "security", "protection"],
-  pay: ["payment", "payments", "billing", "bill", "charge", "charged", "subscription"],
-  cancel: ["unsubscribe", "stop", "end"],
-  slow: ["loading", "performance", "speed", "lag", "laggy"],
-  error: ["issue", "problem", "bug", "broken", "wrong", "fail", "failed"],
-  start: ["started", "begin", "beginning", "getting"],
-  prop: ["propfirm", "evaluation", "eval", "funded"],
-  phone: ["mobile", "cell", "iphone", "android"],
-  withdraw: ["withdrawal", "withdrawals", "cashout"],
+// Map of relevant dashboard pages for the AI to reference
+const PAGE_LINKS: Record<string, { label: string; href: string }> = {
+  accounts: { label: "Go to Accounts", href: "/client-dashboard/accounts" },
+  "connect-guide": { label: "View Connection Guide", href: "/client-dashboard/connect-guide" },
+  "prop-firm-guide": { label: "View Prop Firm Guide", href: "/client-dashboard/prop-firm-guide" },
+  performance: { label: "View Performance", href: "/client-dashboard/performance" },
+  activity: { label: "View Trading Activity", href: "/client-dashboard/activity" },
+  payments: { label: "Go to Payments", href: "/client-dashboard/payments" },
+  dashboard: { label: "Go to Dashboard", href: "/client-dashboard" },
+  faq: { label: "View FAQ", href: "/client-dashboard/faq" },
+  "connect-account": { label: "Connect New Account", href: "/client-dashboard/accounts?connect=1" },
 };
 
-function expandWithSynonyms(keywords: string[]): string[] {
-  const expanded = new Set(keywords);
-  for (const kw of keywords) {
-    // Check if this keyword is a synonym of something
-    for (const [root, syns] of Object.entries(SYNONYMS)) {
-      if (kw === root || syns.includes(kw)) {
-        expanded.add(root);
-        for (const s of syns) expanded.add(s);
-      }
-    }
-  }
-  return Array.from(expanded);
+function getAnthropicClient(): Anthropic | null {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+  return new Anthropic({ apiKey });
 }
 
-function scoreFAQItem(item: FAQItem, queryKeywords: string[]): number {
-  const qKeywords = getKeywords(item.q);
-  const aKeywords = getKeywords(item.a);
-  const allItemKeywords = new Set([...qKeywords, ...aKeywords]);
+const SYSTEM_PROMPT = `You are the AI support assistant for Analytic Algo, a professional algorithmic trading service. You help clients by answering their questions using ONLY the information provided in the knowledge base below.
 
-  let score = 0;
+CRITICAL RULES:
+1. ONLY answer questions using information from the knowledge base provided. Never make up information or use outside knowledge.
+2. If the question cannot be answered from the knowledge base, respond with EXACTLY: {"found": false}
+3. Keep responses friendly, clear, and concise — like you're talking to someone who may not know anything about trading.
+4. Use simple language. Avoid jargon unless it's defined in the knowledge base.
+5. NEVER mention that you're reading from a knowledge base or reference any internal documents.
+6. When relevant, suggest which page the client should visit by including a "link_key" in your response.
+7. Do NOT say things like "according to our knowledge base" or "based on the information provided."
+8. Speak as a natural support agent — as if you personally know the service.
+9. NEVER mention "breaking any rules" or similar phrases — instead say things like "within the firm's guidelines."
+10. For questions about connecting accounts, prop firms, payments, or performance — always include the relevant link.
 
-  for (const qk of queryKeywords) {
-    // Exact match in question (highest weight)
-    if (qKeywords.includes(qk)) {
-      score += 10;
-    }
-    // Exact match in answer
-    if (aKeywords.includes(qk)) {
-      score += 3;
-    }
-    // Partial match (starts with)
-    for (const ik of allItemKeywords) {
-      if (ik !== qk && (ik.startsWith(qk) || qk.startsWith(ik))) {
-        score += 2;
-      }
-    }
-  }
+RESPONSE FORMAT:
+Always respond with valid JSON in this exact format:
+{"found": true, "answer": "Your helpful answer here", "link_key": "optional-page-key"}
 
-  // Bonus for phrase match in question
-  const queryLower = queryKeywords.join(" ");
-  if (item.q.toLowerCase().includes(queryLower)) {
-    score += 15;
-  }
+Available link_key values: accounts, connect-guide, prop-firm-guide, performance, activity, payments, dashboard, faq, connect-account
 
-  // Normalize by number of query keywords to avoid bias toward long queries
-  return queryKeywords.length > 0 ? score / queryKeywords.length : 0;
-}
+If no link is relevant, omit the link_key field.
+If you truly cannot answer from the knowledge base, respond with: {"found": false}
 
-interface SearchResult {
-  question: string;
-  answer: string;
-  category: string;
-  score: number;
-  link?: { label: string; href: string };
-}
+KNOWLEDGE BASE:
+${KNOWLEDGE_BASE}`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -119,32 +61,59 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "question is required" }, { status: 400 });
     }
 
-    const queryKeywords = expandWithSynonyms(getKeywords(question));
+    const client = getAnthropicClient();
 
-    if (queryKeywords.length === 0) {
+    if (!client) {
+      // Fallback: no API key configured
       return NextResponse.json({
         found: false,
-        message: "I'm not sure I understand your question. Would you like to speak with a support agent?",
+        message: "I'm temporarily unable to process your question. Would you like to speak with a live support agent?",
         results: [],
       });
     }
 
-    const allItems = getAllFAQItems();
-    const scored: SearchResult[] = allItems
-      .map((item) => ({
-        question: item.q,
-        answer: item.a,
-        category: item.category,
-        score: scoreFAQItem(item, queryKeywords),
-        link: item.link,
-      }))
-      .sort((a, b) => b.score - a.score);
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: question,
+        },
+      ],
+    });
 
-    // Minimum threshold to consider a "match"
-    const MATCH_THRESHOLD = 4;
-    const topResults = scored.filter((r) => r.score >= MATCH_THRESHOLD).slice(0, 3);
+    // Extract text from response
+    const textBlock = response.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      return NextResponse.json({
+        found: false,
+        message: "I had trouble understanding that. Could you rephrase your question?",
+        results: [],
+      });
+    }
 
-    if (topResults.length === 0) {
+    // Parse the JSON response from Claude
+    let parsed: { found: boolean; answer?: string; link_key?: string };
+    try {
+      // Clean any markdown code fences from the response
+      let cleanText = textBlock.text.trim();
+      if (cleanText.startsWith("```")) {
+        cleanText = cleanText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+      }
+      parsed = JSON.parse(cleanText);
+    } catch {
+      // If Claude didn't return valid JSON, try to use the raw text as an answer
+      const rawText = textBlock.text.trim();
+      if (rawText.length > 10 && !rawText.includes('"found": false') && !rawText.includes('"found":false')) {
+        parsed = { found: true, answer: rawText };
+      } else {
+        parsed = { found: false };
+      }
+    }
+
+    if (!parsed.found || !parsed.answer) {
       return NextResponse.json({
         found: false,
         message:
@@ -153,12 +122,36 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Build the result with optional link
+    const result: {
+      question: string;
+      answer: string;
+      category: string;
+      score: number;
+      link?: { label: string; href: string };
+    } = {
+      question: question,
+      answer: parsed.answer,
+      category: "AI Response",
+      score: 100,
+    };
+
+    // Attach link if AI suggested one
+    if (parsed.link_key && PAGE_LINKS[parsed.link_key]) {
+      result.link = PAGE_LINKS[parsed.link_key];
+    }
+
     return NextResponse.json({
       found: true,
-      results: topResults,
+      results: [result],
     });
   } catch (err) {
-    console.error("Chat search error:", err);
-    return NextResponse.json({ error: "Search failed" }, { status: 500 });
+    console.error("Chat AI error:", err);
+    return NextResponse.json({
+      found: false,
+      message:
+        "I'm having trouble right now. Would you like to connect with a live support agent?",
+      results: [],
+    });
   }
 }
