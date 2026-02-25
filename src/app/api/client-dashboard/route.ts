@@ -136,6 +136,65 @@ export async function GET(req: NextRequest) {
       algo: undefined,
     }));
 
+    // Fetch algorithms assigned to this client's accounts
+    const algorithmIds = [...new Set(
+      (sharedAccounts || [])
+        .map((a: Record<string, unknown>) => a.algorithm_id as string)
+        .filter(Boolean)
+    )];
+    interface AlgoInfo { id: string; name: string; category: string; category_color: string; win_rate: number; total_trades: number; profit: number }
+    let activeAlgos: AlgoInfo[] = [];
+    if (algorithmIds.length > 0) {
+      const { data: algos } = await supabase
+        .from("algorithms")
+        .select("id, name, category, win_rate, metrics")
+        .in("id", algorithmIds);
+
+      const categoryColors: Record<string, string> = {
+        Forex: "bg-blue-500/10 text-blue-400",
+        Futures: "bg-amber-500/10 text-amber-400",
+        Crypto: "bg-purple-500/10 text-purple-400",
+        Stocks: "bg-emerald-500/10 text-emerald-400",
+      };
+
+      // Calculate per-algo trade stats from this client's trades
+      const algoAccountMap: Record<string, string[]> = {};
+      for (const acc of (sharedAccounts || [])) {
+        const algoId = (acc as Record<string, unknown>).algorithm_id as string;
+        const accId = (acc as Record<string, unknown>).id as string;
+        if (algoId) {
+          if (!algoAccountMap[algoId]) algoAccountMap[algoId] = [];
+          algoAccountMap[algoId].push(accId);
+        }
+      }
+
+      activeAlgos = (algos || []).map((algo: Record<string, unknown>) => {
+        const algoAccounts = algoAccountMap[algo.id as string] || [];
+        let algoTrades = 0;
+        let algoProfit = 0;
+        let algoWins = 0;
+        for (const t of allTrades) {
+          if (algoAccounts.includes(t.account_id as string)) {
+            algoTrades++;
+            const pnl = Number(t.pnl) || 0;
+            algoProfit += pnl;
+            if (pnl > 0) algoWins++;
+          }
+        }
+        const winRate = algoTrades > 0 ? Math.round((algoWins / algoTrades) * 100) : parseFloat(String(algo.win_rate || "0"));
+        const cat = (algo.category as string) || "Forex";
+        return {
+          id: algo.id as string,
+          name: algo.name as string,
+          category: cat,
+          category_color: categoryColors[cat] || "bg-slate-500/10 text-slate-400",
+          win_rate: winRate,
+          total_trades: algoTrades,
+          profit: algoProfit,
+        };
+      });
+    }
+
     // Try to fetch dashboard record for supplemental data (payment info, etc.)
     let dashboard: Record<string, unknown> | null = null;
     const { data: db } = await supabase
@@ -162,7 +221,7 @@ export async function GET(req: NextRequest) {
         net_pnl: totalTradePnl,
         growth_pct: growthPct,
         accounts: accounts,
-        active_algos: [] as { id: string; name: string; category: string; category_color: string; win_rate: number; total_trades: number; profit: number }[],
+        active_algos: activeAlgos,
         positions: [] as { id: string; symbol: string; symbol_icon: string; symbol_bg: string; symbol_text_color: string; type: string; entry: string; current: string; pnl: number }[],
         recent_trades: recentTrades,
         payment_status: dashboard
