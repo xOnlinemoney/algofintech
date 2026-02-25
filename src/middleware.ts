@@ -98,6 +98,10 @@ export async function middleware(request: NextRequest) {
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);
     }
+    // Allow closer portal paths on admin subdomain (no rewrite needed)
+    if (pathname.startsWith("/dashboard/closer/")) {
+      return NextResponse.next();
+    }
     // /dashboard on admin subdomain → rewrite to /admin-dashboard
     if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
       const url = request.nextUrl.clone();
