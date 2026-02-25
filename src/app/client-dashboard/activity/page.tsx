@@ -477,6 +477,17 @@ function PerformanceCalendar({ trades, onDayClick }: { trades: Trade[]; onDayCli
     tradesMap.get(key)!.push(t);
   });
 
+  // Calculate monthly PnL total
+  let monthlyPnl = 0;
+  let monthTradeCount = 0;
+  pnlMap.forEach((pnl, key) => {
+    const [ky, km] = key.split("-").map(Number);
+    if (ky === year && km === month + 1) {
+      monthlyPnl += pnl;
+      monthTradeCount++;
+    }
+  });
+
   const days: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) days.push(null);
   for (let d = 1; d <= daysInMonth; d++) days.push(d);
@@ -492,14 +503,24 @@ function PerformanceCalendar({ trades, onDayClick }: { trades: Trade[]; onDayCli
           <h3 className="text-base font-semibold text-white">Daily Performance Calendar</h3>
           <p className="text-xs text-slate-500 mt-0.5">Visual breakdown of daily P&L</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setMonthOffset(m => m - 1)} className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-sm text-white font-medium min-w-[140px] text-center">{monthName}</span>
-          <button onClick={() => setMonthOffset(m => m + 1)} className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors">
-            <ChevronRight className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-4">
+          {/* Monthly PnL */}
+          <div className="text-right mr-2">
+            <span className={`text-sm font-semibold font-mono ${monthlyPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {monthlyPnl >= 0 ? "+" : ""}{fmt(monthlyPnl)}
+            </span>
+            <p className="text-[10px] text-slate-500">{monthTradeCount} trading day{monthTradeCount !== 1 ? "s" : ""}</p>
+          </div>
+          {/* Month Navigation */}
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMonthOffset(m => m - 1)} className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm text-white font-medium min-w-[140px] text-center">{monthName}</span>
+            <button onClick={() => setMonthOffset(m => m + 1)} className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-4">
