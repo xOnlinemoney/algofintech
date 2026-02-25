@@ -78,15 +78,57 @@ export async function POST(req: NextRequest) {
       if (agency) agencyName = agency.name;
     }
 
-    // Ensure a record exists in the clients table so accounts work
-    let clientDisplayId = matchingKey.client_id || null;
+    // Find the existing client record
+    // software_keys.client_id stores the UUID (clients.id), not the display ID
+    let clientDisplayId: string | null = null;
 
+    if (matchingKey.client_id) {
+      // Try to find existing client by UUID first (admin invite stores clients.id)
+      const { data: existingByUUID } = await supabase
+        .from("clients")
+        .select("id, client_id")
+        .eq("id", matchingKey.client_id)
+        .single();
+
+      if (existingByUUID) {
+        clientDisplayId = existingByUUID.client_id;
+      } else {
+        // Fallback: maybe client_id is stored as the display ID (CL-XXXX)
+        const { data: existingByDisplayId } = await supabase
+          .from("clients")
+          .select("id, client_id")
+          .eq("client_id", matchingKey.client_id)
+          .single();
+
+        if (existingByDisplayId) {
+          clientDisplayId = existingByDisplayId.client_id;
+        }
+      }
+    }
+
+    // If still no client found, try matching by email as last resort
     if (!clientDisplayId) {
-      // Generate a display ID like "CL-1234"
+      const { data: existingByEmail } = await supabase
+        .from("clients")
+        .select("id, client_id")
+        .eq("email", normalizedEmail)
+        .single();
+
+      if (existingByEmail) {
+        clientDisplayId = existingByEmail.client_id;
+        // Fix the software_keys link so future logins are faster
+        await supabase
+          .from("software_keys")
+          .update({ client_id: existingByEmail.id })
+          .eq("id", matchingKey.id);
+      }
+    }
+
+    // Only create a new client if absolutely none exists
+    if (!clientDisplayId) {
       const randomNum = Math.floor(1000 + Math.random() * 9000);
       clientDisplayId = `CL-${randomNum}`;
 
-      // Create the clients record
       const { data: newClient, error: clientErr } = await supabase
         .from("clients")
         .insert([
@@ -102,40 +144,11 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (!clientErr && newClient) {
-        // Link the software key to this new client record
         await supabase
           .from("software_keys")
-          .update({ client_id: newClient.client_id })
+          .update({ client_id: newClient.id })
           .eq("id", matchingKey.id);
         clientDisplayId = newClient.client_id;
-      }
-    } else {
-      // Verify the client_id actually exists in the clients table
-      const { data: existingClient } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("client_id", clientDisplayId)
-        .single();
-
-      if (!existingClient) {
-        // Create the missing clients record
-        const { data: newClient } = await supabase
-          .from("clients")
-          .insert([
-            {
-              client_id: clientDisplayId,
-              name: meta.signup_name || "",
-              email: meta.signup_email || normalizedEmail,
-              agency_id: matchingKey.agency_id || null,
-              status: "active",
-            },
-          ])
-          .select("id, client_id")
-          .single();
-
-        if (newClient) {
-          clientDisplayId = newClient.client_id;
-        }
       }
     }
 

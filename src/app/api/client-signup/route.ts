@@ -94,22 +94,29 @@ export async function POST(req: NextRequest) {
     const signupName = `${first_name} ${last_name}`;
     let clientDisplayId: string | null = null;
 
+    console.log("[client-signup] keyRecord.client_id:", keyRecord.client_id);
+    console.log("[client-signup] keyRecord full:", JSON.stringify(keyRecord));
+
     if (keyRecord.client_id) {
       // Try to find the existing client by UUID first (admin invite stores clients.id)
-      const { data: existingByUUID } = await supabase
+      const { data: existingByUUID, error: uuidErr } = await supabase
         .from("clients")
         .select("id, client_id")
         .eq("id", keyRecord.client_id)
         .single();
 
+      console.log("[client-signup] UUID lookup result:", existingByUUID, "error:", uuidErr);
+
       if (existingByUUID) {
         // Found the invited client — update their name/email with signup info
         clientDisplayId = existingByUUID.client_id;
+        console.log("[client-signup] MATCHED by UUID — updating existing client:", existingByUUID.client_id);
         await supabase
           .from("clients")
           .update({ name: signupName, email: email, status: "active" })
           .eq("id", existingByUUID.id);
       } else {
+        console.log("[client-signup] UUID lookup failed, trying display ID fallback...");
         // Fallback: maybe client_id is stored as the display ID (CL-XXXX)
         const { data: existingByDisplayId } = await supabase
           .from("clients")
@@ -127,8 +134,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // If no existing client was found, create a new one
+    // If still no client found, try matching by email as last resort
     if (!clientDisplayId) {
+      const { data: existingByEmail } = await supabase
+        .from("clients")
+        .select("id, client_id")
+        .eq("email", email.trim().toLowerCase())
+        .single();
+
+      if (existingByEmail) {
+        clientDisplayId = existingByEmail.client_id;
+        console.log("[client-signup] MATCHED by email fallback:", clientDisplayId);
+        await supabase
+          .from("clients")
+          .update({ name: signupName, status: "active" })
+          .eq("id", existingByEmail.id);
+        // Fix the software_keys link
+        await supabase
+          .from("software_keys")
+          .update({ client_id: existingByEmail.id })
+          .eq("id", keyRecord.id);
+      }
+    }
+
+    // If absolutely no existing client was found, create a new one
+    console.log("[client-signup] clientDisplayId after all lookups:", clientDisplayId);
+    if (!clientDisplayId) {
+      console.log("[client-signup] NO existing client found — creating NEW client record");
       const randomNum = Math.floor(1000 + Math.random() * 9000);
       clientDisplayId = `CL-${randomNum}`;
 
