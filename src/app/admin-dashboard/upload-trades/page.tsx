@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   Upload,
@@ -53,6 +53,12 @@ type AccountResult = {
   total_rows: number;
   errors: string[];
   status: "success" | "error" | "unmatched";
+};
+
+type Algorithm = {
+  id: string;
+  name: string;
+  slug: string;
 };
 
 type ImportSummary = {
@@ -115,6 +121,20 @@ export default function UploadTradesPage() {
   const [dragOver, setDragOver] = useState(false);
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>("");
+
+  // Fetch algorithms on mount
+  useEffect(() => {
+    fetch("/api/admin/algorithms")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.algorithms) {
+          setAlgorithms(data.algorithms);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Group rows by account
   const accountGroups = useMemo(() => {
@@ -248,6 +268,10 @@ export default function UploadTradesPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      if (selectedAlgorithm) {
+        formData.append("algorithm_name", selectedAlgorithm);
+        formData.append("algorithm_color", "#6366f1");
+      }
 
       const res = await fetch("/api/admin/bulk-import-trades", {
         method: "POST",
@@ -405,6 +429,18 @@ export default function UploadTradesPage() {
                   </p>
                 </div>
               </div>
+              <select
+                value={selectedAlgorithm}
+                onChange={(e) => setSelectedAlgorithm(e.target.value)}
+                className="px-3 py-2.5 bg-[#0a0e18] border border-white/10 text-sm text-white rounded-lg focus:outline-none focus:border-indigo-500/50 appearance-none cursor-pointer"
+              >
+                <option value="">Algorithm: Manual</option>
+                {algorithms.map((algo) => (
+                  <option key={algo.id} value={algo.name}>
+                    {algo.name}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={handleImport}
                 disabled={importing}

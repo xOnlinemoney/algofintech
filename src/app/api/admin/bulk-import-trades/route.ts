@@ -86,6 +86,8 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    const algorithmName = (formData.get("algorithm_name") as string) || null;
+    const algorithmColor = (formData.get("algorithm_color") as string) || "#6366f1";
 
     if (!file || !file.name.endsWith(".csv")) {
       return NextResponse.json(
@@ -313,8 +315,8 @@ export async function POST(req: NextRequest) {
             duration,
             opened_at: parseTimestamp(boughtTs),
             closed_at: parseTimestamp(soldTs),
-            algorithm_name: null,
-            algorithm_color: "#6366f1",
+            algorithm_name: algorithmName || null,
+            algorithm_color: algorithmName ? algorithmColor : "#6366f1",
             entry_order_type: "Market",
             exit_order_type: "Market",
             notes: null,

@@ -178,3 +178,50 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) {
+      return NextResponse.json({ error: "Supabase not configured." }, { status: 503 });
+    }
+
+    const accountId = req.nextUrl.searchParams.get("account_id");
+    if (!accountId) {
+      return NextResponse.json({ error: "account_id is required" }, { status: 400 });
+    }
+
+    // Delete all trades for this account
+    const { error, count } = await supabase
+      .from("client_trading_activity")
+      .delete()
+      .eq("account_id", accountId);
+
+    if (error) {
+      console.error("Delete trades error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Recalculate balance (no trades = starting_balance only)
+    const { data: account } = await supabase
+      .from("client_accounts")
+      .select("starting_balance")
+      .eq("id", accountId)
+      .single();
+
+    const startBal = Number(account?.starting_balance) || 0;
+    await supabase
+      .from("client_accounts")
+      .update({
+        balance: startBal,
+        equity: startBal,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", accountId);
+
+    return NextResponse.json({ success: true, deleted_count: count || 0, new_balance: startBal });
+  } catch (err) {
+    console.error("DELETE account trades error:", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+  }
+}

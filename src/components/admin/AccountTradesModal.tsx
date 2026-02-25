@@ -18,6 +18,7 @@ import {
   Wallet,
   Save,
   Check,
+  Trash2,
 } from "lucide-react";
 
 type Trade = {
@@ -97,6 +98,8 @@ export default function AccountTradesModal({
   const [startingBalance, setStartingBalance] = useState("");
   const [savingBalance, setSavingBalance] = useState(false);
   const [balanceSaved, setBalanceSaved] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTrades = useCallback(async () => {
@@ -198,6 +201,37 @@ export default function AccountTradesModal({
       console.error("Failed to save balance:", err);
     } finally {
       setSavingBalance(false);
+    }
+  };
+
+
+  const handleDeleteAllTrades = async () => {
+    if (!deleteConfirm) {
+      setDeleteConfirm(true);
+      return;
+    }
+    setDeleting(true);
+    setDeleteConfirm(false);
+    try {
+      const res = await fetch(`/api/admin/account-trades?account_id=${accountId}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setImportResult({
+          success: true,
+          imported_count: 0,
+          skipped_count: 0,
+          errors: [`Deleted all trades. Balance reset to $${json.new_balance?.toLocaleString() || "0"}`],
+        });
+        await fetchTrades();
+      } else {
+        setImportResult({ success: false, error: json.error || "Delete failed." });
+      }
+    } catch (err) {
+      setImportResult({ success: false, error: String(err) });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -438,9 +472,29 @@ export default function AccountTradesModal({
 
               {/* Trades Table */}
               <div className="space-y-2">
-                <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                  Trade History ({trades.length})
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    Trade History ({trades.length})
+                  </h3>
+                  {trades.length > 0 && (
+                    <button
+                      onClick={handleDeleteAllTrades}
+                      disabled={deleting}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all flex items-center gap-1.5 ${
+                        deleteConfirm
+                          ? "bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse"
+                          : "bg-white/5 text-slate-400 border border-white/10 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30"
+                      }`}
+                    >
+                      {deleting ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3 h-3" />
+                      )}
+                      {deleting ? "Deleting..." : deleteConfirm ? "Click Again to Confirm" : "Delete All Trades"}
+                    </button>
+                  )}
+                </div>
 
                 {trades.length === 0 ? (
                   <div className="text-center py-12 text-slate-500">
