@@ -326,7 +326,13 @@ export default function TradingActivityPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/client-trading-activity");
+        // Get client_id from session to pass to API
+        let clientParam = "";
+        try {
+          const session = JSON.parse(localStorage.getItem("client_session") || "{}");
+          if (session.client_id) clientParam = `?client_id=${session.client_id}`;
+        } catch {}
+        const res = await fetch(`/api/client-trading-activity${clientParam}`);
         const json = await res.json();
         if (json.data) setData(json.data);
         else setData(EMPTY_DATA);

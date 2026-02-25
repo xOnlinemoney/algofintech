@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 function getSupabase() {
@@ -8,23 +8,42 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ data: null, error: "No Supabase" });
 
   try {
-    // Get client from dashboard
-    const { data: dashboard } = await supabase
-      .from("client_dashboards")
-      .select("client_id")
-      .limit(1)
-      .single();
+    // Accept client_id from query params or fall back to dashboard lookup
+    let clientId: string | null = null;
+    const paramClientId = req.nextUrl.searchParams.get("client_id");
 
-    if (!dashboard?.client_id) {
-      return NextResponse.json({ data: null });
+    if (paramClientId) {
+      // Check if it's a display ID (CL-XXXX) and convert to UUID
+      if (paramClientId.startsWith("CL-")) {
+        const { data: clientRow } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("client_id", paramClientId)
+          .single();
+        clientId = clientRow?.id || null;
+      } else {
+        clientId = paramClientId;
+      }
     }
 
-    const clientId = dashboard.client_id;
+    // Fallback: get client from dashboard
+    if (!clientId) {
+      const { data: dashboard } = await supabase
+        .from("client_dashboards")
+        .select("client_id")
+        .limit(1)
+        .single();
+      clientId = dashboard?.client_id || null;
+    }
+
+    if (!clientId) {
+      return NextResponse.json({ data: null });
+    }
 
     // Fetch all trades for this client
     const { data: trades, error } = await supabase

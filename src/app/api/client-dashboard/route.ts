@@ -61,6 +61,28 @@ export async function GET(req: NextRequest) {
           .order("created_at", { ascending: true })
       : { data: [] };
 
+    // Fetch real trade P&L per account from client_trading_activity
+    let tradePnlByAccount: Record<string, number> = {};
+    let totalTradePnl = 0;
+    let totalTradeCount = 0;
+    let tradeWins = 0;
+    let tradeLosses = 0;
+    if (clientId) {
+      const { data: tradeRows } = await supabase
+        .from("client_trading_activity")
+        .select("account_id, pnl")
+        .eq("client_id", clientId);
+
+      for (const t of (tradeRows || [])) {
+        const pnl = Number(t.pnl) || 0;
+        tradePnlByAccount[t.account_id] = (tradePnlByAccount[t.account_id] || 0) + pnl;
+        totalTradePnl += pnl;
+        totalTradeCount++;
+        if (pnl > 0) tradeWins++;
+        else if (pnl < 0) tradeLosses++;
+      }
+    }
+
     // Also fetch any dashboard-specific account overrides (for display data)
     const { data: dashboardAccounts } = await supabase
       .from("client_dashboard_accounts")
@@ -93,7 +115,7 @@ export async function GET(req: NextRequest) {
             account_mask: mask,
             status: (a.is_active as boolean) ? "Active" : "Inactive",
             balance: Number(a.balance) || 0,
-            daily_pnl: Number(a.equity) - Number(a.balance) || 0,
+            daily_pnl: tradePnlByAccount[a.id as string] || (Number(a.equity) - Number(a.balance)) || 0,
             health_pct: Number(a.balance) > 0 ? Math.min(100, Math.round((Number(a.equity) / Number(a.balance)) * 100)) : 50,
             // Pass through shared fields for reference
             account_number: a.account_number,
@@ -142,17 +164,17 @@ export async function GET(req: NextRequest) {
         client_name: dashboard.client_name,
         total_value: dashboard.total_value,
         total_value_change: dashboard.total_value_change,
-        todays_pnl: dashboard.todays_pnl,
+        todays_pnl: totalTradePnl || dashboard.todays_pnl,
         todays_pnl_pct: dashboard.todays_pnl_pct,
-        trades_today: dashboard.trades_today,
+        trades_today: totalTradeCount || dashboard.trades_today,
         connected_accounts_count: (accounts || []).length,
-        active_trades_count: positions?.length || 0,
-        profitable_trades:
+        active_trades_count: totalTradeCount || positions?.length || 0,
+        profitable_trades: tradeWins ||
           positions?.filter((p: Record<string, unknown>) => (p.pnl as number) > 0).length || 0,
-        losing_trades:
+        losing_trades: tradeLosses ||
           positions?.filter((p: Record<string, unknown>) => (p.pnl as number) < 0).length || 0,
         starting_balance: dashboard.starting_balance,
-        net_pnl: dashboard.net_pnl,
+        net_pnl: totalTradePnl || dashboard.net_pnl,
         growth_pct: dashboard.growth_pct,
         accounts: accounts || [],
         active_algos: (algos || []).map((al: Record<string, unknown>) => ({

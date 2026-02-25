@@ -60,6 +60,28 @@ export async function GET(
       .select("*")
       .eq("agency_id", id);
 
+    // 3b. Fetch trade P&L per account from client_trading_activity
+    const allClientIds = (clients || []).map((c) => c.id);
+    let tradePnlByAccount: Record<string, number> = {};
+    let tradePnlByClient: Record<string, number> = {};
+    let tradeCountByAccount: Record<string, number> = {};
+
+    if (allClientIds.length > 0) {
+      const { data: tradeSums } = await supabase
+        .from("client_trading_activity")
+        .select("account_id, client_id, pnl")
+        .in("client_id", allClientIds);
+
+      for (const t of (tradeSums || [])) {
+        const accId = t.account_id;
+        const cId = t.client_id;
+        const pnl = Number(t.pnl) || 0;
+        tradePnlByAccount[accId] = (tradePnlByAccount[accId] || 0) + pnl;
+        tradePnlByClient[cId] = (tradePnlByClient[cId] || 0) + pnl;
+        tradeCountByAccount[accId] = (tradeCountByAccount[accId] || 0) + 1;
+      }
+    }
+
     // 4. Build client stats
     const clientList = (clients || []);
     const totalClients = clientList.length;
@@ -76,10 +98,11 @@ export async function GET(
     let unprofitableClients = 0;
 
     for (const c of clientList) {
-      totalPnl += c.total_pnl || 0;
+      const clientPnl = tradePnlByClient[c.id] || c.total_pnl || 0;
+      totalPnl += clientPnl;
       totalLiquidity += c.liquidity || 0;
-      if ((c.total_pnl || 0) > 0) profitableClients++;
-      else if ((c.total_pnl || 0) < 0) unprofitableClients++;
+      if (clientPnl > 0) profitableClients++;
+      else if (clientPnl < 0) unprofitableClients++;
     }
 
     // 6. Build account stats & market distribution
@@ -135,7 +158,7 @@ export async function GET(
         phone: client.phone,
         status: client.status,
         liquidity: client.liquidity,
-        total_pnl: client.total_pnl,
+        total_pnl: tradePnlByClient[client.id] || client.total_pnl || 0,
         pnl_percentage: client.pnl_percentage,
         risk_level: client.risk_level,
         broker: client.broker,
@@ -148,8 +171,8 @@ export async function GET(
         accounts: clientAccs.map((a) => {
           const bal = a.balance || 0;
           const eq = a.equity || 0;
-          // pnl = equity - balance (no pnl column in schema)
-          const computedPnl = eq > 0 ? eq - bal : 0;
+          // Use actual trade P&L from client_trading_activity, fallback to equity - balance
+          const computedPnl = tradePnlByAccount[a.id] || (eq > 0 ? eq - bal : 0);
           return {
             id: a.id,
             account_name: a.account_name || a.platform || "Unknown",
