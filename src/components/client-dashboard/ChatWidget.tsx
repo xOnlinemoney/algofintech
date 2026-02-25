@@ -42,6 +42,7 @@ export default function ChatWidget() {
   const [mode, setMode] = useState<"ai" | "live" | "waiting">("ai");
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [hadNoMatch, setHadNoMatch] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -317,6 +318,7 @@ export default function ChatWidget() {
         }
       } else {
         // No match — offer live agent
+        setHadNoMatch(true);
         const noMatchMsg: ChatMessage = {
           id: `ai-nomatch-${Date.now()}`,
           sender: "ai",
@@ -340,6 +342,7 @@ export default function ChatWidget() {
         }
       }
     } catch {
+      setHadNoMatch(true);
       setMessages((prev) => [
         ...prev,
         {
@@ -522,8 +525,8 @@ export default function ChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Live Agent Request Button (visible in AI mode when no match) */}
-          {mode === "ai" && messages.length > 2 && (
+          {/* Live Agent Request Button (only visible after AI fails to find an answer) */}
+          {mode === "ai" && hadNoMatch && (
             <div className="px-4 pb-2">
               <button
                 onClick={() => requestLiveAgent()}
