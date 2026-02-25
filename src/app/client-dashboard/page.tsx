@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAgencyBranding } from "@/hooks/useAgencyBranding";
 import {
@@ -34,8 +34,14 @@ type DashboardData = {
   accounts: DashboardAccount[];
   active_algos: DashboardAlgo[];
   positions: DashboardPosition[];
+  equity_curve: EquityPoint[];
   recent_trades: DashboardTrade[];
   payment_status: PaymentStatus | null;
+};
+
+type EquityPoint = {
+  date: string;
+  balance: number;
 };
 
 type DashboardAccount = {
@@ -111,6 +117,7 @@ const EMPTY_DATA: DashboardData = {
   accounts: [],
   active_algos: [],
   positions: [],
+  equity_curve: [],
   recent_trades: [],
   payment_status: null,
 };
@@ -129,6 +136,124 @@ function formatCompact(n: number): string {
     return `$${(n / 1000).toFixed(1)}k`;
   }
   return formatCurrency(n);
+}
+
+// ─── Equity Chart Component ─────────────────────────────
+function EquityChart({ data, color = "#10b981" }: { data: EquityPoint[]; color?: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || data.length < 2) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+
+    const balances = data.map(d => d.balance);
+    const min = Math.min(...balances) * 0.995;
+    const max = Math.max(...balances) * 1.005;
+    const range = max - min || 1;
+    const padding = { left: 55, right: 15, top: 10, bottom: 30 };
+    const chartW = w - padding.left - padding.right;
+    const chartH = h - padding.top - padding.bottom;
+    const step = chartW / (data.length - 1);
+
+    // Y gridlines + labels
+    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    ctx.fillStyle = "#64748b";
+    ctx.font = "10px Inter, system-ui, sans-serif";
+    ctx.textAlign = "right";
+    for (let i = 0; i <= 4; i++) {
+      const y = padding.top + (chartH / 4) * i;
+      const val = max - (range / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(w - padding.right, y);
+      ctx.stroke();
+      const label = val >= 1000 ? `$${(val / 1000).toFixed(1)}k` : `$${val.toFixed(0)}`;
+      ctx.fillText(label, padding.left - 5, y + 3);
+    }
+
+    // X labels
+    ctx.textAlign = "center";
+    const labelStep = Math.max(1, Math.floor(data.length / 7));
+    data.forEach((pt, i) => {
+      if (i % labelStep === 0 || i === data.length - 1) {
+        const x = padding.left + i * step;
+        const d = new Date(pt.date);
+        const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        ctx.fillText(label, x, h - 5);
+      }
+    });
+
+    // Points
+    const points = data.map((pt, i) => ({
+      x: padding.left + i * step,
+      y: padding.top + chartH - ((pt.balance - min) / range) * chartH,
+    }));
+
+    // Gradient fill
+    const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+    gradient.addColorStop(0, color + "33");
+    gradient.addColorStop(1, color + "00");
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      const cpx = (points[i - 1].x + points[i].x) / 2;
+      ctx.bezierCurveTo(cpx, points[i - 1].y, cpx, points[i].y, points[i].x, points[i].y);
+    }
+    ctx.lineTo(points[points.length - 1].x, padding.top + chartH);
+    ctx.lineTo(points[0].x, padding.top + chartH);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      const cpx = (points[i - 1].x + points[i].x) / 2;
+      ctx.bezierCurveTo(cpx, points[i - 1].y, cpx, points[i].y, points[i].x, points[i].y);
+    }
+    ctx.stroke();
+
+    // Last point dot
+    const last = points[points.length - 1];
+    ctx.beginPath();
+    ctx.arc(last.x, last.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#0B0E14";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(last.x, last.y, 4, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }, [data, color]);
+
+  useEffect(() => {
+    draw();
+    const handleResize = () => draw();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [draw]);
+
+  if (data.length < 2) {
+    return (
+      <div className="flex items-center justify-center h-64 text-slate-600 text-xs">
+        Not enough data points to render chart
+      </div>
+    );
+  }
+
+  return <canvas ref={canvasRef} style={{ width: "100%", height: 256 }} />;
 }
 
 // ─── Empty State Component ──────────────────────────────
@@ -362,65 +487,61 @@ export default function ClientDashboardPage() {
               </div>
             </div>
 
-            {data.total_value > 0 ? (
-              <>
-                {/* Chart */}
-                <div className="relative h-64 w-full">
-                  {/* Y-Axis */}
-                  <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-[10px] text-slate-600 font-mono py-2">
-                    <span>$12.5k</span>
-                    <span>$11.8k</span>
-                    <span>$11.2k</span>
-                    <span>$10.5k</span>
-                    <span>$10.0k</span>
-                  </div>
-                  {/* Chart Area */}
-                  <div className="absolute left-10 right-0 top-0 bottom-0">
-                    <div className="w-full h-full flex flex-col justify-between py-2">
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <div key={i} className="w-full h-px bg-white/5 border-t border-dashed border-white/5" />
-                      ))}
+            {(() => {
+              // Filter equity curve by timeframe
+              const now = new Date();
+              let cutoff: Date;
+              switch (chartTimeframe) {
+                case "24H": cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
+                case "7D": cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+                case "1M": cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+                default: cutoff = new Date(0); // ALL
+              }
+              const filtered = data.equity_curve.filter(p => new Date(p.date) >= cutoff);
+              // Make sure we have at least 2 points by including the latest before cutoff
+              const chartData = filtered.length >= 2 ? filtered : data.equity_curve;
+
+              if (chartData.length < 2) {
+                return (
+                  <EmptyState
+                    icon={<BarChart className="w-6 h-6" />}
+                    title="No performance data yet"
+                    description="Connect a trading account and import trades to see your performance chart."
+                  />
+                );
+              }
+
+              const chartStart = chartData[0].balance;
+              const chartEnd = chartData[chartData.length - 1].balance;
+              const chartPnl = chartEnd - chartStart;
+              const chartGrowth = chartStart > 0 ? Number(((chartPnl / chartStart) * 100).toFixed(2)) : 0;
+              const chartColor = chartPnl >= 0 ? "#10b981" : "#ef4444";
+
+              return (
+                <>
+                  <EquityChart data={chartData} color={chartColor} />
+                  {/* Stats Row */}
+                  <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/5">
+                    <div>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Starting Bal</p>
+                      <p className="text-sm font-medium text-slate-300 font-mono">{formatCurrency(chartStart)}</p>
                     </div>
-                    <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
-                          <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M0 220 C 50 215, 100 200, 150 180 C 200 160, 250 190, 300 150 C 350 110, 400 130, 450 100 C 500 70, 550 80, 600 40 C 650 10, 700 30, 800 0 L 800 250 L 0 250 Z" fill="url(#chartGradient)" />
-                      <path d="M0 220 C 50 215, 100 200, 150 180 C 200 160, 250 190, 300 150 C 350 110, 400 130, 450 100 C 500 70, 550 80, 600 40 C 650 10, 700 30, 800 0" fill="none" stroke="#10b981" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-                      <circle cx="600" cy="40" r="4" fill="#0B0E14" stroke="#10b981" strokeWidth="2" />
-                    </svg>
+                    <div>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Net P&L</p>
+                      <p className={`text-sm font-medium font-mono ${chartPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {chartPnl >= 0 ? "+" : ""}{formatCurrency(chartPnl)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide">Growth</p>
+                      <p className={`text-sm font-medium font-mono px-2 py-0.5 rounded inline-block ${chartGrowth >= 0 ? "text-emerald-400 bg-emerald-500/10" : "text-red-400 bg-red-500/10"}`}>
+                        {chartGrowth >= 0 ? "+" : ""}{chartGrowth}%
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {/* Stats Row */}
-                <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/5">
-                  <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wide">Starting Bal</p>
-                    <p className="text-sm font-medium text-slate-300 font-mono">{formatCurrency(data.starting_balance)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wide">Net P&L</p>
-                    <p className={`text-sm font-medium font-mono ${data.net_pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {data.net_pnl >= 0 ? "+" : ""}{formatCurrency(data.net_pnl)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wide">Growth</p>
-                    <p className={`text-sm font-medium font-mono px-2 py-0.5 rounded inline-block ${data.growth_pct >= 0 ? "text-emerald-400 bg-emerald-500/10" : "text-red-400 bg-red-500/10"}`}>
-                      {data.growth_pct >= 0 ? "+" : ""}{data.growth_pct}%
-                    </p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <EmptyState
-                icon={<BarChart className="w-6 h-6" />}
-                title="No performance data yet"
-                description="Connect a trading account to start tracking your performance."
-              />
-            )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Active Positions */}

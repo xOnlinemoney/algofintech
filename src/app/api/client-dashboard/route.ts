@@ -122,6 +122,43 @@ export async function GET(req: NextRequest) {
     const totalStartingBalance = accountsList.reduce((sum: number, a: Record<string, unknown>) => sum + (Number(a.starting_balance) || 0), 0);
     const growthPct = totalStartingBalance > 0 ? Number(((totalTradePnl / totalStartingBalance) * 100).toFixed(2)) : 0;
 
+    // Build equity curve from trades sorted chronologically
+    const chronoTrades = [...allTrades].sort((a, b) => {
+      const da = new Date(a.closed_at || a.opened_at).getTime();
+      const db2 = new Date(b.closed_at || b.opened_at).getTime();
+      return da - db2;
+    });
+
+    const equityCurve: { date: string; balance: number }[] = [];
+    let runningBalance = totalStartingBalance;
+    // Add starting point
+    if (chronoTrades.length > 0) {
+      const firstDate = new Date(chronoTrades[0].closed_at || chronoTrades[0].opened_at);
+      const dayBefore = new Date(firstDate);
+      dayBefore.setDate(dayBefore.getDate() - 1);
+      equityCurve.push({
+        date: dayBefore.toISOString(),
+        balance: totalStartingBalance,
+      });
+    }
+    // Group by date and accumulate
+    const dailyPnlMap = new Map<string, number>();
+    for (const t of chronoTrades) {
+      const d = new Date(t.closed_at || t.opened_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      dailyPnlMap.set(key, (dailyPnlMap.get(key) || 0) + (Number(t.pnl) || 0));
+    }
+    // Build curve points per day
+    let cumBalance = totalStartingBalance;
+    const sortedDays = Array.from(dailyPnlMap.keys()).sort();
+    for (const day of sortedDays) {
+      cumBalance += dailyPnlMap.get(day) || 0;
+      equityCurve.push({
+        date: `${day}T23:59:59Z`,
+        balance: Number(cumBalance.toFixed(2)),
+      });
+    }
+
     // Build recent trades from client_trading_activity (last 10)
     const recentTrades = allTrades.slice(0, 10).map((t: Record<string, unknown>) => ({
       id: t.id,
@@ -223,6 +260,7 @@ export async function GET(req: NextRequest) {
         accounts: accounts,
         active_algos: activeAlgos,
         positions: [] as { id: string; symbol: string; symbol_icon: string; symbol_bg: string; symbol_text_color: string; type: string; entry: string; current: string; pnl: number }[],
+        equity_curve: equityCurve,
         recent_trades: recentTrades,
         payment_status: dashboard
           ? {
