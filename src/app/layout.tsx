@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AlgoFinTech - Whitelabel Algo Trading Solution",
   description:
     "The complete white-label infrastructure to start a proprietary trading company. Deploy battle-tested algorithms for Crypto, Stocks, Forex, and Futures under your brand.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
