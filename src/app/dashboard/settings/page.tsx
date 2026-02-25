@@ -85,6 +85,7 @@ interface SettingsData {
   welcome_message: string;
   api_enabled: boolean;
   webhook_url: string;
+  slack_webhook_url: string;
 }
 
 type TabId = "basic" | "branding" | "domain" | "business" | "support" | "api" | "team";
@@ -1960,6 +1961,37 @@ export default function WhiteLabelSettingsPage() {
                       </p>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Slack Integration Card */}
+              <div className="bg-[#0B0E14] border border-white/5 rounded-xl p-6">
+                <div className="flex items-start gap-3 mb-5">
+                  <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/10">
+                    <Send className="w-[18px] h-[18px]" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-semibold text-white tracking-tight">Slack Notifications</h3>
+                    <p className="text-sm text-slate-400 mt-0.5">
+                      Get notified in Slack when clients request live chat support
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400">Slack Webhook URL</label>
+                    <input
+                      type="url"
+                      value={settings.slack_webhook_url || ""}
+                      onChange={(e) => updateSetting("slack_webhook_url", e.target.value)}
+                      className="w-full bg-[#020408] border border-white/10 rounded-lg px-3 py-3 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-slate-600"
+                      placeholder="https://hooks.slack.com/services/T00/B00/xxxx"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Create an incoming webhook in your Slack workspace and paste the URL here.
+                      When a client requests live support, you&apos;ll get a notification in Slack.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

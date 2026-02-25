@@ -18,6 +18,7 @@ import {
   Cpu,
   LogOut,
   ShieldCheck,
+  MessageCircle,
 } from "lucide-react";
 import { getCategoryColor } from "@/lib/mock-data";
 import { useSavedAlgorithms } from "@/context/SavedAlgorithmsContext";
@@ -126,6 +127,12 @@ export default function Sidebar() {
             icon={<ShieldCheck className="w-4 h-4" />}
             label="Team Members"
             active={pathname === "/dashboard/team"}
+          />
+          <NavLink
+            href="/dashboard/chat"
+            icon={<MessageCircle className="w-4 h-4" />}
+            label="Chat Inbox"
+            active={pathname === "/dashboard/chat"}
           />
         </div>
 

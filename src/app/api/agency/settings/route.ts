@@ -120,6 +120,8 @@ export async function GET(request: NextRequest) {
         // API
         api_enabled: settings.api_enabled || false,
         webhook_url: settings.webhook_url || "",
+        // Slack
+        slack_webhook_url: settings.slack_webhook_url || "",
       },
       domain: domainRecord
         ? {

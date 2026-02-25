@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ClientSidebar from "@/components/client-dashboard/ClientSidebar";
 import ClientHeader from "@/components/client-dashboard/ClientHeader";
+import ChatWidget from "@/components/client-dashboard/ChatWidget";
 import { useAgencyBranding } from "@/hooks/useAgencyBranding";
 
 export default function ClientDashboardLayout({
@@ -68,6 +69,9 @@ export default function ClientDashboardLayout({
             {children}
           </main>
         </div>
+
+        {/* Floating Chat Widget */}
+        <ChatWidget />
       </div>
     </div>
   );
