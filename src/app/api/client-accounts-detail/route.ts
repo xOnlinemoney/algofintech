@@ -101,6 +101,23 @@ export async function GET(req: NextRequest) {
       Coinbase: { color: "#0052FF", textColor: "#ffffff", short: "CB" },
     };
 
+    // Fetch algorithm names for accounts that have algorithm_id
+    const algorithmIds = [...new Set(
+      (accounts || [])
+        .map((a: Record<string, unknown>) => a.algorithm_id as string)
+        .filter(Boolean)
+    )];
+    const algoNameMap: Record<string, string> = {};
+    if (algorithmIds.length > 0) {
+      const { data: algos } = await supabase
+        .from("algorithms")
+        .select("id, name")
+        .in("id", algorithmIds);
+      for (const algo of (algos || [])) {
+        algoNameMap[algo.id] = algo.name;
+      }
+    }
+
     const detailedAccounts = (accounts || []).map(
       (a: Record<string, unknown>) => {
         const plat = (a.platform as string) || "Tradovate";
@@ -143,7 +160,10 @@ export async function GET(req: NextRequest) {
           weekly_pnl_pct: pnlPct,
           open_trades: totalTradeCount,
           connected_at: a.created_at,
-          algos: [] as { name: string; status: string }[],
+          algorithm_id: (a.algorithm_id as string) || null,
+          algos: (a.algorithm_id && algoNameMap[a.algorithm_id as string])
+            ? [{ name: algoNameMap[a.algorithm_id as string], status: "active" }]
+            : [] as { name: string; status: string }[],
         };
       }
     );

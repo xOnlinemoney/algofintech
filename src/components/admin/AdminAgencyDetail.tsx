@@ -100,6 +100,7 @@ interface ClientAccount {
   asset_class: string;
   broker: string;
   currency: string;
+  algorithm_id: string | null;
 }
 
 interface ClientData {
@@ -307,6 +308,59 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
       console.error("Toggle account status error:", err);
     } finally {
       setTogglingAccount(null);
+    }
+  };
+
+  // Algorithm assignment
+  const [algorithms, setAlgorithms] = useState<{ id: string; name: string; category: string; status: string }[]>([]);
+  const [assigningAlgo, setAssigningAlgo] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/algorithms")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.algorithms) {
+          setAlgorithms(
+            d.algorithms
+              .filter((a: { status: string }) => a.status === "active")
+              .map((a: { id: string; name: string; category: string; status: string }) => ({
+                id: a.id,
+                name: a.name,
+                category: a.category,
+                status: a.status,
+              }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const assignAlgorithm = async (accountId: string, algorithmId: string | null) => {
+    setAssigningAlgo(accountId);
+    try {
+      const res = await fetch("/api/admin/account-algorithm", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: accountId, algorithm_id: algorithmId }),
+      });
+      if (res.ok) {
+        setData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            clients: prev.clients.map((c) => ({
+              ...c,
+              accounts: c.accounts.map((a) =>
+                a.id === accountId ? { ...a, algorithm_id: algorithmId } : a
+              ),
+            })),
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Assign algorithm error:", err);
+    } finally {
+      setAssigningAlgo(null);
     }
   };
 
@@ -1009,6 +1063,28 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
                                   >
                                     {togglingAccount === acc.id ? "..." : acc.is_active ? "Deactivate" : "Activate"}
                                   </button>
+                                </div>
+
+                                {/* Algorithm Selector */}
+                                <div className="relative">
+                                  <select
+                                    value={acc.algorithm_id || ""}
+                                    onChange={(e) => assignAlgorithm(acc.id, e.target.value || null)}
+                                    disabled={assigningAlgo === acc.id}
+                                    className={`w-full py-1.5 px-2 rounded border text-[10px] transition-colors appearance-none cursor-pointer bg-transparent pr-6 ${
+                                      acc.algorithm_id
+                                        ? "border-indigo-500/30 text-indigo-400 bg-indigo-500/5"
+                                        : "border-white/10 text-slate-500 hover:text-slate-300 hover:border-white/20"
+                                    } ${assigningAlgo === acc.id ? "opacity-50 cursor-wait" : ""}`}
+                                  >
+                                    <option value="" className="bg-[#0B0E14] text-slate-400">Select Algorithm</option>
+                                    {algorithms.map((algo) => (
+                                      <option key={algo.id} value={algo.id} className="bg-[#0B0E14] text-slate-300">
+                                        {algo.name} ({algo.category})
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <Cpu className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600 pointer-events-none" />
                                 </div>
                               </div>
                             );
