@@ -217,8 +217,10 @@ export default function UploadTradesPage() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+      let text = e.target?.result as string;
+      // Strip BOM if present
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
 
       if (lines.length < 2) {
         setParseError("CSV must have a header row and at least one data row.");
@@ -247,13 +249,27 @@ export default function UploadTradesPage() {
       const boughtCol = findCol(["boughtTimestamp", "boughttimestamp"]);
       const soldCol = findCol(["soldTimestamp", "soldtimestamp"]);
 
-      // If account column is missing, allow assign-all mode
-      const noAccountCol = acctCol === -1;
+      // Check if account column is missing OR if all account values are empty
+      let noAccountCol = acctCol === -1;
+
+      // If account column exists, check if all values are empty (blank column)
+      if (!noAccountCol) {
+        let hasAnyAccount = false;
+        for (let i = 1; i < lines.length; i++) {
+          const cols = parseCSVLine(lines[i]);
+          if (cols.every((c) => c.trim() === "")) continue; // skip blank rows
+          const val = (cols[acctCol] || "").trim();
+          if (val) { hasAnyAccount = true; break; }
+        }
+        if (!hasAnyAccount) noAccountCol = true;
+      }
       setMissingAccountCol(noAccountCol);
 
       const rows: ParsedRow[] = [];
       for (let i = 1; i < lines.length; i++) {
         const cols = parseCSVLine(lines[i]);
+        // Skip truly empty rows
+        if (cols.every((c) => c.trim() === "")) continue;
         const acct = noAccountCol ? "ASSIGN" : (cols[acctCol] || "").trim();
         if (!noAccountCol && !acct) continue;
 
