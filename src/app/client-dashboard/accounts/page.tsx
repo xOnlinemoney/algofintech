@@ -693,28 +693,6 @@ function AccountCard({
   const [disconnecting, setDisconnecting] = useState(false);
 
   const isPositivePnl = account.daily_pnl >= 0;
-  const chartColor = isPositivePnl ? "#10b981" : "#3b82f6";
-
-  // Generate a deterministic chart path based on chartId
-  const chartPaths = [
-    {
-      area: "M0 15 Q 10 18, 20 12 T 40 14 T 60 8 T 80 10 T 100 5 L 100 20 L 0 20 Z",
-      line: "M0 15 Q 10 18, 20 12 T 40 14 T 60 8 T 80 10 T 100 5",
-    },
-    {
-      area: "M0 18 L 15 15 L 30 16 L 45 10 L 60 12 L 80 8 L 100 5 L 100 20 L 0 20 Z",
-      line: "M0 18 L 15 15 L 30 16 L 45 10 L 60 12 L 80 8 L 100 5",
-    },
-    {
-      area: "M0 12 Q 15 16, 25 10 T 50 13 T 75 7 T 100 4 L 100 20 L 0 20 Z",
-      line: "M0 12 Q 15 16, 25 10 T 50 13 T 75 7 T 100 4",
-    },
-    {
-      area: "M0 16 L 20 14 L 35 17 L 50 11 L 70 9 L 85 12 L 100 6 L 100 20 L 0 20 Z",
-      line: "M0 16 L 20 14 L 35 17 L 50 11 L 70 9 L 85 12 L 100 6",
-    },
-  ];
-  const chart = chartPaths[chartId % chartPaths.length];
 
   function handleToggle() {
     if (tradingEnabled) {
@@ -890,10 +868,7 @@ function AccountCard({
                   </div>
                 ) : (
                   <p className="text-sm font-medium text-white">
-                    {account.account_type}{" "}
-                    <span className="text-xs text-slate-500 ml-1">
-                      1:100 Leverage
-                    </span>
+                    {account.account_type}
                   </p>
                 )}
               </div>
@@ -945,52 +920,6 @@ function AccountCard({
                 </div>
               </div>
 
-              {/* Mini Chart */}
-              <div className="h-20 w-full relative">
-                <svg
-                  className="w-full h-full overflow-visible"
-                  viewBox="0 0 100 20"
-                  preserveAspectRatio="none"
-                >
-                  <defs>
-                    <linearGradient
-                      id={`chartGrad${chartId}`}
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor={chartColor}
-                        stopOpacity="0.2"
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={chartColor}
-                        stopOpacity="0"
-                      />
-                    </linearGradient>
-                  </defs>
-                  <path d={chart.area} fill={`url(#chartGrad${chartId})`} />
-                  <path
-                    d={chart.line}
-                    fill="none"
-                    stroke={chartColor}
-                    strokeWidth="2"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </svg>
-                <div
-                  className="absolute top-0 right-0 bg-[#0B0E14]/80 backdrop-blur px-1.5 py-0.5 rounded text-[10px] border"
-                  style={{
-                    color: chartColor,
-                    borderColor: `${chartColor}33`,
-                  }}
-                >
-                  30 Day Trend
-                </div>
-              </div>
             </div>
           </div>
 

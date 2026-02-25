@@ -69,6 +69,20 @@ export async function GET(req: NextRequest) {
       .eq("client_id", clientUuid)
       .order("created_at", { ascending: true });
 
+    // Fetch real trade P&L per account from client_trading_activity
+    const tradePnlByAccount: Record<string, number> = {};
+    const tradeCountByAccount: Record<string, number> = {};
+    const { data: tradeRows } = await supabase
+      .from("client_trading_activity")
+      .select("account_id, pnl")
+      .eq("client_id", clientUuid);
+
+    for (const t of (tradeRows || [])) {
+      const pnl = Number(t.pnl) || 0;
+      tradePnlByAccount[t.account_id] = (tradePnlByAccount[t.account_id] || 0) + pnl;
+      tradeCountByAccount[t.account_id] = (tradeCountByAccount[t.account_id] || 0) + 1;
+    }
+
     const platformColors: Record<
       string,
       { color: string; textColor: string; short: string }
@@ -100,8 +114,11 @@ export async function GET(req: NextRequest) {
         const balance = Number(a.balance) || 0;
         const equity = Number(a.equity) || balance;
         const freeMargin = Number(a.free_margin) || equity * 0.9;
-        const dailyPnl = equity - balance;
-        const weeklyPnl = dailyPnl * 4.5;
+        const startingBal = Number(a.starting_balance) || 0;
+        // Use real trade P&L, fallback to equity - balance
+        const realPnl = tradePnlByAccount[a.id as string] || 0;
+        const dailyPnl = realPnl || (equity - balance);
+        const weeklyPnl = dailyPnl;
 
         return {
           id: a.id,
