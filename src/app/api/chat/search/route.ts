@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { KNOWLEDGE_BASE } from "@/lib/knowledge-base";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30; // Allow up to 30 seconds for AI response
 
 // ─── AI Chat Agent powered by Claude Haiku 4.5 ─────────────
 // Uses the full knowledge base as context and ONLY answers from it.
@@ -145,13 +146,15 @@ export async function POST(req: NextRequest) {
       found: true,
       results: [result],
     });
-  } catch (err) {
-    console.error("Chat AI error:", err);
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("Chat AI error:", errorMessage, err);
     return NextResponse.json({
       found: false,
       message:
         "I'm having trouble right now. Would you like to connect with a live support agent?",
       results: [],
+      debug: process.env.NODE_ENV === "development" ? errorMessage : undefined,
     });
   }
 }
