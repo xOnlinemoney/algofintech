@@ -42,7 +42,8 @@ export async function GET() {
     const { data: trades } = await supabase
       .from("client_trading_activity")
       .select("client_id, pnl")
-      .in("client_id", allClientIds);
+      .in("client_id", allClientIds)
+      .limit(100000);
 
     // Build PnL map: client UUID → total PnL
     const pnlByClient: Record<string, number> = {};

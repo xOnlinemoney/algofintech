@@ -31,7 +31,8 @@ export async function GET() {
       .from("client_trading_activity")
       .select("*, client_accounts(platform, account_number, account_label, balance, equity, is_active)")
       .eq("client_id", clientId)
-      .order("opened_at", { ascending: true });
+      .order("opened_at", { ascending: true })
+      .limit(100000);
 
     // Fetch accounts
     const { data: accounts } = await supabase

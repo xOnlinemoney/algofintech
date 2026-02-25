@@ -70,7 +70,8 @@ export async function GET(
       const { data: tradeSums } = await supabase
         .from("client_trading_activity")
         .select("account_id, client_id, pnl")
-        .in("client_id", allClientIds);
+        .in("client_id", allClientIds)
+        .limit(100000);
 
       for (const t of (tradeSums || [])) {
         const accId = t.account_id;
