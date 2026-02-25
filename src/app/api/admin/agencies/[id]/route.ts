@@ -191,6 +191,7 @@ export async function GET(
             asset_class: a.asset_class || "Other",
             broker: a.platform || "Unknown",
             currency: a.currency || "USD",
+            algorithm_id: a.algorithm_id || null,
           };
         }),
       };
