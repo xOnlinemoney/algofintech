@@ -173,6 +173,8 @@ Steps to connect:
 5. Enter your Tradovate Password
 6. Click "Connect Account"
 
+NOTE: Tradovate accounts take 24–48 hours to be fully connected and active after you submit your credentials. This is normal — please be patient and your account will show up once the connection is complete.
+
 ### Interactive Brokers (IBKR) Connection
 What you need:
 - Account ID (format: U1234567)

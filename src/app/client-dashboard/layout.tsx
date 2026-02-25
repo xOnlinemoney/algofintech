@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ClientSidebar from "@/components/client-dashboard/ClientSidebar";
 import ClientHeader from "@/components/client-dashboard/ClientHeader";
 import ChatWidget from "@/components/client-dashboard/ChatWidget";
+import OnboardingFlow from "@/components/client-dashboard/OnboardingFlow";
 import { useAgencyBranding } from "@/hooks/useAgencyBranding";
 
 export default function ClientDashboardLayout({
@@ -14,6 +15,7 @@ export default function ClientDashboardLayout({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const router = useRouter();
   const { agencyName } = useAgencyBranding();
 
@@ -31,6 +33,12 @@ export default function ClientDashboardLayout({
         return;
       }
       setAuthChecked(true);
+
+      // Show onboarding on first login only
+      const onboardingDone = localStorage.getItem("onboarding_completed");
+      if (!onboardingDone) {
+        setShowOnboarding(true);
+      }
     } catch {
       router.replace("/client-login");
     }
@@ -73,6 +81,11 @@ export default function ClientDashboardLayout({
         {/* Floating Chat Widget */}
         <ChatWidget />
       </div>
+
+      {/* Onboarding Flow — shown on first login only */}
+      {showOnboarding && (
+        <OnboardingFlow onClose={() => setShowOnboarding(false)} />
+      )}
     </div>
   );
 }
