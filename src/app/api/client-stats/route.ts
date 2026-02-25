@@ -43,7 +43,7 @@ export async function GET() {
       .from("client_trading_activity")
       .select("client_id, pnl")
       .in("client_id", allClientIds)
-      .limit(100000);
+      .range(0, 4999);
 
     // Build PnL map: client UUID → total PnL
     const pnlByClient: Record<string, number> = {};

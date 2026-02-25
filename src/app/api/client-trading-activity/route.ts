@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       .select("*, client_accounts(platform, account_number, account_label)")
       .eq("client_id", clientId)
       .order("opened_at", { ascending: false })
-      .limit(100000);
+      .range(0, 4999);
 
     if (error) {
       return NextResponse.json({ data: null, error: error.message });

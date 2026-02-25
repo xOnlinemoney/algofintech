@@ -32,7 +32,7 @@ export async function GET() {
       .select("*, client_accounts(platform, account_number, account_label, balance, equity, is_active)")
       .eq("client_id", clientId)
       .order("opened_at", { ascending: true })
-      .limit(100000);
+      .range(0, 4999);
 
     // Fetch accounts
     const { data: accounts } = await supabase

@@ -261,7 +261,7 @@ export async function POST(req: NextRequest) {
         .from("client_trading_activity")
         .select("trade_id")
         .eq("account_id", account.id)
-        .limit(100000);
+        .range(0, 4999);
 
       const existingIds = new Set(
         (existingTrades || []).map((t: { trade_id: string }) => t.trade_id)
@@ -367,7 +367,7 @@ export async function POST(req: NextRequest) {
         .from("client_trading_activity")
         .select("pnl")
         .eq("account_id", accountId)
-        .limit(100000);
+        .range(0, 4999);
       const allPnl = (allTradesForBalance || []).reduce(
         (sum: number, t: { pnl: number }) => sum + (Number(t.pnl) || 0),
         0

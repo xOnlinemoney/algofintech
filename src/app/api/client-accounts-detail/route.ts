@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       .from("client_trading_activity")
       .select("account_id, pnl")
       .eq("client_id", clientUuid)
-      .limit(100000);
+      .range(0, 4999);
 
     for (const t of (tradeRows || [])) {
       const pnl = Number(t.pnl) || 0;

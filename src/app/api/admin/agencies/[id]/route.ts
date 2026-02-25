@@ -71,7 +71,7 @@ export async function GET(
         .from("client_trading_activity")
         .select("account_id, client_id, pnl")
         .in("client_id", allClientIds)
-        .limit(100000);
+        .range(0, 4999);
 
       for (const t of (tradeSums || [])) {
         const accId = t.account_id;

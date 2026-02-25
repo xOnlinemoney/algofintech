@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       .select("*")
       .eq("account_id", accountId)
       .order("opened_at", { ascending: false })
-      .limit(100000);
+      .range(0, 4999);
 
     if (error) {
       console.error("Fetch trades error:", error);
@@ -152,7 +152,7 @@ export async function PATCH(req: NextRequest) {
       .from("client_trading_activity")
       .select("pnl")
       .eq("account_id", account_id)
-      .limit(100000);
+      .range(0, 4999);
 
     const totalPnl = (trades || []).reduce((sum: number, t: { pnl: number }) => sum + (Number(t.pnl) || 0), 0);
     const newBalance = starting_balance + totalPnl;

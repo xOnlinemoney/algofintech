@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
       .select("id, account_id, symbol, trade_type, entry_price, exit_price, pnl, net_pnl, status, opened_at, closed_at, duration, position_size")
       .eq("client_id", clientUuid)
       .order("opened_at", { ascending: false })
-      .limit(100000);
+      .range(0, 4999);
 
     const allTrades = tradeRows || [];
 
