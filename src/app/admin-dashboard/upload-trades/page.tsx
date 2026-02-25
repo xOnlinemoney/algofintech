@@ -150,45 +150,42 @@ export default function UploadTradesPage() {
       .catch(() => {});
   }, []);
 
+  // Store full agency detail data so we don't re-fetch for accounts
+  const [agencyDetail, setAgencyDetail] = useState<any>(null);
+
   // When agency changes, fetch clients
   useEffect(() => {
     setAgencyClients([]);
     setClientAccounts([]);
     setAssignClient("");
     setAssignAccount("");
+    setAgencyDetail(null);
     if (!assignAgency) return;
     fetch(`/api/admin/agencies/${assignAgency}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.agency?.clients) {
-          setAgencyClients(data.agency.clients.map((c: any) => ({ id: c.id, name: c.name })));
+        setAgencyDetail(data);
+        if (data.clients) {
+          setAgencyClients(data.clients.map((c: any) => ({ id: c.id, name: c.name })));
         }
       })
       .catch(() => {});
   }, [assignAgency]);
 
-  // When client changes, fetch accounts
+  // When client changes, pull accounts from cached agency detail
   useEffect(() => {
     setClientAccounts([]);
     setAssignAccount("");
-    if (!assignClient) return;
-    // Find accounts for this client from the agency data
-    fetch(`/api/admin/agencies/${assignAgency}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.agency?.clients) {
-          const client = data.agency.clients.find((c: any) => c.id === assignClient);
-          if (client?.accounts) {
-            setClientAccounts(client.accounts.map((a: any) => ({
-              id: a.id,
-              account_number: a.account_number || "",
-              account_label: a.account_label || a.account_number || "Unnamed",
-            })));
-          }
-        }
-      })
-      .catch(() => {});
-  }, [assignClient, assignAgency]);
+    if (!assignClient || !agencyDetail?.clients) return;
+    const client = agencyDetail.clients.find((c: any) => c.id === assignClient);
+    if (client?.accounts) {
+      setClientAccounts(client.accounts.map((a: any) => ({
+        id: a.id,
+        account_number: a.account_number || "",
+        account_label: a.account_label || a.account_number || "Unnamed",
+      })));
+    }
+  }, [assignClient, agencyDetail]);
 
   // Group rows by account
   const accountGroups = useMemo(() => {
