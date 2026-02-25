@@ -25,12 +25,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: null, error: "client_id is required" });
     }
 
-    // Look up the client UUID from the display ID
-    const { data: clientRow } = await supabase
+    // Look up the client — try display ID first, then UUID fallback
+    let clientRow = null;
+    const { data: byDisplay } = await supabase
       .from("clients")
       .select("id, agency_id, max_accounts")
       .eq("client_id", clientDisplayId)
       .single();
+    if (byDisplay) {
+      clientRow = byDisplay;
+    } else {
+      // Fallback: identifier might be a UUID (from old buggy sessions)
+      const { data: byUuid } = await supabase
+        .from("clients")
+        .select("id, agency_id, max_accounts")
+        .eq("id", clientDisplayId)
+        .single();
+      if (byUuid) clientRow = byUuid;
+    }
 
     if (!clientRow) {
       // Client not found in clients table — return empty

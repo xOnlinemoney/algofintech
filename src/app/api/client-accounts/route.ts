@@ -10,18 +10,28 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-// Resolve display ID (CL-7829) → Supabase UUID
+// Resolve client identifier → Supabase UUID
+// Handles both display IDs (CL-7829) and raw UUIDs
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getClientUuid(
   supabase: any,
-  displayId: string
+  identifier: string
 ): Promise<string | null> {
-  const { data } = await supabase
+  // First try as display ID (CL-XXXX)
+  const { data: byDisplay } = await supabase
     .from("clients")
     .select("id")
-    .eq("client_id", displayId)
+    .eq("client_id", identifier)
     .single();
-  return data?.id ?? null;
+  if (byDisplay?.id) return byDisplay.id;
+
+  // Fallback: try as UUID (from old buggy sessions)
+  const { data: byUuid } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("id", identifier)
+    .single();
+  return byUuid?.id ?? null;
 }
 
 // ─── GET: Fetch all accounts for a client (by display ID) ──
