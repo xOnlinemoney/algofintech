@@ -111,14 +111,16 @@ export async function GET(req: NextRequest) {
         };
         const accNum = (a.account_number as string) || "";
         const mask = accNum.length > 4 ? `••••${accNum.slice(-4)}` : accNum;
-        const balance = Number(a.balance) || 0;
+        const startingBal = Number(a.starting_balance) || 0;
+        const balance = Number(a.balance) || startingBal;
         const equity = Number(a.equity) || balance;
         const freeMargin = Number(a.free_margin) || equity * 0.9;
-        const startingBal = Number(a.starting_balance) || 0;
-        // Use real trade P&L, fallback to equity - balance
-        const realPnl = tradePnlByAccount[a.id as string] || 0;
-        const dailyPnl = realPnl || (equity - balance);
-        const weeklyPnl = dailyPnl;
+        // Use real trade P&L from client_trading_activity
+        const totalPnl = tradePnlByAccount[a.id as string] || 0;
+        const totalTradeCount = tradeCountByAccount[a.id as string] || 0;
+        const pnlPct = startingBal > 0
+          ? Number(((totalPnl / startingBal) * 100).toFixed(2))
+          : 0;
 
         return {
           id: a.id,
@@ -135,17 +137,11 @@ export async function GET(req: NextRequest) {
           balance,
           equity,
           free_margin: freeMargin,
-          daily_pnl: dailyPnl,
-          daily_pnl_pct:
-            balance > 0
-              ? Number(((dailyPnl / balance) * 100).toFixed(2))
-              : 0,
-          weekly_pnl: weeklyPnl,
-          weekly_pnl_pct:
-            balance > 0
-              ? Number(((weeklyPnl / balance) * 100).toFixed(2))
-              : 0,
-          open_trades: Number(a.open_trades) || 0,
+          daily_pnl: totalPnl,
+          daily_pnl_pct: pnlPct,
+          weekly_pnl: totalPnl,
+          weekly_pnl_pct: pnlPct,
+          open_trades: totalTradeCount,
           connected_at: a.created_at,
           algos: [] as { name: string; status: string }[],
         };
