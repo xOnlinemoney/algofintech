@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Wallet,
   Activity,
-  TrendingUp,
   CreditCard,
   Settings,
   BarChart2,
@@ -35,7 +34,6 @@ const NAV_ITEMS = [
   { href: "/client-dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/client-dashboard/accounts", icon: Wallet, label: "Accounts" },
   { href: "/client-dashboard/activity", icon: Activity, label: "Trading Activity" },
-  { href: "/client-dashboard/performance", icon: TrendingUp, label: "Performance" },
   { href: "/client-dashboard/payments", icon: CreditCard, label: "Payments" },
 ];
 

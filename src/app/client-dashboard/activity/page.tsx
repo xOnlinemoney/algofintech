@@ -306,6 +306,110 @@ function ExpandedRow({ trade }: { trade: Trade }) {
   );
 }
 
+// ─── Performance Calendar ────────────────────────────────
+type CalendarDay = { date: string; pnl: number };
+
+function fmtShort(n: number) {
+  return `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function PerformanceCalendar({ trades }: { trades: Trade[] }) {
+  const [monthOffset, setMonthOffset] = useState(0);
+  const now = new Date();
+  const viewDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+  const monthName = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Build daily PnL map from trades
+  const pnlMap = new Map<string, number>();
+  trades.forEach(t => {
+    const dateStr = t.closed_at || t.opened_at;
+    if (!dateStr) return;
+    const d = new Date(dateStr);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    pnlMap.set(key, (pnlMap.get(key) || 0) + (t.pnl || 0));
+  });
+
+  const days: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let d = 1; d <= daysInMonth; d++) days.push(d);
+
+  const today = new Date();
+  const isToday = (d: number) => d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+  const isFuture = (d: number) => new Date(year, month, d) > today;
+
+  return (
+    <div className="rounded-xl p-6 bg-[#0B0E14] border border-white/5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h3 className="text-base font-semibold text-white">Daily Performance Calendar</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Visual breakdown of daily P&L</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setMonthOffset(m => m - 1)} className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm text-white font-medium min-w-[140px] text-center">{monthName}</span>
+          <button onClick={() => setMonthOffset(m => m + 1)} className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-1 mb-4">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+          <div key={d} className="text-center text-[10px] text-slate-500 uppercase py-2">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((d, i) => {
+          if (d === null) return <div key={`e${i}`} className="aspect-square" />;
+          const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const pnl = pnlMap.get(dateKey);
+          const future = isFuture(d);
+          const todayD = isToday(d);
+          let bg = "bg-slate-800/30";
+          if (future) bg = "bg-slate-800/20";
+          else if (todayD) bg = "bg-blue-500/30 border border-blue-500/30";
+          else if (pnl !== undefined) {
+            if (pnl >= 150) bg = "bg-emerald-500/60";
+            else if (pnl >= 50) bg = "bg-emerald-500/40";
+            else if (pnl >= 0) bg = "bg-emerald-500/20";
+            else if (pnl >= -30) bg = "bg-red-500/20";
+            else bg = "bg-red-500/40";
+          }
+          return (
+            <div key={d} className={`aspect-square rounded-lg ${bg} flex flex-col items-center justify-center cursor-pointer relative group transition-transform hover:scale-110 hover:z-10`}>
+              <span className={`text-[10px] ${future ? "text-slate-700" : pnl !== undefined && pnl >= 150 ? "text-white" : todayD ? "text-blue-400" : pnl === undefined ? "text-slate-600" : "text-slate-400"}`}>{d}</span>
+              {pnl !== undefined && (
+                <span className={`text-[8px] ${pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {pnl >= 0 ? "+" : ""}{fmtShort(pnl)}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-white/5">
+        {[
+          { bg: "bg-red-500/40", label: "Heavy Loss" },
+          { bg: "bg-red-500/20", label: "Loss" },
+          { bg: "bg-slate-700", label: "No Trading" },
+          { bg: "bg-emerald-500/20", label: "Profit" },
+          { bg: "bg-emerald-500/60", label: "Heavy Profit" },
+        ].map(l => (
+          <div key={l.label} className="flex items-center gap-2">
+            <div className={`w-4 h-4 rounded ${l.bg}`} />
+            <span className="text-[10px] text-slate-400">{l.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────
 export default function TradingActivityPage() {
   const { agencyName } = useAgencyBranding();
@@ -733,6 +837,13 @@ export default function TradingActivityPage() {
             </div>
           </div>
         </div>
+
+        {/* Daily Performance Calendar */}
+        {d.trades.length > 0 && (
+          <div className="mt-6">
+            <PerformanceCalendar trades={d.trades} />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-slate-600">
