@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   ChevronDown,
   X,
+  TrendingUp,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────
@@ -55,6 +56,7 @@ type SummaryData = {
   total_accounts: number;
   combined_balance: number;
   total_daily_pnl: number;
+  total_pnl: number;
   active_count: number;
   total_count: number;
 };
@@ -70,6 +72,7 @@ const EMPTY_DATA: PageData = {
     total_accounts: 0,
     combined_balance: 0,
     total_daily_pnl: 0,
+    total_pnl: 0,
     active_count: 0,
     total_count: 0,
   },
@@ -1098,6 +1101,7 @@ function ClientAccountsInner() {
           total_accounts: updatedAccounts.length,
           combined_balance: combinedBalance,
           total_daily_pnl: totalDailyPnl,
+          total_pnl: totalDailyPnl,
           active_count: activeCount,
           total_count: updatedAccounts.length,
         },
@@ -1156,7 +1160,7 @@ function ClientAccountsInner() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {/* Card 1: Total Accounts */}
           <div className="rounded-xl p-5 flex items-center gap-4 bg-[#0B0E14] border border-white/5 hover:border-white/[0.08] hover:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] transition-all">
             <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10">
@@ -1209,7 +1213,24 @@ function ClientAccountsInner() {
             </div>
           </div>
 
-          {/* Card 3: Trading Status */}
+          {/* Card 3: Total Account PnL */}
+          <div className="rounded-xl p-5 flex items-center gap-4 bg-[#0B0E14] border border-white/5 hover:border-white/[0.08] hover:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] transition-all">
+            <div className={`p-3 rounded-lg border ${data.summary.total_pnl >= 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/10" : "bg-red-500/10 text-red-400 border-red-500/10"}`}>
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Total Account P&L
+              </p>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <p className={`text-2xl font-semibold tracking-tight ${data.summary.total_pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {data.summary.total_pnl >= 0 ? "+" : ""}{fmt(data.summary.total_pnl)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Trading Status */}
           <div className="rounded-xl p-5 flex items-center gap-4 bg-[#0B0E14] border border-white/5 hover:border-white/[0.08] hover:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)] transition-all">
             <div className="p-3 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/10">
               <Zap className="w-6 h-6" />
