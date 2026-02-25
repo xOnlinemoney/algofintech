@@ -9,7 +9,7 @@ import type { Client, ClientStatus } from "@/lib/types";
 // Live stats from Supabase
 type ClientStats = Record<
   string,
-  { accounts_count: number; active_strategies: number; liquidity: number }
+  { accounts_count: number; active_strategies: number; liquidity: number; total_pnl: number }
 >;
 
 // ─── Main Component ──────────────────────────────────────
@@ -90,6 +90,7 @@ export default function ClientsGrid() {
         accounts_count: stats.accounts_count,
         active_strategies: stats.active_strategies,
         liquidity: stats.liquidity,
+        total_pnl: stats.total_pnl,
       };
     }
     return c;

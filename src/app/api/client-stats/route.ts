@@ -37,10 +37,24 @@ export async function GET() {
       return NextResponse.json({ data: {} }, { status: 200 });
     }
 
+    // Get all trades to calculate real PnL per client
+    const allClientIds = clients.map((c) => c.id);
+    const { data: trades } = await supabase
+      .from("client_trading_activity")
+      .select("client_id, pnl")
+      .in("client_id", allClientIds);
+
+    // Build PnL map: client UUID → total PnL
+    const pnlByClient: Record<string, number> = {};
+    for (const t of trades || []) {
+      const cId = t.client_id;
+      pnlByClient[cId] = (pnlByClient[cId] || 0) + (Number(t.pnl) || 0);
+    }
+
     // Build stats map
     const statsMap: Record<
       string,
-      { accounts_count: number; active_strategies: number; liquidity: number }
+      { accounts_count: number; active_strategies: number; liquidity: number; total_pnl: number }
     > = {};
 
     for (const client of clients) {
@@ -61,6 +75,7 @@ export async function GET() {
         accounts_count: clientAccounts.length,
         active_strategies: uniqueAlgos.size,
         liquidity: totalEquity,
+        total_pnl: pnlByClient[client.id] || 0,
       };
     }
 
