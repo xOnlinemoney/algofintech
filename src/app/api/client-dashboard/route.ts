@@ -19,78 +19,70 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Get the client_id from query params (display ID like "CL-1234")
+    // Get the client_id from query params (display ID like "CL-1234" or UUID)
     const clientDisplayId = req.nextUrl.searchParams.get("client_id");
-
-    // If no client_id provided, return empty — don't return random data
     if (!clientDisplayId) {
       return NextResponse.json({ data: null });
     }
 
-    // Look up the client UUID from the clients table
-    const { data: clientRow } = await supabase
+    // Look up the client — try display ID first, then UUID fallback
+    let clientRow: { id: string; name: string; agency_id: string } | null = null;
+    const { data: byDisplay } = await supabase
       .from("clients")
-      .select("id, agency_id")
+      .select("id, name, agency_id")
       .eq("client_id", clientDisplayId)
       .single();
 
-    // Try to find a dashboard record for this specific client
-    let dashboard = null;
-    if (clientRow) {
-      const { data: db } = await supabase
-        .from("client_dashboards")
-        .select("*")
-        .eq("client_id", clientRow.id)
-        .limit(1)
+    if (byDisplay) {
+      clientRow = byDisplay;
+    } else {
+      // Fallback: try as UUID (from old sessions)
+      const { data: byUuid } = await supabase
+        .from("clients")
+        .select("id, name, agency_id")
+        .eq("id", clientDisplayId)
         .single();
-      dashboard = db;
+      if (byUuid) clientRow = byUuid;
     }
 
-    // If no dashboard exists for this client, return null (empty state)
-    if (!dashboard) {
+    if (!clientRow) {
       return NextResponse.json({ data: null });
     }
 
-    // Fetch connected accounts from the SHARED client_accounts table
-    const clientId = clientRow?.id || dashboard.client_id;
-    const { data: sharedAccounts } = clientId
-      ? await supabase
-          .from("client_accounts")
-          .select("*")
-          .eq("client_id", clientId)
-          .order("created_at", { ascending: true })
-      : { data: [] };
+    const clientUuid = clientRow.id;
 
-    // Fetch real trade P&L per account from client_trading_activity
-    let tradePnlByAccount: Record<string, number> = {};
+    // Fetch connected accounts
+    const { data: sharedAccounts } = await supabase
+      .from("client_accounts")
+      .select("*")
+      .eq("client_id", clientUuid)
+      .order("created_at", { ascending: true });
+
+    // Fetch ALL trades for this client
+    const { data: tradeRows } = await supabase
+      .from("client_trading_activity")
+      .select("id, account_id, symbol, trade_type, entry_price, exit_price, pnl, net_pnl, status, opened_at, closed_at, duration, position_size")
+      .eq("client_id", clientUuid)
+      .order("opened_at", { ascending: false });
+
+    const allTrades = tradeRows || [];
+
+    // Compute trade P&L per account
+    const tradePnlByAccount: Record<string, number> = {};
     let totalTradePnl = 0;
-    let totalTradeCount = 0;
+    let totalTradeCount = allTrades.length;
     let tradeWins = 0;
     let tradeLosses = 0;
-    if (clientId) {
-      const { data: tradeRows } = await supabase
-        .from("client_trading_activity")
-        .select("account_id, pnl")
-        .eq("client_id", clientId);
 
-      for (const t of (tradeRows || [])) {
-        const pnl = Number(t.pnl) || 0;
-        tradePnlByAccount[t.account_id] = (tradePnlByAccount[t.account_id] || 0) + pnl;
-        totalTradePnl += pnl;
-        totalTradeCount++;
-        if (pnl > 0) tradeWins++;
-        else if (pnl < 0) tradeLosses++;
-      }
+    for (const t of allTrades) {
+      const pnl = Number(t.pnl) || 0;
+      tradePnlByAccount[t.account_id] = (tradePnlByAccount[t.account_id] || 0) + pnl;
+      totalTradePnl += pnl;
+      if (pnl > 0) tradeWins++;
+      else if (pnl < 0) tradeLosses++;
     }
 
-    // Also fetch any dashboard-specific account overrides (for display data)
-    const { data: dashboardAccounts } = await supabase
-      .from("client_dashboard_accounts")
-      .select("*")
-      .eq("dashboard_id", dashboard.id)
-      .order("created_at");
-
-    // Merge: use shared accounts as source of truth, enrich with dashboard display data
+    // Build accounts list
     const platformColors: Record<string, { color: string; textColor: string; short: string }> = {
       Tradovate: { color: "#262626", textColor: "#ffffff", short: "TV" },
       "MetaTrader 4": { color: "#262626", textColor: "#ffffff", short: "MT4" },
@@ -100,124 +92,91 @@ export async function GET(req: NextRequest) {
       Schwab: { color: "#00A0DF", textColor: "#ffffff", short: "SC" },
     };
 
-    const accounts = (sharedAccounts && sharedAccounts.length > 0)
-      ? sharedAccounts.map((a: Record<string, unknown>) => {
-          const plat = (a.platform as string) || "Tradovate";
-          const colors = platformColors[plat] || { color: "#262626", textColor: "#ffffff", short: plat.substring(0, 2).toUpperCase() };
-          const accNum = (a.account_number as string) || "";
-          const mask = accNum.length > 4 ? `••••${accNum.slice(-4)}` : accNum;
-          return {
-            id: a.id,
-            broker: plat,
-            broker_short: colors.short,
-            broker_color: colors.color,
-            broker_text_color: colors.textColor,
-            account_mask: mask,
-            status: (a.is_active as boolean) ? "Active" : "Inactive",
-            balance: Number(a.balance) || 0,
-            daily_pnl: tradePnlByAccount[a.id as string] || (Number(a.equity) - Number(a.balance)) || 0,
-            health_pct: Number(a.balance) > 0 ? Math.min(100, Math.round((Number(a.equity) / Number(a.balance)) * 100)) : 50,
-            // Pass through shared fields for reference
-            account_number: a.account_number,
-            account_label: a.account_label,
-            platform: a.platform,
-            account_type: a.account_type,
-          };
-        })
-      : (dashboardAccounts || []).map((a: Record<string, unknown>) => ({
-          id: a.id,
-          broker: a.broker,
-          broker_short: a.broker_short,
-          broker_color: a.broker_color,
-          broker_text_color: a.broker_text_color,
-          account_mask: a.account_mask,
-          status: a.status,
-          balance: a.balance,
-          daily_pnl: a.daily_pnl,
-          health_pct: a.health_pct,
-        }));
+    const accountsList = (sharedAccounts || []);
+    const accounts = accountsList.map((a: Record<string, unknown>) => {
+      const plat = (a.platform as string) || "Tradovate";
+      const colors = platformColors[plat] || { color: "#262626", textColor: "#ffffff", short: plat.substring(0, 2).toUpperCase() };
+      const accNum = (a.account_number as string) || "";
+      const mask = accNum.length > 4 ? `••••${accNum.slice(-4)}` : accNum;
+      const accPnl = tradePnlByAccount[a.id as string] || 0;
+      return {
+        id: a.id,
+        broker: plat,
+        broker_short: colors.short,
+        broker_color: colors.color,
+        broker_text_color: colors.textColor,
+        account_mask: mask,
+        status: (a.is_active as boolean) ? "Active" : "Inactive",
+        balance: Number(a.balance) || 0,
+        daily_pnl: accPnl,
+        health_pct: Number(a.balance) > 0 ? Math.min(100, Math.round((Number(a.equity || a.balance) / Number(a.balance)) * 100)) : 50,
+        account_number: a.account_number,
+        account_label: a.account_label,
+        platform: a.platform,
+        account_type: a.account_type,
+      };
+    });
 
-    // Fetch associated algos
-    const { data: algos } = await supabase
-      .from("client_dashboard_algos")
-      .select("*")
-      .eq("dashboard_id", dashboard.id)
-      .order("created_at");
+    // Calculate total balance across all accounts
+    const totalBalance = accountsList.reduce((sum: number, a: Record<string, unknown>) => sum + (Number(a.balance) || 0), 0);
+    const totalStartingBalance = accountsList.reduce((sum: number, a: Record<string, unknown>) => sum + (Number(a.starting_balance) || 0), 0);
+    const growthPct = totalStartingBalance > 0 ? Number(((totalTradePnl / totalStartingBalance) * 100).toFixed(2)) : 0;
 
-    // Fetch positions
-    const { data: positions } = await supabase
-      .from("client_dashboard_positions")
-      .select("*")
-      .eq("dashboard_id", dashboard.id)
-      .order("created_at");
+    // Build recent trades from client_trading_activity (last 10)
+    const recentTrades = allTrades.slice(0, 10).map((t: Record<string, unknown>) => ({
+      id: t.id,
+      time: t.closed_at || t.opened_at,
+      symbol: t.symbol,
+      type: t.trade_type,
+      result: Number(t.pnl) || 0,
+      status: t.status === "Closed" ? ((Number(t.pnl) || 0) >= 0 ? "Win" : "Loss") : "Open",
+      entry: String(t.entry_price),
+      exit: t.exit_price ? String(t.exit_price) : undefined,
+      duration: t.duration || undefined,
+      algo: undefined,
+    }));
 
-    // Fetch recent trades
-    const { data: trades } = await supabase
-      .from("client_dashboard_trades")
+    // Try to fetch dashboard record for supplemental data (payment info, etc.)
+    let dashboard: Record<string, unknown> | null = null;
+    const { data: db } = await supabase
+      .from("client_dashboards")
       .select("*")
-      .eq("dashboard_id", dashboard.id)
-      .order("trade_time", { ascending: false })
-      .limit(10);
+      .eq("client_id", clientUuid)
+      .limit(1)
+      .single();
+    dashboard = db;
 
     return NextResponse.json({
       data: {
-        client_name: dashboard.client_name,
-        total_value: dashboard.total_value,
-        total_value_change: dashboard.total_value_change,
-        todays_pnl: totalTradePnl || dashboard.todays_pnl,
-        todays_pnl_pct: dashboard.todays_pnl_pct,
-        trades_today: totalTradeCount || dashboard.trades_today,
-        connected_accounts_count: (accounts || []).length,
-        active_trades_count: totalTradeCount || positions?.length || 0,
-        profitable_trades: tradeWins ||
-          positions?.filter((p: Record<string, unknown>) => (p.pnl as number) > 0).length || 0,
-        losing_trades: tradeLosses ||
-          positions?.filter((p: Record<string, unknown>) => (p.pnl as number) < 0).length || 0,
-        starting_balance: dashboard.starting_balance,
-        net_pnl: totalTradePnl || dashboard.net_pnl,
-        growth_pct: dashboard.growth_pct,
-        accounts: accounts || [],
-        active_algos: (algos || []).map((al: Record<string, unknown>) => ({
-          id: al.id,
-          name: al.name,
-          category: al.category,
-          category_color: al.category_color,
-          win_rate: al.win_rate,
-          total_trades: al.total_trades,
-          profit: al.profit,
-        })),
-        positions: (positions || []).map((p: Record<string, unknown>) => ({
-          id: p.id,
-          symbol: p.symbol,
-          symbol_icon: p.symbol_icon,
-          symbol_bg: p.symbol_bg,
-          symbol_text_color: p.symbol_text_color,
-          type: p.position_type,
-          entry: p.entry_price,
-          current: p.current_price,
-          pnl: p.pnl,
-        })),
-        recent_trades: (trades || []).map((t: Record<string, unknown>) => ({
-          id: t.id,
-          time: t.trade_time,
-          symbol: t.symbol,
-          type: t.trade_type,
-          result: t.result,
-          status: t.status,
-          entry: t.entry_price,
-          exit: t.exit_price,
-          duration: t.duration,
-          algo: t.algo_name,
-        })),
-        payment_status: {
-          period: dashboard.payment_period,
-          status: dashboard.payment_status,
-          next_date: dashboard.next_payment_date,
-          next_amount: dashboard.next_payment_amount,
-        },
+        client_name: clientRow.name || dashboard?.client_name || "",
+        total_value: totalBalance,
+        total_value_change: totalTradePnl,
+        todays_pnl: totalTradePnl,
+        todays_pnl_pct: growthPct,
+        trades_today: totalTradeCount,
+        connected_accounts_count: accounts.length,
+        active_trades_count: totalTradeCount,
+        profitable_trades: tradeWins,
+        losing_trades: tradeLosses,
+        starting_balance: totalStartingBalance || (dashboard?.starting_balance as number) || 0,
+        net_pnl: totalTradePnl,
+        growth_pct: growthPct,
+        accounts: accounts,
+        active_algos: [] as { id: string; name: string; category: string; category_color: string; win_rate: number; total_trades: number; profit: number }[],
+        positions: [] as { id: string; symbol: string; symbol_icon: string; symbol_bg: string; symbol_text_color: string; type: string; entry: string; current: string; pnl: number }[],
+        recent_trades: recentTrades,
+        payment_status: dashboard
+          ? {
+              period: dashboard.payment_period || "",
+              status: dashboard.payment_status || "",
+              next_date: dashboard.next_payment_date || "",
+              next_amount: dashboard.next_payment_amount || 0,
+            }
+          : null,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error("client-dashboard error:", err);
     return NextResponse.json({ data: null });
   }
 }
