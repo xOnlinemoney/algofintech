@@ -900,24 +900,6 @@ function AccountCard({
                     {fmt(account.balance)}
                   </p>
                 </div>
-                <div className="flex gap-6">
-                  <div>
-                    <p className="text-[10px] text-slate-500 uppercase">
-                      {secondaryLabel1}
-                    </p>
-                    <p className="text-sm font-mono text-slate-300">
-                      {fmt(secondaryValue1)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-500 uppercase">
-                      {secondaryLabel2}
-                    </p>
-                    <p className="text-sm font-mono text-slate-300">
-                      {fmt(secondaryValue2)}
-                    </p>
-                  </div>
-                </div>
               </div>
 
             </div>
@@ -1031,9 +1013,6 @@ function AccountCard({
             </button>
           </div>
 
-          <button className="text-xs font-medium text-blue-500 hover:text-white flex items-center gap-1 transition-colors">
-            View Full Details <ArrowRight className="w-3 h-3" />
-          </button>
         </div>
       </div>
     </div>
