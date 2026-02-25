@@ -150,7 +150,6 @@ export async function POST(req: NextRequest) {
         rows.push({
           account_id: accountId,
           client_id: account.client_id,
-          agency_id: account.agency_id,
           trade_id: tradeId,
           symbol: symbol,
           symbol_category: "Futures",
