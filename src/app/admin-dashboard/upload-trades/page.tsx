@@ -124,8 +124,10 @@ export default function UploadTradesPage() {
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>("");
 
-  // Assign-all state (when CSV is missing account/agency/client columns)
+  // Assign-all state (when CSV is missing account/agency/client columns OR manual override)
   const [missingAccountCol, setMissingAccountCol] = useState(false);
+  const [overrideAssign, setOverrideAssign] = useState(false); // manual toggle
+  const showAssignPanel = missingAccountCol || overrideAssign;
   const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
   const [agencyClients, setAgencyClients] = useState<{ id: string; name: string }[]>([]);
   const [clientAccounts, setClientAccounts] = useState<{ id: string; account_number: string; account_label: string }[]>([]);
@@ -319,6 +321,7 @@ export default function UploadTradesPage() {
     setSummary(null);
     setExpandedAccounts(new Set());
     setMissingAccountCol(false);
+    setOverrideAssign(false);
     setAssignAgency("");
     setAssignClient("");
     setAssignAccount("");
@@ -335,7 +338,7 @@ export default function UploadTradesPage() {
 
   const handleImport = async () => {
     if (!file || importing) return;
-    if (missingAccountCol && !assignAccount) {
+    if (showAssignPanel && !assignAccount) {
       setParseError("Please select an account to assign all trades to.");
       return;
     }
@@ -350,7 +353,7 @@ export default function UploadTradesPage() {
         formData.append("algorithm_name", selectedAlgorithm);
         formData.append("algorithm_color", "#6366f1");
       }
-      if (missingAccountCol && assignAccount) {
+      if (showAssignPanel && assignAccount) {
         formData.append("assign_account_id", assignAccount);
       }
 
@@ -536,16 +539,50 @@ export default function UploadTradesPage() {
               </button>
             </div>
 
-            {/* Assign All Panel — when CSV is missing account columns */}
-            {missingAccountCol && (
+            {/* Override toggle — when CSV has account columns, allow manual override */}
+            {!missingAccountCol && parsedRows.length > 0 && (
+              <div className="flex items-center gap-3 bg-[#070a10] border border-white/5 rounded-xl px-4 py-3">
+                <button
+                  onClick={() => {
+                    setOverrideAssign(!overrideAssign);
+                    if (overrideAssign) {
+                      setAssignAgency("");
+                      setAssignClient("");
+                      setAssignAccount("");
+                    }
+                  }}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${
+                    overrideAssign ? "bg-amber-500" : "bg-white/10"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                      overrideAssign ? "translate-x-5" : ""
+                    }`}
+                  />
+                </button>
+                <div>
+                  <p className="text-xs text-white font-medium">Assign all to one account</p>
+                  <p className="text-[10px] text-slate-500">Override CSV account numbers and send all trades to a single account</p>
+                </div>
+              </div>
+            )}
+
+            {/* Assign All Panel — when CSV is missing account columns or override is on */}
+            {showAssignPanel && (
               <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5 space-y-4">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm text-amber-300 font-medium">Missing account columns</p>
+                    <p className="text-sm text-amber-300 font-medium">
+                      {missingAccountCol ? "Missing account columns" : "Assign all override"}
+                    </p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Your CSV doesn&apos;t have <span className="text-amber-300">account_number</span>, <span className="text-amber-300">agency</span>, or <span className="text-amber-300">client</span> columns.
-                      Assign all trades to a specific account below.
+                      {missingAccountCol ? (
+                        <>Your CSV doesn&apos;t have <span className="text-amber-300">account_number</span>, <span className="text-amber-300">agency</span>, or <span className="text-amber-300">client</span> columns. Assign all trades to a specific account below.</>
+                      ) : (
+                        <>All {parsedRows.length} trades will be imported to the account you select below, ignoring account numbers in the CSV.</>
+                      )}
                     </p>
                   </div>
                 </div>
