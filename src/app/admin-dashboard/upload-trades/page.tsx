@@ -150,34 +150,38 @@ export default function UploadTradesPage() {
       .catch(() => {});
   }, []);
 
-  // Store full agency detail data so we don't re-fetch for accounts
-  const [agencyDetail, setAgencyDetail] = useState<any>(null);
+  // Cache full client+account data for the selected agency
+  const [agencyClientsData, setAgencyClientsData] = useState<any[]>([]);
 
-  // When agency changes, fetch clients
+  // When agency changes, fetch clients + accounts from lightweight endpoint
   useEffect(() => {
     setAgencyClients([]);
     setClientAccounts([]);
     setAssignClient("");
     setAssignAccount("");
-    setAgencyDetail(null);
+    setAgencyClientsData([]);
     if (!assignAgency) return;
-    fetch(`/api/admin/agencies/${assignAgency}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setAgencyDetail(data);
-        if (data.clients) {
-          setAgencyClients(data.clients.map((c: any) => ({ id: c.id, name: c.name })));
-        }
+    fetch(`/api/admin/agency-clients?agency_id=${assignAgency}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
       })
-      .catch(() => {});
+      .then((data) => {
+        const clients = data.clients || [];
+        setAgencyClientsData(clients);
+        setAgencyClients(clients.map((c: any) => ({ id: c.id, name: c.name })));
+      })
+      .catch((err) => {
+        console.error("Failed to fetch agency clients:", err);
+      });
   }, [assignAgency]);
 
-  // When client changes, pull accounts from cached agency detail
+  // When client changes, pull accounts from cached data
   useEffect(() => {
     setClientAccounts([]);
     setAssignAccount("");
-    if (!assignClient || !agencyDetail?.clients) return;
-    const client = agencyDetail.clients.find((c: any) => c.id === assignClient);
+    if (!assignClient || agencyClientsData.length === 0) return;
+    const client = agencyClientsData.find((c: any) => c.id === assignClient);
     if (client?.accounts) {
       setClientAccounts(client.accounts.map((a: any) => ({
         id: a.id,
@@ -185,7 +189,7 @@ export default function UploadTradesPage() {
         account_label: a.account_label || a.account_number || "Unnamed",
       })));
     }
-  }, [assignClient, agencyDetail]);
+  }, [assignClient, agencyClientsData]);
 
   // Group rows by account
   const accountGroups = useMemo(() => {
