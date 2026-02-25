@@ -278,6 +278,38 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
     navigator.clipboard.writeText(text).catch(() => {});
   };
 
+  const [togglingAccount, setTogglingAccount] = useState<string | null>(null);
+
+  const toggleAccountStatus = async (accountId: string, currentActive: boolean) => {
+    setTogglingAccount(accountId);
+    try {
+      const res = await fetch("/api/admin/account-status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: accountId, is_active: !currentActive }),
+      });
+      if (res.ok) {
+        // Update local state so the UI reflects immediately
+        setData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            clients: prev.clients.map((c) => ({
+              ...c,
+              accounts: c.accounts.map((a) =>
+                a.id === accountId ? { ...a, is_active: !currentActive } : a
+              ),
+            })),
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Toggle account status error:", err);
+    } finally {
+      setTogglingAccount(null);
+    }
+  };
+
   // Edit form state
   const [editForm, setEditForm] = useState({
     name: "",
@@ -966,8 +998,16 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
                                   >
                                     View Trades
                                   </button>
-                                  <button className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5 transition-colors">
-                                    Pause
+                                  <button
+                                    onClick={() => toggleAccountStatus(acc.id, acc.is_active)}
+                                    disabled={togglingAccount === acc.id}
+                                    className={`flex-1 py-1 rounded border text-[10px] transition-colors ${
+                                      acc.is_active
+                                        ? "border-white/10 text-slate-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5"
+                                        : "border-emerald-500/30 text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10"
+                                    } ${togglingAccount === acc.id ? "opacity-50 cursor-wait" : ""}`}
+                                  >
+                                    {togglingAccount === acc.id ? "..." : acc.is_active ? "Deactivate" : "Activate"}
                                   </button>
                                 </div>
                               </div>
