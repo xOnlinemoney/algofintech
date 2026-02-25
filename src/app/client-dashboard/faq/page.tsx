@@ -131,7 +131,7 @@ const FAQ_CATEGORIES: FAQCategoryData[] = [
       },
       {
         q: "How does a prop firm evaluation work?",
-        a: "A prop firm evaluation is basically a test. You pay a monthly fee for an evaluation account (which has simulated money in it). Our service trades on that account, and if it reaches the profit target without breaking any rules, you \"pass\" the evaluation. Once you pass, the prop firm gives you a real funded account with their money, and you get to keep most of the profits (usually 80-100%).",
+        a: "A prop firm evaluation is basically a test. You pay a monthly fee for an evaluation account (which has simulated money in it). Our service trades on that account, and if it reaches the profit target while staying within the firm's guidelines, you \"pass\" the evaluation. Once you pass, the prop firm gives you a real funded account with their money, and you get to keep most of the profits (usually 80-100%).",
         link: { label: "Learn More About Evaluations", href: "/client-dashboard/prop-firm-guide" },
       },
       {
