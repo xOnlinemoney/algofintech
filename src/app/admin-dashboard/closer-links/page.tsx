@@ -130,7 +130,10 @@ export default function CloserLinksPage() {
   };
 
   const copyUrl = (token: string) => {
-    const url = `${window.location.origin}/dashboard/closer/${token}`;
+    // Use main domain (no subdomain) for closer links
+    const host = window.location.hostname.replace(/^(admin|agency|client)[-.]/, "");
+    const protocol = window.location.protocol;
+    const url = `${protocol}//${host}/dashboard/closer/${token}`;
     navigator.clipboard.writeText(url);
     setCopied(token);
     setTimeout(() => setCopied(null), 2000);

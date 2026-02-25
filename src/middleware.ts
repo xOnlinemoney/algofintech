@@ -211,6 +211,10 @@ export async function middleware(request: NextRequest) {
     // If domain lookup failed or not found, allow normal routing
     return NextResponse.next();
   } else {
+    // Allow closer portal on main domain (no subdomain needed)
+    if (pathname.startsWith("/dashboard/closer/")) {
+      return NextResponse.next();
+    }
     // On main domain — block agency and client paths
     if (isAgencyPath(pathname)) {
       const url = request.nextUrl.clone();
