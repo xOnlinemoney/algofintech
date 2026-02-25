@@ -11,7 +11,6 @@ import {
   Shield,
   Zap,
   ExternalLink,
-  Copy,
   Check,
   Monitor,
   Smartphone,
@@ -31,7 +30,6 @@ const PROP_FIRMS = [
     profitSplit: "100% first $25K, then 90/10",
     drawdown: "Trailing",
     activation: "$85",
-    coupon: "SAVE",
     url: "https://apextraderfunding.com",
     color: "blue",
   },
@@ -43,7 +41,6 @@ const PROP_FIRMS = [
     profitSplit: "100% first $10K, then 90/10",
     drawdown: "End-of-day",
     activation: "FREE",
-    coupon: "ANALYTICALGO",
     url: "https://bluskytrading.com",
     color: "cyan",
   },
@@ -55,7 +52,6 @@ const PROP_FIRMS = [
     profitSplit: "100% first $10K, then 90/10",
     drawdown: "End-of-day / Trailing",
     activation: "Varies",
-    coupon: "ANALYTICALGO",
     url: "https://myfundedfutures.com",
     color: "purple",
   },
@@ -67,7 +63,6 @@ const PROP_FIRMS = [
     profitSplit: "80/20",
     drawdown: "End-of-day",
     activation: "$130",
-    coupon: "ANALYTICALGO",
     url: "https://takeprofittrader.com",
     color: "green",
   },
@@ -79,7 +74,6 @@ const PROP_FIRMS = [
     profitSplit: "80/20",
     drawdown: "End-of-day",
     activation: "$80",
-    coupon: "ANALYTICALGO",
     url: "https://elitetraderfunding.com",
     color: "amber",
   },
@@ -91,7 +85,6 @@ const PROP_FIRMS = [
     profitSplit: "90/10",
     drawdown: "Trailing",
     activation: "FREE",
-    coupon: "ANALYTICALGO",
     url: "https://tradeday.com",
     color: "rose",
   },
@@ -135,17 +128,10 @@ const PLATFORMS = [
 // ─── Component ──────────────────────────────────────────────
 export default function OnboardingFlow({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(0);
-  const [copiedCoupon, setCopiedCoupon] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<number | null>(null);
   const [hasExistingFirm, setHasExistingFirm] = useState<boolean | null>(null);
 
   const totalSteps = 3;
-
-  const handleCopyCoupon = useCallback((code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCoupon(code);
-    setTimeout(() => setCopiedCoupon(null), 2000);
-  }, []);
 
   const handleComplete = useCallback(() => {
     localStorage.setItem("onboarding_completed", "true");
@@ -240,7 +226,7 @@ export default function OnboardingFlow({ onClose }: { onClose: () => void }) {
                   <div>
                     <p className="text-sm font-semibold text-white">1. Get a Prop Firm Account</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Sign up with one of our recommended prop firms. We&apos;ve got exclusive discounts to save you money.
+                      Sign up with one of our recommended prop firms that are compatible with our service.
                     </p>
                   </div>
                 </div>
@@ -296,7 +282,7 @@ export default function OnboardingFlow({ onClose }: { onClose: () => void }) {
                   Get a Prop Firm Account
                 </h2>
                 <p className="text-sm text-slate-400 mt-1">
-                  A prop firm gives you money to trade with. Pick one below, sign up with our coupon code, and come back to connect it.
+                  A prop firm gives you money to trade with. Pick one below, sign up, and come back to connect it.
                 </p>
               </div>
 
@@ -376,24 +362,6 @@ export default function OnboardingFlow({ onClose }: { onClose: () => void }) {
                         </a>
                       </div>
 
-                      {/* Coupon */}
-                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/5">
-                        <span className="text-[11px] text-slate-500">Coupon:</span>
-                        <button
-                          onClick={() => handleCopyCoupon(firm.coupon)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 rounded-md hover:bg-blue-500/20 transition-colors"
-                        >
-                          {firm.coupon}
-                          {copiedCoupon === firm.coupon ? (
-                            <Check className="w-3 h-3 text-green-400" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
-                        </button>
-                        {copiedCoupon === firm.coupon && (
-                          <span className="text-[10px] text-green-400">Copied!</span>
-                        )}
-                      </div>
                     </div>
                   ))}
                 </div>

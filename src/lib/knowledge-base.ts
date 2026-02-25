@@ -209,18 +209,17 @@ We recommend the following prop firms that are compatible with our service and a
 - Minimum trading days: 7
 - Profit split: 100% first $25K per account, then 90/10
 - Activation fee: $85 per funded account
-- Coupon code: SAVE (up to 80% off evaluations)
+- Check their website for current promotions
 
 How to sign up for Apex:
 1. Visit apextraderfunding.com
 2. Click "Start Trading"
 3. Choose your account size
-4. Apply coupon code "SAVE" at checkout
-5. Complete payment
+4. Complete payment
 6. You'll receive your Tradovate credentials via email
 7. Sign the Tradovate agreement first, then connect through our platform
 
-Tips: Apex frequently runs sales (especially around holidays). Watch for 80%+ off deals. Best value for beginners.
+Tips: Apex frequently runs sales (especially around holidays). Best value for beginners.
 
 ### 2. BluSky Trading
 - Type: Futures (1-Step Evaluation)
@@ -230,14 +229,13 @@ Tips: Apex frequently runs sales (especially around holidays). Watch for 80%+ of
 - Minimum trading days: 5
 - Profit split: 100% first $10K, then 90/10
 - Activation fee: $0 (no activation fee!)
-- Coupon code: ANALYTICALGO
+- Check their website for current promotions
 
 How to sign up for BluSky:
 1. Visit bluskytrading.com
 2. Click "Get Funded"
 3. Choose your evaluation size
-4. Apply coupon code "ANALYTICALGO" at checkout
-5. Complete payment
+4. Complete payment
 6. Connect your account through our platform
 
 Tips: BluSky has NO activation fee which saves $85+ per account. End-of-day drawdown is more forgiving. Great for beginners.
@@ -250,7 +248,7 @@ Tips: BluSky has NO activation fee which saves $85+ per account. End-of-day draw
 - Minimum trading days: 0 (no minimum!)
 - Profit split: 100% first $10K, then 90/10 (Starter) or 80/20 (Expert)
 - Activation fee: Varies
-- Coupon code: ANALYTICALGO
+- Check their website for current promotions
 
 Tips: MFF has no minimum trading days — accounts can pass evaluations as fast as the algorithm achieves the target. Very popular with our clients.
 
@@ -262,7 +260,7 @@ Tips: MFF has no minimum trading days — accounts can pass evaluations as fast 
 - Minimum trading days: 5
 - Profit split: 80/20
 - Activation fee: $130
-- Coupon code: ANALYTICALGO
+- Check their website for current promotions
 
 ### 5. Elite Trader Funding
 - Type: Futures (1-Step or 2-Step Evaluation)
@@ -272,7 +270,7 @@ Tips: MFF has no minimum trading days — accounts can pass evaluations as fast 
 - Minimum trading days: Varies
 - Profit split: 80/20
 - Activation fee: $80
-- Coupon code: ANALYTICALGO
+- Check their website for current promotions
 
 ### 6. TradeDay
 - Type: Futures (1-Step Evaluation)
@@ -282,7 +280,7 @@ Tips: MFF has no minimum trading days — accounts can pass evaluations as fast 
 - Minimum trading days: 5
 - Profit split: 90/10
 - Activation fee: $0
-- Coupon code: ANALYTICALGO
+- Check their website for current promotions
 
 ### Prop Firms to AVOID
 We do NOT recommend these firms (incompatible with our service or have problematic rules):
@@ -309,7 +307,7 @@ Q: What trading platforms do you support?
 A: We support MetaTrader 5 (MT5), MetaTrader 4 (MT4), Binance, Tradovate, and Interactive Brokers (IBKR).
 
 Q: Is there a minimum amount of money I need?
-A: It depends on the prop firm. Some evaluation accounts start as low as $50-$80/month with coupon codes. Check our Prop Firm Guide for pricing.
+A: It depends on the prop firm. Some evaluation accounts start as low as $50-$80/month. Check our Prop Firm Guide for pricing.
 
 Q: What is a prop firm?
 A: A proprietary trading firm gives you money to trade with. You pay a fee for an evaluation account, and if it passes, they fund you with their capital. You keep 80-100% of the profits. Our service trades these accounts for you.
@@ -359,8 +357,8 @@ A: Trading involves risk and there will be losing trades — that's normal. No s
 Q: Which prop firms do you recommend?
 A: Apex Trader Funding, BluSky Trading, MyFundedFutures (MFF), Take Profit Trader, Elite Trader Funding, and TradeDay. See our Prop Firm Guide for details on each.
 
-Q: Do you have coupon codes?
-A: Yes! Use code "SAVE" for Apex and "ANALYTICALGO" for most other firms. Check the Prop Firm Guide for each firm's coupon.
+Q: Do you have any discounts for prop firms?
+A: Check each prop firm's website directly for their latest promotions and pricing. We recommend comparing options in our Prop Firm Guide.
 
 Q: How does a prop firm evaluation work?
 A: You pay a monthly fee for a simulated account. Our algorithm trades it, and if it hits the profit target within the firm's rules, you pass. The firm then gives you a funded account with real capital and you keep most of the profits (80-100%).
