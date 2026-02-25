@@ -26,6 +26,7 @@ import {
   X,
   Upload,
   Files,
+  Link2,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────
@@ -415,6 +416,9 @@ export default function AdminDashboard() {
           <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Trade Management</div>
           <NavItem icon={Upload} label="Master CSV Import" href="/admin-dashboard/upload-trades" />
           <NavItem icon={Files} label="Multi-File Import" href="/admin-dashboard/upload-files" />
+
+          <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Sales</div>
+          <NavItem icon={Link2} label="Closer Links" href="/admin-dashboard/closer-links" />
 
           <div className="pt-4 pb-2 px-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Finance</div>
           <NavItem icon={Wallet} label="Revenue Overview" />

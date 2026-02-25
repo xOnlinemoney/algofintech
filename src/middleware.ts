@@ -120,6 +120,10 @@ export async function middleware(request: NextRequest) {
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);
     }
+    // Allow closer portal paths (token-based auth, no agency login needed)
+    if (pathname.startsWith("/dashboard/closer/")) {
+      return NextResponse.next();
+    }
     // On agency subdomain — only allow agency paths
     if (isAgencyPath(pathname)) {
       return NextResponse.next();
