@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     // Look up the account
     const { data: account, error: accErr } = await supabase
       .from("client_accounts")
-      .select("id, client_id, agency_id, platform, account_number, account_label, balance")
+      .select("id, client_id, agency_id, platform, account_number, account_label, balance, starting_balance")
       .eq("id", accountId)
       .single();
 
@@ -197,17 +197,22 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Update account balance with cumulative PnL
-      const totalPnl = rows.reduce(
-        (sum, r) => sum + (Number(r.pnl) || 0),
+      // Recalculate balance = starting_balance + all trade PnL
+      const { data: allTradesForBalance } = await supabase
+        .from("client_trading_activity")
+        .select("pnl")
+        .eq("account_id", accountId);
+      const allPnl = (allTradesForBalance || []).reduce(
+        (sum: number, t: { pnl: number }) => sum + (Number(t.pnl) || 0),
         0
       );
-      const currentBalance = Number(account.balance) || 0;
+      const startBal = Number(account.starting_balance) || 0;
+      const newBalance = startBal + allPnl;
       await supabase
         .from("client_accounts")
         .update({
-          balance: currentBalance + totalPnl,
-          equity: currentBalance + totalPnl,
+          balance: newBalance,
+          equity: newBalance,
           updated_at: new Date().toISOString(),
         })
         .eq("id", accountId);

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     // Fetch account info
     const { data: account } = await supabase
       .from("client_accounts")
-      .select("id, platform, account_number, account_label, balance, equity")
+      .select("id, platform, account_number, account_label, balance, equity, starting_balance")
       .eq("id", accountId)
       .single();
 
@@ -121,12 +121,58 @@ export async function GET(req: NextRequest) {
               account_label: account.account_label,
               balance: Number(account.balance) || 0,
               equity: Number(account.equity) || 0,
+              starting_balance: Number(account.starting_balance) || 0,
             }
           : null,
       },
     });
   } catch (err) {
     console.error("Account trades error:", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) {
+      return NextResponse.json({ error: "Supabase not configured." }, { status: 503 });
+    }
+
+    const body = await req.json();
+    const { account_id, starting_balance } = body;
+
+    if (!account_id || starting_balance == null) {
+      return NextResponse.json({ error: "account_id and starting_balance are required." }, { status: 400 });
+    }
+
+    // Update starting_balance and recalculate balance = starting_balance + total PnL
+    const { data: trades } = await supabase
+      .from("client_trading_activity")
+      .select("pnl")
+      .eq("account_id", account_id);
+
+    const totalPnl = (trades || []).reduce((sum: number, t: { pnl: number }) => sum + (Number(t.pnl) || 0), 0);
+    const newBalance = starting_balance + totalPnl;
+
+    const { error } = await supabase
+      .from("client_accounts")
+      .update({
+        starting_balance: starting_balance,
+        balance: newBalance,
+        equity: newBalance,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", account_id);
+
+    if (error) {
+      console.error("Update balance error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, balance: newBalance });
+  } catch (err) {
+    console.error("PATCH account trades error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }

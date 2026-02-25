@@ -15,6 +15,9 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  Wallet,
+  Save,
+  Check,
 } from "lucide-react";
 
 type Trade = {
@@ -60,6 +63,7 @@ type AccountInfo = {
   account_label: string;
   balance: number;
   equity: number;
+  starting_balance: number;
 };
 
 interface AccountTradesModalProps {
@@ -90,6 +94,9 @@ export default function AccountTradesModal({
     error?: string;
   } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [startingBalance, setStartingBalance] = useState("");
+  const [savingBalance, setSavingBalance] = useState(false);
+  const [balanceSaved, setBalanceSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTrades = useCallback(async () => {
@@ -102,6 +109,9 @@ export default function AccountTradesModal({
         setTrades(json.data.trades || []);
         setSummary(json.data.summary || null);
         setAccount(json.data.account || null);
+        if (json.data.account?.starting_balance != null) {
+          setStartingBalance(String(json.data.account.starting_balance));
+        }
       }
     } catch (err) {
       console.error("Failed to fetch trades:", err);
@@ -166,6 +176,29 @@ export default function AccountTradesModal({
     if (file) handleImport(file);
     // Reset so same file can be re-selected
     e.target.value = "";
+  };
+
+  const handleSaveBalance = async () => {
+    const val = parseFloat(startingBalance);
+    if (isNaN(val) || val < 0) return;
+    setSavingBalance(true);
+    setBalanceSaved(false);
+    try {
+      const res = await fetch("/api/admin/account-trades", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: accountId, starting_balance: val }),
+      });
+      if (res.ok) {
+        setBalanceSaved(true);
+        await fetchTrades();
+        setTimeout(() => setBalanceSaved(false), 2000);
+      }
+    } catch (err) {
+      console.error("Failed to save balance:", err);
+    } finally {
+      setSavingBalance(false);
+    }
   };
 
   const formatCurrency = (val: number) => {
@@ -249,6 +282,62 @@ export default function AccountTradesModal({
                   />
                 </div>
               )}
+
+              {/* Starting Balance */}
+              <div className="bg-[#070a10] border border-white/5 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                      <Wallet className="w-4 h-4 text-indigo-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-white">Starting Balance</p>
+                      <p className="text-[10px] text-slate-500">Set the initial account balance before trades</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={startingBalance}
+                        onChange={(e) => { setStartingBalance(e.target.value); setBalanceSaved(false); }}
+                        placeholder="0.00"
+                        className="w-36 pl-7 pr-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 text-right"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSaveBalance}
+                      disabled={savingBalance || !startingBalance}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                        balanceSaved
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 disabled:opacity-40"
+                      }`}
+                    >
+                      {savingBalance ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : balanceSaved ? (
+                        <Check className="w-3 h-3" />
+                      ) : (
+                        <Save className="w-3 h-3" />
+                      )}
+                      {balanceSaved ? "Saved" : "Save"}
+                    </button>
+                  </div>
+                </div>
+                {/* Total Balance display */}
+                {startingBalance && summary && (
+                  <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">Total Balance (Starting + P&L)</span>
+                    <span className={`text-sm font-bold ${(parseFloat(startingBalance) + summary.total_pnl) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {formatCurrency(parseFloat(startingBalance) + summary.total_pnl)}
+                    </span>
+                  </div>
+                )}
+              </div>
 
               {/* CSV Import Zone */}
               <div className="space-y-2">
