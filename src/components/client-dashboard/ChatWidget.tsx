@@ -66,10 +66,13 @@ export default function ChatWidget() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Focus input when chat opens
+  // Focus input when chat opens (skip on mobile to prevent zoom)
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 300);
+      const isMobile = window.innerWidth < 640;
+      if (!isMobile) {
+        setTimeout(() => inputRef.current?.focus(), 300);
+      }
       setUnreadCount(0);
     }
   }, [isOpen]);
@@ -379,7 +382,7 @@ export default function ChatWidget() {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-48px)] h-[560px] max-h-[calc(100vh-100px)] bg-[#0D1017] border border-white/10 rounded-2xl shadow-2xl shadow-black/40 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4">
+        <div className="fixed z-50 bg-[#0D1017] border border-white/10 shadow-2xl shadow-black/40 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 bottom-0 right-0 w-full h-full sm:bottom-6 sm:right-6 sm:w-[380px] sm:max-w-[calc(100vw-48px)] sm:h-[560px] sm:max-h-[calc(100vh-100px)] sm:rounded-2xl">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-[#13161C] border-b border-white/5">
             <div className="flex items-center gap-3">
@@ -557,7 +560,7 @@ export default function ChatWidget() {
                     ? "Type a message to your agent..."
                     : "Ask a question..."
                 }
-                className="flex-1 bg-transparent text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none"
+                className="flex-1 bg-transparent text-[16px] sm:text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none"
               />
               <button
                 onClick={handleSend}
