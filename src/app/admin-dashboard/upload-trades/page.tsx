@@ -124,17 +124,71 @@ export default function UploadTradesPage() {
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>("");
 
-  // Fetch algorithms on mount
+  // Assign-all state (when CSV is missing account/agency/client columns)
+  const [missingAccountCol, setMissingAccountCol] = useState(false);
+  const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
+  const [agencyClients, setAgencyClients] = useState<{ id: string; name: string }[]>([]);
+  const [clientAccounts, setClientAccounts] = useState<{ id: string; account_number: string; account_label: string }[]>([]);
+  const [assignAgency, setAssignAgency] = useState("");
+  const [assignClient, setAssignClient] = useState("");
+  const [assignAccount, setAssignAccount] = useState("");
+
+  // Fetch algorithms + agencies on mount
   useEffect(() => {
     fetch("/api/admin/algorithms")
       .then((res) => res.json())
       .then((data) => {
-        if (data.algorithms) {
-          setAlgorithms(data.algorithms);
-        }
+        if (data.algorithms) setAlgorithms(data.algorithms);
+      })
+      .catch(() => {});
+
+    fetch("/api/admin/agencies")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.agencies) setAgencies(data.agencies);
       })
       .catch(() => {});
   }, []);
+
+  // When agency changes, fetch clients
+  useEffect(() => {
+    setAgencyClients([]);
+    setClientAccounts([]);
+    setAssignClient("");
+    setAssignAccount("");
+    if (!assignAgency) return;
+    fetch(`/api/admin/agencies/${assignAgency}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.agency?.clients) {
+          setAgencyClients(data.agency.clients.map((c: any) => ({ id: c.id, name: c.name })));
+        }
+      })
+      .catch(() => {});
+  }, [assignAgency]);
+
+  // When client changes, fetch accounts
+  useEffect(() => {
+    setClientAccounts([]);
+    setAssignAccount("");
+    if (!assignClient) return;
+    // Find accounts for this client from the agency data
+    fetch(`/api/admin/agencies/${assignAgency}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.agency?.clients) {
+          const client = data.agency.clients.find((c: any) => c.id === assignClient);
+          if (client?.accounts) {
+            setClientAccounts(client.accounts.map((a: any) => ({
+              id: a.id,
+              account_number: a.account_number || "",
+              account_label: a.account_label || a.account_number || "Unnamed",
+            })));
+          }
+        }
+      })
+      .catch(() => {});
+  }, [assignClient, assignAgency]);
 
   // Group rows by account
   const accountGroups = useMemo(() => {
@@ -193,16 +247,15 @@ export default function UploadTradesPage() {
       const boughtCol = findCol(["boughtTimestamp", "boughttimestamp"]);
       const soldCol = findCol(["soldTimestamp", "soldtimestamp"]);
 
-      if (acctCol === -1) {
-        setParseError('Missing required column: "account_number" or "account". Please add this column to your CSV.');
-        return;
-      }
+      // If account column is missing, allow assign-all mode
+      const noAccountCol = acctCol === -1;
+      setMissingAccountCol(noAccountCol);
 
       const rows: ParsedRow[] = [];
       for (let i = 1; i < lines.length; i++) {
         const cols = parseCSVLine(lines[i]);
-        const acct = (cols[acctCol] || "").trim();
-        if (!acct) continue;
+        const acct = noAccountCol ? "ASSIGN" : (cols[acctCol] || "").trim();
+        if (!noAccountCol && !acct) continue;
 
         rows.push({
           line: i + 1,
@@ -218,7 +271,7 @@ export default function UploadTradesPage() {
       }
 
       if (rows.length === 0) {
-        setParseError("No valid rows found. Make sure the account_number column has values.");
+        setParseError("No valid data rows found in CSV.");
         return;
       }
 
@@ -248,6 +301,10 @@ export default function UploadTradesPage() {
     setResults(null);
     setSummary(null);
     setExpandedAccounts(new Set());
+    setMissingAccountCol(false);
+    setAssignAgency("");
+    setAssignClient("");
+    setAssignAccount("");
   };
 
   const toggleAccount = (account: string) => {
@@ -261,6 +318,10 @@ export default function UploadTradesPage() {
 
   const handleImport = async () => {
     if (!file || importing) return;
+    if (missingAccountCol && !assignAccount) {
+      setParseError("Please select an account to assign all trades to.");
+      return;
+    }
     setImporting(true);
     setResults(null);
     setSummary(null);
@@ -271,6 +332,9 @@ export default function UploadTradesPage() {
       if (selectedAlgorithm) {
         formData.append("algorithm_name", selectedAlgorithm);
         formData.append("algorithm_color", "#6366f1");
+      }
+      if (missingAccountCol && assignAccount) {
+        formData.append("assign_account_id", assignAccount);
       }
 
       const res = await fetch("/api/admin/bulk-import-trades", {
@@ -395,7 +459,8 @@ export default function UploadTradesPage() {
               </div>
               <p className="text-[10px] text-slate-600">
                 The account_number must match the account numbers in your system (e.g. APEX41449900000221).
-                Agency and client columns are optional — they help with display but the system looks up accounts by number.
+                Agency and client columns are optional. If your CSV is missing the account_number column,
+                you&apos;ll be able to assign all trades to a specific account after uploading.
               </p>
             </div>
           </>
@@ -455,10 +520,90 @@ export default function UploadTradesPage() {
               </button>
             </div>
 
+            {/* Assign All Panel — when CSV is missing account columns */}
+            {missingAccountCol && (
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-amber-300 font-medium">Missing account columns</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Your CSV doesn&apos;t have <span className="text-amber-300">account_number</span>, <span className="text-amber-300">agency</span>, or <span className="text-amber-300">client</span> columns.
+                      Assign all trades to a specific account below.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Agency */}
+                  <div>
+                    <label className="block text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 font-medium">Agency</label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                      <select
+                        value={assignAgency}
+                        onChange={(e) => setAssignAgency(e.target.value)}
+                        className="w-full bg-[#0a0e18] border border-white/10 rounded-lg py-2.5 pl-9 pr-8 text-xs text-white focus:outline-none focus:border-amber-500/50 appearance-none cursor-pointer"
+                      >
+                        <option value="">Select Agency...</option>
+                        {agencies.map((a) => (
+                          <option key={a.id} value={a.id}>{a.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+                    </div>
+                  </div>
+                  {/* Client */}
+                  <div>
+                    <label className="block text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 font-medium">Client</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                      <select
+                        value={assignClient}
+                        onChange={(e) => setAssignClient(e.target.value)}
+                        disabled={!assignAgency}
+                        className="w-full bg-[#0a0e18] border border-white/10 rounded-lg py-2.5 pl-9 pr-8 text-xs text-white focus:outline-none focus:border-amber-500/50 appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <option value="">{assignAgency ? "Select Client..." : "Select agency first"}</option>
+                        {agencyClients.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+                    </div>
+                  </div>
+                  {/* Account */}
+                  <div>
+                    <label className="block text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 font-medium">Account</label>
+                    <div className="relative">
+                      <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                      <select
+                        value={assignAccount}
+                        onChange={(e) => setAssignAccount(e.target.value)}
+                        disabled={!assignClient}
+                        className="w-full bg-[#0a0e18] border border-white/10 rounded-lg py-2.5 pl-9 pr-8 text-xs text-white focus:outline-none focus:border-amber-500/50 appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <option value="">{assignClient ? "Select Account..." : "Select client first"}</option>
+                        {clientAccounts.map((a) => (
+                          <option key={a.id} value={a.id}>{a.account_label} ({a.account_number})</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+                {assignAccount && (
+                  <div className="flex items-center gap-2 text-xs text-emerald-400">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    All {parsedRows.length} trades will be imported to the selected account
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Account Breakdown */}
             <div className="space-y-2">
               <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                Account Breakdown
+                {missingAccountCol ? "Trade Preview" : "Account Breakdown"}
               </h2>
               {accountGroups.map((group) => {
                 const key = group.account.toUpperCase().replace(/[-\s]/g, "");

@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null;
     const algorithmName = (formData.get("algorithm_name") as string) || null;
     const algorithmColor = (formData.get("algorithm_color") as string) || "#6366f1";
+    const assignAccountId = (formData.get("assign_account_id") as string) || null;
 
     if (!file || !file.name.endsWith(".csv")) {
       return NextResponse.json(
@@ -135,11 +136,11 @@ export async function POST(req: NextRequest) {
 
     // Determine the account column (account_number or account)
     const accountCol = colIndex["account_number"] ?? colIndex["account"] ?? -1;
-    if (accountCol === -1) {
+    if (accountCol === -1 && !assignAccountId) {
       return NextResponse.json(
         {
           error:
-            'CSV must have an "account_number" or "account" column to identify which account each trade belongs to.',
+            'CSV must have an "account_number" or "account" column, or use the assign-all feature to select a target account.',
         },
         { status: 400 }
       );
@@ -157,8 +158,11 @@ export async function POST(req: NextRequest) {
 
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i]);
-      const acctNum = (cols[accountCol] || "").trim().toUpperCase().replace(/[-\s]/g, "");
-      if (!acctNum) continue;
+      // When assign_account_id is provided, all rows go to a single "ASSIGNED" bucket
+      const acctNum = assignAccountId
+        ? "ASSIGNED"
+        : (cols[accountCol] || "").trim().toUpperCase().replace(/[-\s]/g, "");
+      if (!assignAccountId && !acctNum) continue;
 
       if (!rowsByAccount.has(acctNum)) {
         rowsByAccount.set(acctNum, []);
@@ -236,11 +240,20 @@ export async function POST(req: NextRequest) {
         status: "success",
       };
 
-      // Look up account
-      const account = accountMap.get(acctNum);
+      // Look up account — either by assignAccountId or by account number
+      let account: any = null;
+      if (assignAccountId) {
+        account = (allAccounts || []).find((a: any) => a.id === assignAccountId);
+      } else {
+        account = accountMap.get(acctNum);
+      }
       if (!account) {
         result.status = "unmatched";
-        result.errors.push(`No account found matching "${acctNum}" in the system.`);
+        result.errors.push(
+          assignAccountId
+            ? `Assigned account ID "${assignAccountId}" not found in the system.`
+            : `No account found matching "${acctNum}" in the system.`
+        );
         accountsFailed++;
         results.push(result);
         continue;
