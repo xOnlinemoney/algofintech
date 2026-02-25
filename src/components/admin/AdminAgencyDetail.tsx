@@ -44,6 +44,7 @@ import {
   LineChart,
   Wallet,
 } from "lucide-react";
+import AccountTradesModal from "./AccountTradesModal";
 
 // ─── Types ──────────────────────────────────────────────
 interface AgencyInfo {
@@ -262,6 +263,7 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [revealedPasswords, setRevealedPasswords] = useState<Set<string>>(new Set());
+  const [tradesModal, setTradesModal] = useState<{ id: string; label: string; clientName: string } | null>(null);
 
   const togglePasswordReveal = (accountId: string) => {
     setRevealedPasswords((prev) => {
@@ -958,7 +960,10 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
 
                                 {/* Actions */}
                                 <div className="flex gap-2">
-                                  <button className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                                  <button
+                                    onClick={() => setTradesModal({ id: acc.id, label: acc.account_label || `${acc.platform} / ${acc.account_number}`, clientName: client.name })}
+                                    className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                                  >
                                     View Trades
                                   </button>
                                   <button className="flex-1 py-1 rounded border border-white/10 text-[10px] text-slate-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5 transition-colors">
@@ -1712,6 +1717,16 @@ export default function AdminAgencyDetail({ agencyId }: { agencyId: string }) {
             </div>
           </div>
         </div>
+      )}
+      {/* Account Trades Modal */}
+      {tradesModal && (
+        <AccountTradesModal
+          isOpen={!!tradesModal}
+          onClose={() => setTradesModal(null)}
+          accountId={tradesModal.id}
+          accountLabel={tradesModal.label}
+          clientName={tradesModal.clientName}
+        />
       )}
     </div>
   );
