@@ -206,11 +206,13 @@ async function addSlaveAccount(accountData) {
 
   if (isTradovate) {
     // Tradovate uses #add-slave-account-number (text input)
-    console.log(`[Automation] Entering Tradovate account number: ${accountNumber}`);
+    // Strip dashes from account number — Tradovate format is e.g. APEX4144991 not APEX-414499-1
+    const cleanAccountNumber = accountNumber.replace(/-/g, "");
+    console.log(`[Automation] Entering Tradovate account number: ${cleanAccountNumber} (original: ${accountNumber})`);
     await p.waitForSelector("#add-slave-account-number", { timeout: 5000 });
     // Clear field first, then type
     await p.click("#add-slave-account-number", { clickCount: 3 });
-    await p.type("#add-slave-account-number", accountNumber, { delay: 30 });
+    await p.type("#add-slave-account-number", cleanAccountNumber, { delay: 30 });
   } else {
     // MT4/MT5 uses #add-slave-login-id (number) and #add-slave-password
     console.log(`[Automation] Entering login: ${accountNumber}`);
