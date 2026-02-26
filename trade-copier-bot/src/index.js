@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { App } = require("@slack/bolt");
+const { App, subtype } = require("@slack/bolt");
 const { parseAccountMessage } = require("./parser");
 const { addSlaveAccount, closeBrowser, ensureLoggedIn } = require("./browser");
 
@@ -9,6 +9,8 @@ const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   appToken: process.env.SLACK_APP_TOKEN,
   socketMode: true,
+  // Don't ignore bot messages — we NEED webhook notifications
+  ignoreSelf: false,
 });
 
 // Track processed messages to avoid duplicates
@@ -19,16 +21,10 @@ const queue = [];
 let processing = false;
 
 /**
- * Listen for ALL message events (including bot_message from webhooks).
- * app.message() filters out bot_message at framework level, so we use app.event() instead.
+ * Shared handler for both regular messages and bot_message (webhook notifications).
  */
-app.event("message", async ({ event, client }) => {
-  const message = event;
-
+async function handleMessage({ message, client }) {
   try {
-    // Skip edits, deletions, joins — but ALLOW bot_message (webhook notifications)
-    const skipSubtypes = ["message_changed", "message_deleted", "channel_join", "channel_leave"];
-    if (message.subtype && skipSubtypes.includes(message.subtype)) return;
     if (processedMessages.has(message.ts)) return;
 
     // Only listen to the configured channel
@@ -71,6 +67,16 @@ app.event("message", async ({ event, client }) => {
   } catch (err) {
     console.error("[Slack] Error handling message:", err);
   }
+}
+
+// Listen for webhook/bot messages (subtype: bot_message)
+app.message(subtype("bot_message"), async (args) => {
+  await handleMessage(args);
+});
+
+// Listen for regular user messages (no subtype)
+app.message(async (args) => {
+  await handleMessage(args);
 });
 
 /**
