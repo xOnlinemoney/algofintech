@@ -19,13 +19,12 @@ async function getBrowser() {
   const userDataDir = process.env.CHROME_USER_DATA_DIR || "./chrome-data";
 
   browser = await puppeteer.launch({
-    headless: "new",
+    headless: false, // Run visible Chrome — needed for Tradovate OAuth popup
     userDataDir: path.resolve(userDataDir),
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
-      "--disable-gpu",
       "--window-size=1920,1080",
     ],
     defaultViewport: { width: 1920, height: 1080 },
