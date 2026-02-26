@@ -13,6 +13,16 @@ const app = new App({
   ignoreSelf: false,
 });
 
+// DEBUG: Log ALL incoming events so we can see what the bot receives
+app.use(async ({ event, body, next }) => {
+  if (event) {
+    console.log(`[DEBUG] Event received: type=${event.type}, subtype=${event.subtype || "none"}, channel=${event.channel || "N/A"}`);
+  } else if (body) {
+    console.log(`[DEBUG] Body received: type=${body.type || "unknown"}`);
+  }
+  await next();
+});
+
 // Track processed messages to avoid duplicates
 const processedMessages = new Set();
 
