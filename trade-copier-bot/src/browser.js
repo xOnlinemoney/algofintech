@@ -295,14 +295,12 @@ async function addSlaveAccount(accountData) {
 
   await sleep(1000);
 
-  // ─── Step 6: Press Tab 4 times to focus Add button, then Enter to submit ───
-  // Direct click on the Add button doesn't work with Duplikium's framework.
-  // Keyboard navigation: Tab x4 from last field highlights Add, then Enter submits.
-  console.log("[Automation] Using keyboard navigation to submit: Tab x4 then Enter...");
+  // ─── Step 6: Click "Add" button on the popup form ───
+  // Try multiple methods to ensure the Add button gets clicked
+  console.log("[Automation] Attempting to click Add button...");
 
   if (isTradovate && username && password) {
-    // For Tradovate: Set up popup listener BEFORE pressing Enter on Add
-    // The Add button opens a popup to trader.tradovate.com for OAuth login
+    // For Tradovate: Set up popup listener BEFORE clicking Add
     console.log("[Automation] Setting up Tradovate popup listener...");
 
     const popupPromise = new Promise((resolve) => {
@@ -316,14 +314,67 @@ async function addSlaveAccount(accountData) {
       setTimeout(() => resolve(null), 15000);
     });
 
-    // Tab 4 times to reach the Add button, then Enter to click it
-    for (let i = 0; i < 4; i++) {
-      await p.keyboard.press("Tab");
-      await sleep(200);
+    // Try multiple methods to click the Add button
+    const clicked = await p.evaluate(() => {
+      // Method 1: Find submit button in the form
+      const form = document.getElementById("add-slave-form");
+      if (form) {
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) {
+          // Scroll button into view
+          btn.scrollIntoView({ block: "center" });
+          btn.focus();
+          btn.click();
+          return `method1: clicked button "${btn.textContent.trim()}"`;
+        }
+      }
+      // Method 2: Find any button with text "Add" inside a modal/dialog
+      const allButtons = document.querySelectorAll(".modal button, .modal-dialog button, .block-content button");
+      for (const btn of allButtons) {
+        const txt = btn.textContent.trim().toLowerCase();
+        if (txt === "add" || txt === "add slave") {
+          btn.scrollIntoView({ block: "center" });
+          btn.focus();
+          btn.click();
+          return `method2: clicked "${btn.textContent.trim()}"`;
+        }
+      }
+      // Method 3: Find ALL buttons on page with text "Add"
+      const everyBtn = document.querySelectorAll("button");
+      for (const btn of everyBtn) {
+        if (btn.textContent.trim() === "Add") {
+          btn.scrollIntoView({ block: "center" });
+          btn.focus();
+          btn.click();
+          return `method3: clicked global Add button`;
+        }
+      }
+      return "none: no Add button found";
+    });
+    console.log(`[Automation] Click result: ${clicked}`);
+
+    // Also try Puppeteer native click as backup
+    try {
+      const addBtn = await p.$('#add-slave-form button[type="submit"]');
+      if (addBtn) {
+        await addBtn.click();
+        console.log("[Automation] Also clicked via Puppeteer native click");
+      }
+    } catch (e) {
+      console.log(`[Automation] Puppeteer native click failed: ${e.message}`);
     }
-    console.log("[Automation] Tabbed 4 times, pressing Enter to submit...");
+
+    // Final backup: focus the button and press Enter
+    await p.evaluate(() => {
+      const form = document.getElementById("add-slave-form");
+      if (form) {
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) btn.focus();
+      }
+    });
+    await sleep(300);
     await p.keyboard.press("Enter");
-    console.log("[Automation] Enter pressed — Add button submitted");
+    console.log("[Automation] Also pressed Enter on focused Add button");
 
     console.log("[Automation] Waiting for Tradovate OAuth popup...");
     const tradovatePage = await popupPromise;
@@ -385,13 +436,17 @@ async function addSlaveAccount(accountData) {
       await p.goto(COCKPIT_URL, { waitUntil: "networkidle2", timeout: 30000 });
     }
   } else {
-    // Non-Tradovate: Tab x4 + Enter to submit
-    for (let i = 0; i < 4; i++) {
-      await p.keyboard.press("Tab");
-      await sleep(200);
-    }
+    // Non-Tradovate: click Add button with same multi-method approach
+    await p.evaluate(() => {
+      const form = document.getElementById("add-slave-form");
+      if (form) {
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) { btn.scrollIntoView({ block: "center" }); btn.focus(); btn.click(); }
+      }
+    });
+    await sleep(300);
     await p.keyboard.press("Enter");
-    console.log("[Automation] Add button submitted via Tab+Enter (non-Tradovate)");
+    console.log("[Automation] Add button submitted (non-Tradovate)");
     await sleep(3000);
   }
 
