@@ -189,30 +189,61 @@ async function addSlaveAccount(accountData) {
   await sleep(1000);
   console.log("[Automation] Add Slave dialog opened");
 
-  // ─── Step 2: Select Trading Platform using Puppeteer's page.select() ───
+  // ─── Step 2: Select Trading Platform ───
+  // Use page.select() then dispatch change event for jQuery/framework
   const platformValue = mapBrokerToSelectValue(broker);
   console.log(`[Automation] Selecting platform: ${platformValue}`);
 
   await p.select("#add-slave-broker-tech", platformValue);
-  await sleep(1500); // Wait for form to update after platform change
+  // Dispatch change event so Duplikium's JS updates the form dynamically
+  await p.evaluate(() => {
+    const sel = document.getElementById("add-slave-broker-tech");
+    if (sel) {
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+  await sleep(2000); // Wait for form to update after platform change
 
   // ─── Step 3: Select Demo/Real ───
   console.log("[Automation] Setting Demo/Real to Demo");
   await p.select("#add-slave-demo-real", "Demo");
-  await sleep(500);
+  await p.evaluate(() => {
+    const sel = document.getElementById("add-slave-demo-real");
+    if (sel) sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await sleep(1000);
 
   // ─── Step 4: Enter Account Number / Login ───
   const isTradovate = platformValue === "tradovate";
 
   if (isTradovate) {
     // Tradovate uses #add-slave-account-number (text input)
-    // Strip dashes from account number — Tradovate format is e.g. APEX4144991 not APEX-414499-1
+    // Strip dashes from account number — Tradovate format is e.g. APEX414499224
     const cleanAccountNumber = accountNumber.replace(/-/g, "");
     console.log(`[Automation] Entering Tradovate account number: ${cleanAccountNumber} (original: ${accountNumber})`);
-    await p.waitForSelector("#add-slave-account-number", { timeout: 5000 });
-    // Clear field first, then type
-    await p.click("#add-slave-account-number", { clickCount: 3 });
-    await p.type("#add-slave-account-number", cleanAccountNumber, { delay: 30 });
+
+    // Wait for the field to be visible (it appears after platform selection)
+    await p.waitForSelector("#add-slave-account-number", { visible: true, timeout: 10000 });
+    await sleep(500);
+
+    // Focus, clear, and type into the field
+    await p.evaluate(() => {
+      const input = document.getElementById("add-slave-account-number");
+      if (input) {
+        input.focus();
+        input.value = "";
+      }
+    });
+    await p.type("#add-slave-account-number", cleanAccountNumber, { delay: 50 });
+    // Trigger input/change events
+    await p.evaluate((val) => {
+      const input = document.getElementById("add-slave-account-number");
+      if (input) {
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }, cleanAccountNumber);
+    console.log(`[Automation] Account number field filled`);
   } else {
     // MT4/MT5 uses #add-slave-login-id (number) and #add-slave-password
     console.log(`[Automation] Entering login: ${accountNumber}`);
@@ -253,15 +284,30 @@ async function addSlaveAccount(accountData) {
 
   if (templateValue) {
     await p.select("#add-slave-copy-settings-template", templateValue.value);
+    await p.evaluate(() => {
+      const sel = document.getElementById("add-slave-copy-settings-template");
+      if (sel) sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
     console.log(`[Automation] Selected template: ${templateValue.text}`);
   } else {
     console.log(`[Automation] WARNING: No template found for agency "${agency}"`);
   }
 
-  await sleep(500);
+  await sleep(1000);
 
-  // ─── Step 6: Click "Add" — for Tradovate, this opens an OAuth popup ───
+  // ─── Step 6: Click "Add" button — for Tradovate, this opens an OAuth popup ───
+  // Use Puppeteer's page.click() on the actual button, not evaluate()
   console.log("[Automation] Clicking Add submit button...");
+
+  // Find and log the Add button to confirm it exists
+  const addBtnExists = await p.evaluate(() => {
+    const form = document.getElementById("add-slave-form");
+    if (!form) return "NO FORM FOUND";
+    const btn = form.querySelector('button[type="submit"]');
+    if (!btn) return "NO SUBMIT BUTTON IN FORM";
+    return `Found: "${btn.textContent.trim()}" at ${btn.offsetWidth}x${btn.offsetHeight}`;
+  });
+  console.log(`[Automation] Add button check: ${addBtnExists}`);
 
   if (isTradovate && username && password) {
     // For Tradovate: Set up popup listener BEFORE clicking Add
@@ -279,12 +325,9 @@ async function addSlaveAccount(accountData) {
       setTimeout(() => resolve(null), 15000);
     });
 
-    // Click the Add button to trigger the popup
-    await p.evaluate(() => {
-      const form = document.getElementById("add-slave-form");
-      const btn = form.querySelector('button[type="submit"]');
-      if (btn) btn.click();
-    });
+    // Click the Add button using Puppeteer's native click (not evaluate)
+    await p.click('#add-slave-form button[type="submit"]');
+    console.log("[Automation] Add button clicked via page.click()");
 
     console.log("[Automation] Waiting for Tradovate OAuth popup...");
     const tradovatePage = await popupPromise;
@@ -347,11 +390,8 @@ async function addSlaveAccount(accountData) {
     }
   } else {
     // Non-Tradovate: just click Add normally
-    await p.evaluate(() => {
-      const form = document.getElementById("add-slave-form");
-      const btn = form.querySelector('button[type="submit"]');
-      if (btn) btn.click();
-    });
+    await p.click('#add-slave-form button[type="submit"]');
+    console.log("[Automation] Add button clicked (non-Tradovate)");
     await sleep(3000);
   }
 
