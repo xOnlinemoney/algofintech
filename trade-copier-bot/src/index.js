@@ -19,11 +19,14 @@ const queue = [];
 let processing = false;
 
 /**
- * Listen for all messages in the configured channel
+ * Listen for ALL message events (including bot_message from webhooks).
+ * app.message() filters out bot_message at framework level, so we use app.event() instead.
  */
-app.message(async ({ message, client }) => {
+app.event("message", async ({ event, client }) => {
+  const message = event;
+
   try {
-    // Skip edits, deletions, etc. — but ALLOW bot_message (webhook notifications)
+    // Skip edits, deletions, joins — but ALLOW bot_message (webhook notifications)
     const skipSubtypes = ["message_changed", "message_deleted", "channel_join", "channel_leave"];
     if (message.subtype && skipSubtypes.includes(message.subtype)) return;
     if (processedMessages.has(message.ts)) return;
@@ -33,9 +36,14 @@ app.message(async ({ message, client }) => {
       return;
     }
 
+    console.log(`[Slack] Message received (subtype: ${message.subtype || "none"})`);
+
     // Parse the message
     const accountData = parseAccountMessage(message);
-    if (!accountData) return; // Not an account notification
+    if (!accountData) {
+      console.log("[Slack] Message did not match account notification format, skipping.");
+      return;
+    }
 
     console.log(`\n${"=".repeat(60)}`);
     console.log(`[Slack] New account notification detected!`);
@@ -43,6 +51,8 @@ app.message(async ({ message, client }) => {
     console.log(`  Client: ${accountData.client}`);
     console.log(`  Broker: ${accountData.broker}`);
     console.log(`  Account: ${accountData.accountNumber}`);
+    console.log(`  Username: ${accountData.username || "N/A"}`);
+    console.log(`  Password: ${accountData.password ? "***" : "N/A"}`);
     console.log(`${"=".repeat(60)}\n`);
 
     // Mark as processing
