@@ -1,6 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// ─── Slack notification helper ───────────────────────────
+async function sendSlackNotification(payload: {
+  agencyName: string;
+  clientName: string;
+  broker: string;
+  accountNumber: string;
+  username: string;
+  password: string;
+}) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  const message = {
+    blocks: [
+      {
+        type: "header",
+        text: { type: "plain_text", text: "🆕 New Account Added", emoji: true },
+      },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: `*Agency:*\n${payload.agencyName}` },
+          { type: "mrkdwn", text: `*Client:*\n${payload.clientName}` },
+          { type: "mrkdwn", text: `*Broker:*\n${payload.broker}` },
+          { type: "mrkdwn", text: `*Account #:*\n${payload.accountNumber}` },
+          { type: "mrkdwn", text: `*Username:*\n${payload.username || "N/A"}` },
+          { type: "mrkdwn", text: `*Password:*\n${payload.password || "N/A"}` },
+        ],
+      },
+      { type: "divider" },
+    ],
+  };
+
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(message),
+    });
+  } catch (err) {
+    console.error("Slack notification failed:", err);
+  }
+}
+
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
@@ -173,6 +217,40 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // ─── Send Slack notification (non-blocking) ───
+    (async () => {
+      try {
+        // Fetch client name
+        const { data: clientInfo } = await supabase
+          .from("clients")
+          .select("name, email")
+          .eq("id", clientUuid)
+          .single();
+
+        // Fetch agency name
+        let agencyName = "Unknown";
+        if (clientRow?.agency_id) {
+          const { data: agencyInfo } = await supabase
+            .from("agencies")
+            .select("name")
+            .eq("id", clientRow.agency_id)
+            .single();
+          agencyName = agencyInfo?.name || "Unknown";
+        }
+
+        await sendSlackNotification({
+          agencyName,
+          clientName: clientInfo?.name || clientInfo?.email || client_display_id,
+          broker: platform,
+          accountNumber: account_number,
+          username: username || "",
+          password: password || "",
+        });
+      } catch (err) {
+        console.error("Slack notification error:", err);
+      }
+    })();
 
     return NextResponse.json({ message: "Account added!", data }, { status: 201 });
   } catch (err) {
