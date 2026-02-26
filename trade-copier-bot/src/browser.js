@@ -259,95 +259,99 @@ async function addSlaveAccount(accountData) {
 
   await sleep(500);
 
-  // ─── Step 6: Click "Add" submit button ───
+  // ─── Step 6: Click "Add" — for Tradovate, this opens an OAuth popup ───
   console.log("[Automation] Clicking Add submit button...");
 
-  await p.evaluate(() => {
-    const form = document.getElementById("add-slave-form");
-    const btn = form.querySelector('button[type="submit"]');
-    if (btn) btn.click();
-  });
-
-  await sleep(3000);
-
-  // ─── Step 8: Handle Tradovate login popup (if applicable) ───
   if (isTradovate && username && password) {
-    console.log("[Automation] Handling Tradovate login popup...");
+    // For Tradovate: Set up popup listener BEFORE clicking Add
+    // The Add button opens a popup to trader.tradovate.com for OAuth login
+    console.log("[Automation] Setting up Tradovate popup listener...");
 
-    // Wait for the Tradovate auth popup/iframe
-    await sleep(2000);
+    const popupPromise = new Promise((resolve) => {
+      browser.once("targetcreated", async (target) => {
+        if (target.type() === "page") {
+          const newPage = await target.page();
+          resolve(newPage);
+        }
+      });
+      // Timeout after 15 seconds
+      setTimeout(() => resolve(null), 15000);
+    });
 
-    // Check for a new popup window or iframe
-    const pages = await browser.pages();
-    let tradovatePage = null;
+    // Click the Add button to trigger the popup
+    await p.evaluate(() => {
+      const form = document.getElementById("add-slave-form");
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.click();
+    });
 
-    // Check if there's a new page (popup window)
-    for (const pg of pages) {
-      const url = pg.url();
-      if (
-        url.includes("tradovate") ||
-        url.includes("auth") ||
-        url.includes("oauth")
-      ) {
-        tradovatePage = pg;
-        break;
-      }
-    }
+    console.log("[Automation] Waiting for Tradovate OAuth popup...");
+    const tradovatePage = await popupPromise;
 
     if (tradovatePage) {
-      // Handle popup window
-      console.log("[Automation] Found Tradovate popup window");
-      await handleTradovateLogin(tradovatePage, username, password);
-    } else {
-      // Check for iframe or inline form on the same page
-      const hasLoginForm = await p.evaluate(() => {
-        // Look for username/email + password fields that appeared after clicking Add
-        const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="password"]');
-        let hasUser = false;
-        let hasPass = false;
-        for (const input of inputs) {
-          const placeholder = (input.placeholder || "").toLowerCase();
-          const name = (input.name || "").toLowerCase();
-          const id = (input.id || "").toLowerCase();
-          const label = placeholder + name + id;
-          if (label.includes("user") || label.includes("email") || label.includes("login")) hasUser = true;
-          if (input.type === "password") hasPass = true;
+      console.log(`[Automation] Tradovate popup opened: ${tradovatePage.url()}`);
+
+      // Wait for the login form to load (MUI React app)
+      await tradovatePage.waitForSelector("#name-input", { timeout: 15000 });
+      await sleep(1000);
+
+      // Clear any pre-filled values and type username
+      // Tradovate uses MUI: #name-input (Username), #password-input (Password)
+      console.log(`[Automation] Filling Tradovate credentials for: ${username}`);
+
+      await tradovatePage.click("#name-input", { clickCount: 3 });
+      await tradovatePage.type("#name-input", username, { delay: 50 });
+
+      await tradovatePage.click("#password-input", { clickCount: 3 });
+      await tradovatePage.type("#password-input", password, { delay: 50 });
+
+      await sleep(500);
+
+      // Click the Login button (it's a button[type="button"] with text "Login")
+      await tradovatePage.evaluate(() => {
+        const buttons = document.querySelectorAll("button");
+        for (const btn of buttons) {
+          if (btn.textContent.trim() === "Login") {
+            btn.click();
+            return true;
+          }
         }
-        return hasUser && hasPass;
+        return false;
       });
 
-      if (hasLoginForm) {
-        console.log("[Automation] Found inline Tradovate login form");
-        await handleTradovateLogin(p, username, password);
-      } else {
-        // Try waiting for an iframe
-        try {
-          await p.waitForSelector("iframe", { timeout: 5000 });
-          const frames = p.frames();
-          for (const frame of frames) {
-            const url = frame.url();
-            if (url.includes("tradovate") || url.includes("auth")) {
-              console.log("[Automation] Found Tradovate iframe");
-              await handleTradovateLoginInFrame(frame, username, password);
-              break;
-            }
-          }
-        } catch {
-          console.log(
-            "[Automation] No Tradovate login popup detected — may already be authorized"
-          );
-        }
+      console.log("[Automation] Tradovate credentials submitted, waiting for redirect...");
+
+      // Wait for the popup to redirect back to trade-copier.com or close
+      try {
+        await tradovatePage.waitForNavigation({ timeout: 20000, waitUntil: "networkidle2" });
+        console.log(`[Automation] Tradovate redirected to: ${tradovatePage.url()}`);
+      } catch (err) {
+        console.log("[Automation] Tradovate popup navigation timeout — may have closed");
       }
+
+      // Close the popup if it's still open
+      try {
+        if (!tradovatePage.isClosed()) {
+          await tradovatePage.close();
+        }
+      } catch { /* ignore */ }
+    } else {
+      console.log("[Automation] No Tradovate popup detected — may already be authorized");
     }
 
-    // Wait for redirect back to cockpit
+    // Wait and reload cockpit
     await sleep(3000);
     if (!p.url().includes("/cockpit")) {
-      await p.goto(COCKPIT_URL, {
-        waitUntil: "networkidle2",
-        timeout: 30000,
-      });
+      await p.goto(COCKPIT_URL, { waitUntil: "networkidle2", timeout: 30000 });
     }
+  } else {
+    // Non-Tradovate: just click Add normally
+    await p.evaluate(() => {
+      const form = document.getElementById("add-slave-form");
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.click();
+    });
+    await sleep(3000);
   }
 
   await sleep(2000);
@@ -397,148 +401,6 @@ async function addSlaveAccount(accountData) {
       template: templateValue ? templateValue.text : null,
       note: "Account not visible yet — may need Tradovate OAuth authorization",
     };
-  }
-}
-
-/**
- * Handle Tradovate login on a page or popup
- */
-async function handleTradovateLogin(targetPage, username, password) {
-  try {
-    // Wait for login form fields
-    await targetPage.waitForSelector(
-      'input[type="text"], input[type="email"], input[name="username"]',
-      { timeout: 10000 }
-    );
-
-    // Find and fill username
-    await targetPage.evaluate((user) => {
-      const inputs = document.querySelectorAll(
-        'input[type="text"], input[type="email"]'
-      );
-      for (const input of inputs) {
-        const placeholder = (input.placeholder || "").toLowerCase();
-        const name = (input.name || "").toLowerCase();
-        const id = (input.id || "").toLowerCase();
-        if (
-          placeholder.includes("user") ||
-          placeholder.includes("email") ||
-          placeholder.includes("login") ||
-          name.includes("user") ||
-          name.includes("email") ||
-          id.includes("user") ||
-          id.includes("email")
-        ) {
-          input.focus();
-          const setter = Object.getOwnPropertyDescriptor(
-            window.HTMLInputElement.prototype,
-            "value"
-          ).set;
-          setter.call(input, user);
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          input.dispatchEvent(new Event("change", { bubbles: true }));
-          return;
-        }
-      }
-      // Fallback: just use the first text input
-      if (inputs.length > 0) {
-        inputs[0].focus();
-        const setter = Object.getOwnPropertyDescriptor(
-          window.HTMLInputElement.prototype,
-          "value"
-        ).set;
-        setter.call(inputs[0], user);
-        inputs[0].dispatchEvent(new Event("input", { bubbles: true }));
-        inputs[0].dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    }, username);
-
-    await sleep(300);
-
-    // Fill password
-    await targetPage.evaluate((pass) => {
-      const input = document.querySelector('input[type="password"]');
-      if (input) {
-        input.focus();
-        const setter = Object.getOwnPropertyDescriptor(
-          window.HTMLInputElement.prototype,
-          "value"
-        ).set;
-        setter.call(input, pass);
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    }, password);
-
-    await sleep(300);
-
-    // Click login button
-    await targetPage.evaluate(() => {
-      const buttons = document.querySelectorAll(
-        'button[type="submit"], button, input[type="submit"]'
-      );
-      for (const btn of buttons) {
-        const text = (btn.textContent || btn.value || "").toLowerCase();
-        if (
-          text.includes("login") ||
-          text.includes("sign in") ||
-          text.includes("submit") ||
-          text.includes("connect")
-        ) {
-          btn.click();
-          return true;
-        }
-      }
-      // Fallback: click the first submit button
-      const submit = document.querySelector('button[type="submit"]');
-      if (submit) submit.click();
-      return false;
-    });
-
-    console.log("[Automation] Tradovate credentials submitted");
-    await sleep(3000);
-  } catch (err) {
-    console.error("[Automation] Error during Tradovate login:", err.message);
-  }
-}
-
-/**
- * Handle Tradovate login in an iframe
- */
-async function handleTradovateLoginInFrame(frame, username, password) {
-  try {
-    await frame.waitForSelector(
-      'input[type="text"], input[type="email"]',
-      { timeout: 10000 }
-    );
-
-    const usernameInput = await frame.$(
-      'input[type="text"], input[type="email"]'
-    );
-    const passwordInput = await frame.$('input[type="password"]');
-
-    if (usernameInput) {
-      await usernameInput.click({ clickCount: 3 });
-      await usernameInput.type(username, { delay: 50 });
-    }
-
-    if (passwordInput) {
-      await passwordInput.click({ clickCount: 3 });
-      await passwordInput.type(password, { delay: 50 });
-    }
-
-    const loginBtn = await frame.$(
-      'button[type="submit"], button:has-text("Login"), button:has-text("Sign")'
-    );
-    if (loginBtn) await loginBtn.click();
-
-    console.log("[Automation] Tradovate credentials submitted via iframe");
-    await sleep(3000);
-  } catch (err) {
-    console.error(
-      "[Automation] Error during Tradovate iframe login:",
-      err.message
-    );
   }
 }
 
