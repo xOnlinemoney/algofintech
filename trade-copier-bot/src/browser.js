@@ -295,22 +295,13 @@ async function addSlaveAccount(accountData) {
 
   await sleep(1000);
 
-  // ─── Step 6: Click "Add" button — for Tradovate, this opens an OAuth popup ───
-  // Use Puppeteer's page.click() on the actual button, not evaluate()
-  console.log("[Automation] Clicking Add submit button...");
-
-  // Find and log the Add button to confirm it exists
-  const addBtnExists = await p.evaluate(() => {
-    const form = document.getElementById("add-slave-form");
-    if (!form) return "NO FORM FOUND";
-    const btn = form.querySelector('button[type="submit"]');
-    if (!btn) return "NO SUBMIT BUTTON IN FORM";
-    return `Found: "${btn.textContent.trim()}" at ${btn.offsetWidth}x${btn.offsetHeight}`;
-  });
-  console.log(`[Automation] Add button check: ${addBtnExists}`);
+  // ─── Step 6: Press Tab 4 times to focus Add button, then Enter to submit ───
+  // Direct click on the Add button doesn't work with Duplikium's framework.
+  // Keyboard navigation: Tab x4 from last field highlights Add, then Enter submits.
+  console.log("[Automation] Using keyboard navigation to submit: Tab x4 then Enter...");
 
   if (isTradovate && username && password) {
-    // For Tradovate: Set up popup listener BEFORE clicking Add
+    // For Tradovate: Set up popup listener BEFORE pressing Enter on Add
     // The Add button opens a popup to trader.tradovate.com for OAuth login
     console.log("[Automation] Setting up Tradovate popup listener...");
 
@@ -325,9 +316,14 @@ async function addSlaveAccount(accountData) {
       setTimeout(() => resolve(null), 15000);
     });
 
-    // Click the Add button using Puppeteer's native click (not evaluate)
-    await p.click('#add-slave-form button[type="submit"]');
-    console.log("[Automation] Add button clicked via page.click()");
+    // Tab 4 times to reach the Add button, then Enter to click it
+    for (let i = 0; i < 4; i++) {
+      await p.keyboard.press("Tab");
+      await sleep(200);
+    }
+    console.log("[Automation] Tabbed 4 times, pressing Enter to submit...");
+    await p.keyboard.press("Enter");
+    console.log("[Automation] Enter pressed — Add button submitted");
 
     console.log("[Automation] Waiting for Tradovate OAuth popup...");
     const tradovatePage = await popupPromise;
@@ -389,9 +385,13 @@ async function addSlaveAccount(accountData) {
       await p.goto(COCKPIT_URL, { waitUntil: "networkidle2", timeout: 30000 });
     }
   } else {
-    // Non-Tradovate: just click Add normally
-    await p.click('#add-slave-form button[type="submit"]');
-    console.log("[Automation] Add button clicked (non-Tradovate)");
+    // Non-Tradovate: Tab x4 + Enter to submit
+    for (let i = 0; i < 4; i++) {
+      await p.keyboard.press("Tab");
+      await sleep(200);
+    }
+    await p.keyboard.press("Enter");
+    console.log("[Automation] Add button submitted via Tab+Enter (non-Tradovate)");
     await sleep(3000);
   }
 
