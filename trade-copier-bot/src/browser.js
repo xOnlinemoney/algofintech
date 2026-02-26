@@ -78,14 +78,14 @@ async function ensureLoggedIn() {
       );
     }
 
-    // Fill login form
-    await p.waitForSelector('input[type="email"], input[name="email"]', {
+    // Fill login form — Duplikium uses input#login-username (type="text") and input#login-password
+    await p.waitForSelector('#login-username, input[name="login-username"]', {
       timeout: 10000,
     });
-    await p.type('input[type="email"], input[name="email"]', email, {
+    await p.type('#login-username, input[name="login-username"]', email, {
       delay: 50,
     });
-    await p.type('input[type="password"], input[name="password"]', password, {
+    await p.type('#login-password, input[name="login-password"]', password, {
       delay: 50,
     });
 
