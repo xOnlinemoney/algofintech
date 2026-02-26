@@ -295,9 +295,12 @@ async function addSlaveAccount(accountData) {
 
   await sleep(1000);
 
-  // ─── Step 6: Click "Add" button on the popup form ───
-  // Try multiple methods to ensure the Add button gets clicked
-  console.log("[Automation] Attempting to click Add button...");
+  // ─── Step 6: Click "Add" button ───
+  // The Add button is NOT inside #add-slave-form — it's inside #modal-slave-add
+  // Exact selector: #modal-slave-add > div > div > div > div.block-content.block-content-full.text-end.border-top > button
+  // Class: .add-account-button-slave
+  const ADD_BTN_SELECTOR = "button.add-account-button-slave";
+  console.log("[Automation] Clicking Add button (button.add-account-button-slave)...");
 
   if (isTradovate && username && password) {
     // For Tradovate: Set up popup listener BEFORE clicking Add
@@ -314,67 +317,10 @@ async function addSlaveAccount(accountData) {
       setTimeout(() => resolve(null), 15000);
     });
 
-    // Try multiple methods to click the Add button
-    const clicked = await p.evaluate(() => {
-      // Method 1: Find submit button in the form
-      const form = document.getElementById("add-slave-form");
-      if (form) {
-        const btn = form.querySelector('button[type="submit"]');
-        if (btn) {
-          // Scroll button into view
-          btn.scrollIntoView({ block: "center" });
-          btn.focus();
-          btn.click();
-          return `method1: clicked button "${btn.textContent.trim()}"`;
-        }
-      }
-      // Method 2: Find any button with text "Add" inside a modal/dialog
-      const allButtons = document.querySelectorAll(".modal button, .modal-dialog button, .block-content button");
-      for (const btn of allButtons) {
-        const txt = btn.textContent.trim().toLowerCase();
-        if (txt === "add" || txt === "add slave") {
-          btn.scrollIntoView({ block: "center" });
-          btn.focus();
-          btn.click();
-          return `method2: clicked "${btn.textContent.trim()}"`;
-        }
-      }
-      // Method 3: Find ALL buttons on page with text "Add"
-      const everyBtn = document.querySelectorAll("button");
-      for (const btn of everyBtn) {
-        if (btn.textContent.trim() === "Add") {
-          btn.scrollIntoView({ block: "center" });
-          btn.focus();
-          btn.click();
-          return `method3: clicked global Add button`;
-        }
-      }
-      return "none: no Add button found";
-    });
-    console.log(`[Automation] Click result: ${clicked}`);
-
-    // Also try Puppeteer native click as backup
-    try {
-      const addBtn = await p.$('#add-slave-form button[type="submit"]');
-      if (addBtn) {
-        await addBtn.click();
-        console.log("[Automation] Also clicked via Puppeteer native click");
-      }
-    } catch (e) {
-      console.log(`[Automation] Puppeteer native click failed: ${e.message}`);
-    }
-
-    // Final backup: focus the button and press Enter
-    await p.evaluate(() => {
-      const form = document.getElementById("add-slave-form");
-      if (form) {
-        const btn = form.querySelector('button[type="submit"]');
-        if (btn) btn.focus();
-      }
-    });
-    await sleep(300);
-    await p.keyboard.press("Enter");
-    console.log("[Automation] Also pressed Enter on focused Add button");
+    // Click the actual Add button using its correct selector
+    await p.waitForSelector(ADD_BTN_SELECTOR, { visible: true, timeout: 5000 });
+    await p.click(ADD_BTN_SELECTOR);
+    console.log("[Automation] Add button clicked!");
 
     console.log("[Automation] Waiting for Tradovate OAuth popup...");
     const tradovatePage = await popupPromise;
@@ -436,17 +382,10 @@ async function addSlaveAccount(accountData) {
       await p.goto(COCKPIT_URL, { waitUntil: "networkidle2", timeout: 30000 });
     }
   } else {
-    // Non-Tradovate: click Add button with same multi-method approach
-    await p.evaluate(() => {
-      const form = document.getElementById("add-slave-form");
-      if (form) {
-        const btn = form.querySelector('button[type="submit"]');
-        if (btn) { btn.scrollIntoView({ block: "center" }); btn.focus(); btn.click(); }
-      }
-    });
-    await sleep(300);
-    await p.keyboard.press("Enter");
-    console.log("[Automation] Add button submitted (non-Tradovate)");
+    // Non-Tradovate: click Add button with correct selector
+    await p.waitForSelector(ADD_BTN_SELECTOR, { visible: true, timeout: 5000 });
+    await p.click(ADD_BTN_SELECTOR);
+    console.log("[Automation] Add button clicked (non-Tradovate)");
     await sleep(3000);
   }
 
