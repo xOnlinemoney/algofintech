@@ -23,8 +23,10 @@ let processing = false;
  */
 app.message(async ({ message, client }) => {
   try {
-    // Skip bot messages we've already processed, edits, deletions
-    if (message.subtype || processedMessages.has(message.ts)) return;
+    // Skip edits, deletions, etc. — but ALLOW bot_message (webhook notifications)
+    const skipSubtypes = ["message_changed", "message_deleted", "channel_join", "channel_leave"];
+    if (message.subtype && skipSubtypes.includes(message.subtype)) return;
+    if (processedMessages.has(message.ts)) return;
 
     // Only listen to the configured channel
     if (process.env.SLACK_CHANNEL_ID && message.channel !== process.env.SLACK_CHANNEL_ID) {
