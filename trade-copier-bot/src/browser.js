@@ -344,17 +344,30 @@ async function addSlaveAccount(accountData) {
 
       await sleep(500);
 
-      // Click the Login button (it's a button[type="button"] with text "Login")
-      await tradovatePage.evaluate(() => {
+      // Click the Login button using coordinates (evaluate click doesn't work)
+      // Find the Login button's position and click it with mouse
+      console.log("[Automation] Clicking Tradovate Login button...");
+      const loginBtnBox = await tradovatePage.evaluate(() => {
         const buttons = document.querySelectorAll("button");
         for (const btn of buttons) {
           if (btn.textContent.trim() === "Login") {
-            btn.click();
-            return true;
+            const rect = btn.getBoundingClientRect();
+            return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, text: btn.textContent.trim() };
           }
         }
-        return false;
+        return null;
       });
+
+      if (loginBtnBox) {
+        console.log(`[Automation] Found Login button at (${loginBtnBox.x}, ${loginBtnBox.y})`);
+        await tradovatePage.mouse.click(loginBtnBox.x, loginBtnBox.y);
+        console.log("[Automation] Clicked Login via mouse coordinates");
+      }
+
+      // Backup: also press Enter in case mouse click didn't work
+      await sleep(300);
+      await tradovatePage.keyboard.press("Enter");
+      console.log("[Automation] Also pressed Enter as backup");
 
       console.log("[Automation] Tradovate credentials submitted, waiting for redirect...");
 
