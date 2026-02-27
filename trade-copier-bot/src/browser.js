@@ -429,7 +429,126 @@ async function addSlaveAccount(accountData) {
 
   await sleep(2000);
 
-  // ─── Step 9: Verify account was added ───
+  // ─── Step 7: Handle template popup (appears after Tradovate OAuth redirect) ───
+  // Sometimes a popup appears with a "- No Template -" button (button.template-modal with template="null")
+  // If found, we need to select the same template used in the Add Slave form
+  console.log("[Automation] Checking for template popup...");
+  await sleep(2000);
+
+  const templatePopupFound = await p.evaluate(() => {
+    const btn = document.querySelector("button.template-modal");
+    if (btn && btn.offsetParent !== null) {
+      const templateAttr = btn.getAttribute("template");
+      const btnText = btn.textContent.trim();
+      return {
+        found: true,
+        text: btnText,
+        templateValue: templateAttr,
+        isNoTemplate: templateAttr === "null" || btnText.includes("No Template"),
+      };
+    }
+    return { found: false };
+  });
+
+  console.log(`[Automation] Template popup check: ${JSON.stringify(templatePopupFound)}`);
+
+  if (templatePopupFound.found && templatePopupFound.isNoTemplate && templateValue) {
+    console.log(`[Automation] Template popup shows "- No Template -" — setting to: ${templateValue.text}`);
+
+    // Click the "- No Template -" button to open template selector
+    await p.click("button.template-modal");
+    await sleep(1000);
+
+    // Look for a dropdown/modal/select to pick the template
+    // Try selecting from a dropdown or list that appears after clicking
+    const templateSet = await p.evaluate((tmplText) => {
+      // Method 1: Look for a select element in the popup/modal
+      const selects = document.querySelectorAll("select");
+      for (const sel of selects) {
+        for (const opt of sel.options) {
+          if (opt.text.toLowerCase().includes(tmplText.toLowerCase())) {
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+            return { method: "select", matched: opt.text };
+          }
+        }
+      }
+
+      // Method 2: Look for clickable list items or buttons with template names
+      const listItems = document.querySelectorAll("a, button, li, .dropdown-item, .template-item");
+      for (const item of listItems) {
+        if (item.textContent.toLowerCase().includes(tmplText.toLowerCase())) {
+          item.click();
+          return { method: "click", matched: item.textContent.trim() };
+        }
+      }
+
+      return null;
+    }, templateValue.text);
+
+    if (templateSet) {
+      console.log(`[Automation] Template set via ${templateSet.method}: ${templateSet.matched}`);
+    } else {
+      console.log("[Automation] WARNING: Could not find template in popup — trying by template value...");
+
+      // Fallback: try setting by the template value we used earlier
+      const fallbackSet = await p.evaluate((tmplVal, tmplText) => {
+        // Look for any element that could be a template selector
+        const allBtns = document.querySelectorAll("button, a, .dropdown-item");
+        for (const btn of allBtns) {
+          const text = btn.textContent.trim().toLowerCase();
+          const tmplSearch = tmplText.toLowerCase();
+          if (text.includes(tmplSearch) || (btn.getAttribute("template") && btn.getAttribute("template") !== "null")) {
+            btn.click();
+            return { matched: btn.textContent.trim() };
+          }
+        }
+        return null;
+      }, templateValue.value, templateValue.text);
+
+      if (fallbackSet) {
+        console.log(`[Automation] Template set via fallback: ${fallbackSet.matched}`);
+      } else {
+        console.log("[Automation] WARNING: Could not set template in popup");
+      }
+    }
+
+    await sleep(1000);
+
+    // Close the popup if there's a close/save button
+    const closedPopup = await p.evaluate(() => {
+      // Look for save/confirm/close buttons in any visible modal
+      const buttons = document.querySelectorAll("button");
+      for (const btn of buttons) {
+        const text = btn.textContent.trim().toLowerCase();
+        if (text === "save" || text === "ok" || text === "confirm" || text === "close" || text === "done" || text === "apply") {
+          // Make sure this button is visible and in a modal context
+          if (btn.offsetParent !== null) {
+            btn.click();
+            return { clicked: text };
+          }
+        }
+      }
+      // Try clicking a modal close button (X)
+      const closeBtn = document.querySelector(".btn-close, .close, [data-bs-dismiss='modal'], [data-dismiss='modal']");
+      if (closeBtn && closeBtn.offsetParent !== null) {
+        closeBtn.click();
+        return { clicked: "close-x" };
+      }
+      return null;
+    });
+
+    if (closedPopup) {
+      console.log(`[Automation] Closed template popup via: ${closedPopup.clicked}`);
+    }
+    await sleep(1000);
+  } else if (templatePopupFound.found && !templatePopupFound.isNoTemplate) {
+    console.log("[Automation] Template popup found but already has a template set — no action needed");
+  } else {
+    console.log("[Automation] No template popup detected — continuing");
+  }
+
+  // ─── Step 8: Verify account was added ───
   console.log("[Automation] Verifying account was added...");
 
   // Reload cockpit to get fresh state
