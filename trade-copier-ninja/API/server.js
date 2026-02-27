@@ -241,6 +241,80 @@ app.post("/api/sync-accounts", async (req, res) => {
   }
 });
 
+// ─── GET /api/check-changes ─────────────────────────────
+// Lightweight endpoint for NinjaTrader to detect dashboard changes.
+// Returns hasChanges:true if any copier_accounts.updated_at > ?since
+app.get("/api/check-changes", async (req, res) => {
+  try {
+    const since = req.query.since;
+    if (!since) {
+      return res.status(400).json({ error: "Missing ?since parameter" });
+    }
+
+    // Find accounts updated after the given timestamp
+    const { data, error } = await supabase
+      .from("copier_accounts")
+      .select("*")
+      .gt("updated_at", since)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    const hasChanges = data && data.length > 0;
+    const latestChange = hasChanges ? data[0].updated_at : since;
+
+    res.json({
+      hasChanges,
+      latestChange,
+      accounts: hasChanges ? data : [],
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET /api/client-names ───────────────────────────────
+// Given a list of account numbers, return the client name for each.
+// NinjaTrader calls this to populate the Client Name column.
+// Query: ?accounts=APEX123,APEX456,BSKE789
+app.get("/api/client-names", async (req, res) => {
+  try {
+    const accountsParam = req.query.accounts;
+    if (!accountsParam) {
+      return res.status(400).json({ error: "Missing ?accounts parameter" });
+    }
+
+    const accountNumbers = accountsParam.split(",").map((a) => a.trim());
+
+    // Join client_accounts + clients to get names
+    const { data, error } = await supabase
+      .from("client_accounts")
+      .select("account_number, clients(name, client_id)")
+      .in("account_number", accountNumbers);
+
+    if (error) {
+      console.error("[API] client-names error:", error.message);
+      return res.status(500).json({ error: error.message });
+    }
+
+    // Build a map: account_number -> client_name
+    const result = {};
+    if (data) {
+      for (const row of data) {
+        const clientName =
+          row.clients && row.clients.name ? row.clients.name : "";
+        result[row.account_number] = clientName;
+      }
+    }
+
+    res.json({ clients: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Health check ────────────────────────────────────────
 app.get("/health", (req, res) => {
   res.json({ status: "ok", uptime: process.uptime() });

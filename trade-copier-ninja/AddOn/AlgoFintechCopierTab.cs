@@ -47,9 +47,15 @@ namespace NinjaTrader.Gui.NinjaScript
         // Track orders we've already copied to avoid duplicates
         private readonly HashSet<string> processedExecutionIds = new HashSet<string>();
 
-        // ─── Dashboard Polling (bidirectional sync) ────────────
-        private System.Threading.Timer pollTimer;
-        private bool isPollingSyncing = false;
+        // ─── Bidirectional Sync ────────────────────────────────
+        private System.Threading.Timer changeCheckTimer;
+        private System.Threading.Timer liveDataTimer;
+        private bool isSyncing = false;
+        private string lastKnownChangeTime = "";
+        private bool suppressLocalPush = false;
+
+        // ─── Client Name Cache ─────────────────────────────────
+        private Dictionary<string, string> clientNameCache = new Dictionary<string, string>();
 
         // ─── UI Controls ─────────────────────────────────────────
         private ComboBox     cboMasterAccount;
@@ -63,7 +69,6 @@ namespace NinjaTrader.Gui.NinjaScript
         // ─── Constructor ─────────────────────────────────────────
         public AlgoFintechCopierTab()
         {
-            // Ensure config directory exists
             if (!Directory.Exists(ConfigDir))
                 Directory.CreateDirectory(ConfigDir);
 
@@ -113,11 +118,9 @@ namespace NinjaTrader.Gui.NinjaScript
             var cfg = new CopierConfig();
             try
             {
-                // Parse MasterAccountName
                 cfg.MasterAccountName = ExtractStringValue(json, "MasterAccountName") ?? "";
                 cfg.ApiBaseUrl = ExtractStringValue(json, "ApiBaseUrl") ?? "http://localhost:3002";
 
-                // Parse SlaveAccounts array
                 int arrStart = json.IndexOf("\"SlaveAccounts\"");
                 if (arrStart >= 0)
                 {
@@ -126,7 +129,6 @@ namespace NinjaTrader.Gui.NinjaScript
                     if (bracketStart >= 0 && bracketEnd > bracketStart)
                     {
                         string arrContent = json.Substring(bracketStart + 1, bracketEnd - bracketStart - 1);
-                        // Split by "}" to find each object
                         int searchFrom = 0;
                         while (true)
                         {
@@ -198,6 +200,25 @@ namespace NinjaTrader.Gui.NinjaScript
             }
             int result;
             return int.TryParse(numStr, out result) ? result : defaultVal;
+        }
+
+        private static double ExtractDoubleValue(string json, string key, double defaultVal)
+        {
+            string search = "\"" + key + "\"";
+            int idx = json.IndexOf(search);
+            if (idx < 0) return defaultVal;
+            int colonIdx = json.IndexOf(':', idx + search.Length);
+            if (colonIdx < 0) return defaultVal;
+            string rest = json.Substring(colonIdx + 1).TrimStart();
+            string numStr = "";
+            foreach (char c in rest)
+            {
+                if (char.IsDigit(c) || c == '-' || c == '.') numStr += c;
+                else if (numStr.Length > 0) break;
+            }
+            double result;
+            return double.TryParse(numStr, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out result) ? result : defaultVal;
         }
 
         private static string SerializeTradeEvent(TradeEvent te)
@@ -283,17 +304,19 @@ namespace NinjaTrader.Gui.NinjaScript
         }
 
         // ═══════════════════════════════════════════════════════════
-        // UI CONSTRUCTION (all in C#, no XAML needed)
+        // UI CONSTRUCTION
+        // Matches NinjaTrader Account Performance layout:
+        //   Active | Account | Client Name | Size | Pos | Unrealized |
+        //   Realized | Net Liquidation | Qty | Total PNL | Status
         // ═══════════════════════════════════════════════════════════
 
         private void BuildUI()
         {
-            // Main layout
             Grid mainGrid = new Grid();
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // Header
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // Controls
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Slave accounts grid
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(200) }); // Log
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Account grid
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(180) }); // Log
 
             // ── Row 0: Header ──
             TextBlock header = new TextBlock
@@ -314,7 +337,6 @@ namespace NinjaTrader.Gui.NinjaScript
                 Margin      = new Thickness(10, 5, 10, 5)
             };
 
-            // Master Account label + combo
             controls.Children.Add(new TextBlock
             {
                 Text              = "Master Account:",
@@ -376,58 +398,142 @@ namespace NinjaTrader.Gui.NinjaScript
             Grid.SetRow(controls, 1);
             mainGrid.Children.Add(controls);
 
-            // ── Row 2: Slave Accounts DataGrid ──
+            // ── Row 2: Accounts DataGrid (matches NinjaTrader style) ──
             dgSlaveAccounts = new DataGrid
             {
-                AutoGenerateColumns = false,
-                CanUserAddRows      = false,
-                Margin              = new Thickness(10, 5, 10, 5),
-                Background          = new SolidColorBrush(Color.FromRgb(30, 33, 40)),
-                Foreground          = Brushes.White,
-                RowBackground       = new SolidColorBrush(Color.FromRgb(30, 33, 40)),
-                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(38, 41, 50)),
-                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                HorizontalGridLinesBrush = new SolidColorBrush(Color.FromRgb(60, 63, 70))
+                AutoGenerateColumns      = false,
+                CanUserAddRows           = false,
+                Margin                   = new Thickness(10, 5, 10, 5),
+                Background               = new SolidColorBrush(Color.FromRgb(230, 235, 245)),
+                Foreground               = Brushes.Black,
+                RowBackground            = new SolidColorBrush(Color.FromRgb(245, 248, 255)),
+                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(230, 235, 248)),
+                GridLinesVisibility      = DataGridGridLinesVisibility.All,
+                HorizontalGridLinesBrush = new SolidColorBrush(Color.FromRgb(200, 205, 215)),
+                VerticalGridLinesBrush   = new SolidColorBrush(Color.FromRgb(200, 205, 215)),
+                HeadersVisibility        = DataGridHeadersVisibility.Column,
+                RowHeaderWidth           = 0,
+                BorderBrush              = new SolidColorBrush(Color.FromRgb(180, 185, 195)),
+                BorderThickness          = new Thickness(1),
+                FontSize                 = 12,
+                FontFamily               = new FontFamily("Segoe UI"),
+                SelectionMode            = DataGridSelectionMode.Single,
+                SelectionUnit            = DataGridSelectionUnit.FullRow
             };
 
-            // Columns
+            // Column style for header
+            var headerStyle = new Style(typeof(DataGridColumnHeader));
+            headerStyle.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(200, 210, 230))));
+            headerStyle.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.Black));
+            headerStyle.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.Bold));
+            headerStyle.Setters.Add(new Setter(Control.FontSizeProperty, 12.0));
+            headerStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(6, 4, 6, 4)));
+            headerStyle.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(180, 185, 195))));
+            headerStyle.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
+            dgSlaveAccounts.ColumnHeaderStyle = headerStyle;
+
+            // Cell style
+            var cellStyle = new Style(typeof(DataGridCell));
+            cellStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(6, 3, 6, 3)));
+            cellStyle.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(200, 205, 215))));
+            cellStyle.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 1, 0)));
+            dgSlaveAccounts.CellStyle = cellStyle;
+
+            // ─ Column: Active checkbox ─
             dgSlaveAccounts.Columns.Add(new DataGridCheckBoxColumn
             {
                 Header  = "Active",
                 Binding = new Binding("IsActive") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
-                Width   = 60
+                Width   = 50
             });
+
+            // ─ Column: Account Name ─
             dgSlaveAccounts.Columns.Add(new DataGridTextColumn
             {
-                Header  = "Account Name",
-                Binding = new Binding("AccountName"),
-                Width   = 200
-            });
-            dgSlaveAccounts.Columns.Add(new DataGridTextColumn
-            {
-                Header  = "Contracts",
-                Binding = new Binding("ContractSize") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
-                Width   = 80
-            });
-            dgSlaveAccounts.Columns.Add(new DataGridTextColumn
-            {
-                Header    = "Status",
-                Binding   = new Binding("Status"),
-                Width     = 100,
+                Header     = "Account",
+                Binding    = new Binding("AccountName"),
+                Width      = 220,
                 IsReadOnly = true
             });
+
+            // ─ Column: Client Name (from Supabase) ─
             dgSlaveAccounts.Columns.Add(new DataGridTextColumn
             {
-                Header    = "Last Trade",
-                Binding   = new Binding("LastTrade"),
-                Width     = 200,
+                Header     = "Client Name",
+                Binding    = new Binding("ClientName"),
+                Width      = 150,
                 IsReadOnly = true
             });
+
+            // ─ Column: Size (contract multiplier) ─
             dgSlaveAccounts.Columns.Add(new DataGridTextColumn
             {
-                Header    = "Trades Copied",
-                Binding   = new Binding("TradesCopied"),
-                Width     = 100,
+                Header  = "Size",
+                Binding = new Binding("ContractSizeDisplay"),
+                Width   = 50,
+                IsReadOnly = true
+            });
+
+            // ─ Column: Pos (current position) ─
+            dgSlaveAccounts.Columns.Add(new DataGridTextColumn
+            {
+                Header     = "Pos",
+                Binding    = new Binding("PositionDisplay"),
+                Width      = 50,
+                IsReadOnly = true
+            });
+
+            // ─ Column: Unrealized PnL ─
+            dgSlaveAccounts.Columns.Add(new DataGridTextColumn
+            {
+                Header     = "Unrealized",
+                Binding    = new Binding("UnrealizedDisplay"),
+                Width      = 100,
+                IsReadOnly = true
+            });
+
+            // ─ Column: Realized PnL ─
+            dgSlaveAccounts.Columns.Add(new DataGridTextColumn
+            {
+                Header     = "Realized",
+                Binding    = new Binding("RealizedDisplay"),
+                Width      = 100,
+                IsReadOnly = true
+            });
+
+            // ─ Column: Net Liquidation ─
+            dgSlaveAccounts.Columns.Add(new DataGridTextColumn
+            {
+                Header     = "Net Liquidation",
+                Binding    = new Binding("NetLiquidationDisplay"),
+                Width      = 120,
+                IsReadOnly = true
+            });
+
+            // ─ Column: Qty (trade count today) ─
+            dgSlaveAccounts.Columns.Add(new DataGridTextColumn
+            {
+                Header     = "Qty",
+                Binding    = new Binding("TradesCopied"),
+                Width      = 45,
+                IsReadOnly = true
+            });
+
+            // ─ Column: Total PNL ─
+            dgSlaveAccounts.Columns.Add(new DataGridTextColumn
+            {
+                Header     = "Total PNL",
+                Binding    = new Binding("TotalPnlDisplay"),
+                Width      = 100,
+                IsReadOnly = true
+            });
+
+            // ─ Column: Status ─
+            dgSlaveAccounts.Columns.Add(new DataGridTextColumn
+            {
+                Header     = "Status",
+                Binding    = new Binding("Status"),
+                Width      = 90,
                 IsReadOnly = true
             });
 
@@ -463,23 +569,63 @@ namespace NinjaTrader.Gui.NinjaScript
                 cboMasterAccount.Items.Clear();
                 var slaveList = new ObservableCollection<SlaveAccountInfo>();
 
-                // Account.All gives us ALL connected accounts in NinjaTrader
                 foreach (Account acct in Account.All)
                 {
-                    // Add to master dropdown
                     cboMasterAccount.Items.Add(acct.Name);
 
-                    // Add to slave grid (user will pick which is master vs slave)
                     var existing = config.SlaveAccounts.FirstOrDefault(s => s.AccountName == acct.Name);
+
+                    // Read live account data from NinjaTrader
+                    double unrealized    = 0;
+                    double realized      = 0;
+                    double netLiq        = 0;
+                    double totalPnl      = 0;
+
+                    try
+                    {
+                        unrealized = acct.Get(AccountItem.UnrealizedProfitLoss, Currency.UsDollar);
+                        realized   = acct.Get(AccountItem.RealizedProfitLoss, Currency.UsDollar);
+                        netLiq     = acct.Get(AccountItem.NetLiquidation, Currency.UsDollar);
+                        totalPnl   = unrealized + realized;
+                    }
+                    catch { }
+
+                    // Get position info
+                    int posQty = 0;
+                    try
+                    {
+                        foreach (Position pos in acct.Positions)
+                        {
+                            posQty += pos.Quantity;
+                        }
+                    }
+                    catch { }
+
+                    string clientName = "";
+                    if (clientNameCache.ContainsKey(acct.Name))
+                        clientName = clientNameCache[acct.Name];
+
                     slaveList.Add(new SlaveAccountInfo
                     {
-                        AccountName  = acct.Name,
-                        IsActive     = existing != null ? existing.IsActive : false,
-                        ContractSize = existing != null ? existing.ContractSize : 1,
-                        Status       = acct.Connection != null ? acct.Connection.Status.ToString() : "Unknown",
-                        LastTrade    = existing != null ? (existing.LastTrade ?? "") : "",
-                        TradesCopied = existing != null ? existing.TradesCopied : 0
+                        AccountName    = acct.Name,
+                        IsActive       = existing != null ? existing.IsActive : false,
+                        ContractSize   = existing != null ? existing.ContractSize : 1,
+                        Status         = acct.Connection != null ? acct.Connection.Status.ToString() : "Unknown",
+                        LastTrade      = existing != null ? (existing.LastTrade ?? "") : "",
+                        TradesCopied   = existing != null ? existing.TradesCopied : 0,
+                        ClientName     = clientName,
+                        Unrealized     = unrealized,
+                        Realized       = realized,
+                        NetLiquidation = netLiq,
+                        TotalPnl       = totalPnl,
+                        Position       = posQty
                     });
+                }
+
+                // Subscribe to property changes on each slave for instant push
+                foreach (var slave in slaveList)
+                {
+                    slave.PropertyChanged += OnSlavePropertyChanged;
                 }
 
                 dgSlaveAccounts.ItemsSource = slaveList;
@@ -492,11 +638,190 @@ namespace NinjaTrader.Gui.NinjaScript
                 }
 
                 Log("Found " + Account.All.Count + " connected accounts");
+
+                // Fetch client names from API in background
+                Task.Run(() => FetchClientNames());
             }
             catch (Exception ex)
             {
                 Log("Error refreshing accounts: " + ex.Message);
             }
+        }
+
+        // ─── Fetch client names from Supabase via API ─────────────
+        private async Task FetchClientNames()
+        {
+            try
+            {
+                // Collect all account names
+                var accountNames = new List<string>();
+                Dispatcher.Invoke(() =>
+                {
+                    var slaveList = dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo>;
+                    if (slaveList != null)
+                    {
+                        foreach (var s in slaveList)
+                            accountNames.Add(s.AccountName);
+                    }
+                });
+
+                if (accountNames.Count == 0) return;
+
+                string accountsParam = string.Join(",", accountNames);
+                string url = apiBaseUrl + "/api/client-names?accounts=" + System.Uri.EscapeDataString(accountsParam);
+
+                var res = await httpClient.GetAsync(url);
+                if (!res.IsSuccessStatusCode) return;
+
+                string responseJson = await res.Content.ReadAsStringAsync();
+
+                // Parse the clients map: {"clients":{"APEX123":"John Doe","APEX456":"Jane"}}
+                int clientsStart = responseJson.IndexOf("\"clients\"");
+                if (clientsStart < 0) return;
+                int objStart = responseJson.IndexOf('{', clientsStart + 9);
+                if (objStart < 0) return;
+
+                // Find the matching closing brace
+                int depth = 1;
+                int pos = objStart + 1;
+                while (pos < responseJson.Length && depth > 0)
+                {
+                    if (responseJson[pos] == '{') depth++;
+                    else if (responseJson[pos] == '}') depth--;
+                    pos++;
+                }
+                string clientsObj = responseJson.Substring(objStart, pos - objStart);
+
+                // Parse key-value pairs from the clients object
+                var newCache = new Dictionary<string, string>();
+                int searchFrom = 1;
+                while (searchFrom < clientsObj.Length)
+                {
+                    int keyStart = clientsObj.IndexOf('"', searchFrom);
+                    if (keyStart < 0) break;
+                    int keyEnd = clientsObj.IndexOf('"', keyStart + 1);
+                    if (keyEnd < 0) break;
+                    string key = clientsObj.Substring(keyStart + 1, keyEnd - keyStart - 1);
+
+                    int valStart = clientsObj.IndexOf('"', keyEnd + 1);
+                    if (valStart < 0) break;
+                    int valEnd = clientsObj.IndexOf('"', valStart + 1);
+                    if (valEnd < 0) break;
+                    string val = clientsObj.Substring(valStart + 1, valEnd - valStart - 1);
+
+                    newCache[key] = val;
+                    searchFrom = valEnd + 1;
+                }
+
+                clientNameCache = newCache;
+
+                // Update the UI with client names
+                Dispatcher.InvokeAsync(() =>
+                {
+                    var slaveList = dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo>;
+                    if (slaveList != null)
+                    {
+                        suppressLocalPush = true;
+                        foreach (var slave in slaveList)
+                        {
+                            if (clientNameCache.ContainsKey(slave.AccountName))
+                                slave.ClientName = clientNameCache[slave.AccountName];
+                        }
+                        suppressLocalPush = false;
+                    }
+                });
+
+                if (newCache.Count > 0)
+                    Log("[API] Loaded " + newCache.Count + " client names from Supabase");
+            }
+            catch (Exception ex)
+            {
+                Log("[API] Client names fetch failed: " + ex.Message);
+            }
+        }
+
+        // ─── Instant push when NT checkbox/contract changes ──────
+        private void OnSlavePropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (!isRunning) return;
+            if (suppressLocalPush) return;
+
+            if (e.PropertyName == "IsActive" || e.PropertyName == "ContractSize")
+            {
+                var slave = sender as SlaveAccountInfo;
+                if (slave != null)
+                {
+                    Log("[Push] " + slave.AccountName + " " + e.PropertyName + " changed -> syncing to dashboard");
+                }
+
+                var slaveList = dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo>;
+                if (slaveList != null)
+                {
+                    config.SlaveAccounts = slaveList.ToList();
+                    SaveConfig();
+                }
+                Task.Run(() => SyncAccountsToApi(true));
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // LIVE DATA REFRESH — Updates PnL, positions every 2s
+        // ═══════════════════════════════════════════════════════════
+
+        private void StartLiveDataTimer()
+        {
+            liveDataTimer = new System.Threading.Timer(
+                _ => RefreshLiveData(),
+                null,
+                TimeSpan.FromSeconds(2),
+                TimeSpan.FromSeconds(2)
+            );
+        }
+
+        private void StopLiveDataTimer()
+        {
+            if (liveDataTimer != null)
+            {
+                liveDataTimer.Dispose();
+                liveDataTimer = null;
+            }
+        }
+
+        private void RefreshLiveData()
+        {
+            try
+            {
+                Dispatcher.InvokeAsync(() =>
+                {
+                    var slaveList = dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo>;
+                    if (slaveList == null) return;
+
+                    suppressLocalPush = true;
+                    foreach (var slave in slaveList)
+                    {
+                        Account acct = Account.All.FirstOrDefault(a => a.Name == slave.AccountName);
+                        if (acct == null) continue;
+
+                        try
+                        {
+                            slave.Unrealized     = acct.Get(AccountItem.UnrealizedProfitLoss, Currency.UsDollar);
+                            slave.Realized       = acct.Get(AccountItem.RealizedProfitLoss, Currency.UsDollar);
+                            slave.NetLiquidation = acct.Get(AccountItem.NetLiquidation, Currency.UsDollar);
+                            slave.TotalPnl       = slave.Unrealized + slave.Realized;
+
+                            int posQty = 0;
+                            foreach (Position p in acct.Positions)
+                                posQty += p.Quantity;
+                            slave.Position = posQty;
+
+                            slave.Status = acct.Connection != null ? acct.Connection.Status.ToString() : "Unknown";
+                        }
+                        catch { }
+                    }
+                    suppressLocalPush = false;
+                });
+            }
+            catch { }
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -513,7 +838,6 @@ namespace NinjaTrader.Gui.NinjaScript
 
             string masterName = cboMasterAccount.SelectedItem.ToString();
 
-            // Save active slaves to config
             var slaveList = dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo>;
             if (slaveList != null)
             {
@@ -543,7 +867,6 @@ namespace NinjaTrader.Gui.NinjaScript
         {
             try
             {
-                // Find the master account object
                 masterAccount = Account.All.FirstOrDefault(a => a.Name == config.MasterAccountName);
                 if (masterAccount == null)
                 {
@@ -551,14 +874,12 @@ namespace NinjaTrader.Gui.NinjaScript
                     return;
                 }
 
-                // Subscribe to execution updates on the master account
                 masterAccount.ExecutionUpdate += OnMasterExecutionUpdate;
                 masterAccount.OrderUpdate     += OnMasterOrderUpdate;
 
                 isRunning = true;
                 processedExecutionIds.Clear();
 
-                // Update UI
                 btnStart.IsEnabled           = false;
                 btnStop.IsEnabled            = true;
                 cboMasterAccount.IsEnabled   = false;
@@ -572,11 +893,9 @@ namespace NinjaTrader.Gui.NinjaScript
                 Log("  Active Slaves: " + activeSlaves);
                 Log("  Listening for trades on master account...");
 
-                // Sync accounts to dashboard via API
                 Task.Run(() => SyncAccountsToApi(true));
-
-                // Start polling dashboard for remote changes
                 StartPolling();
+                StartLiveDataTimer();
             }
             catch (Exception ex)
             {
@@ -597,7 +916,6 @@ namespace NinjaTrader.Gui.NinjaScript
 
                 isRunning = false;
 
-                // Update UI on dispatcher thread
                 Dispatcher.InvokeAsync(() =>
                 {
                     btnStart.IsEnabled           = true;
@@ -608,12 +926,11 @@ namespace NinjaTrader.Gui.NinjaScript
                     lblStatus.Foreground         = Brushes.Gray;
                 });
 
-                // Stop polling dashboard
                 StopPolling();
+                StopLiveDataTimer();
 
                 Log("=== COPIER STOPPED ===");
 
-                // Sync disconnected state to dashboard
                 Task.Run(() => SyncAccountsToApi(false));
             }
             catch (Exception ex)
@@ -635,7 +952,6 @@ namespace NinjaTrader.Gui.NinjaScript
                 Execution exec  = e.Execution;
                 Order     order = exec.Order;
 
-                // Deduplicate — only process each execution once
                 string execId = exec.ExecutionId;
                 lock (lockObj)
                 {
@@ -643,7 +959,6 @@ namespace NinjaTrader.Gui.NinjaScript
                     processedExecutionIds.Add(execId);
                 }
 
-                // Extract trade details
                 string     instrument     = order.Instrument.FullName;
                 OrderAction action        = order.OrderAction;
                 int         masterQty     = exec.Quantity;
@@ -658,7 +973,6 @@ namespace NinjaTrader.Gui.NinjaScript
                 Log("  Price:      " + fillPrice);
                 Log("  Time:       " + fillTime.ToString("HH:mm:ss.fff"));
 
-                // Copy to each active slave
                 foreach (var slave in config.SlaveAccounts)
                 {
                     if (!slave.IsActive) continue;
@@ -667,7 +981,6 @@ namespace NinjaTrader.Gui.NinjaScript
                     CopyTradeToSlave(slave, order.Instrument, action, slave.ContractSize, instrument, fillPrice, fillTime);
                 }
 
-                // Log to API and sync updated account state (non-blocking)
                 Task.Run(async () =>
                 {
                     await LogTradeToApi(new TradeEvent
@@ -680,7 +993,6 @@ namespace NinjaTrader.Gui.NinjaScript
                         FillTime      = fillTime,
                         ExecutionId   = execId
                     });
-                    // Also sync account state so dashboard sees updated trade counts
                     await SyncAccountsToApi(true);
                 });
             }
@@ -692,7 +1004,6 @@ namespace NinjaTrader.Gui.NinjaScript
 
         private void OnMasterOrderUpdate(object sender, OrderEventArgs e)
         {
-            // Log order state changes for debugging
             if (!isRunning) return;
 
             if (e.OrderState == OrderState.Submitted ||
@@ -713,7 +1024,6 @@ namespace NinjaTrader.Gui.NinjaScript
         {
             try
             {
-                // Find the slave account object
                 Account slaveAcct = Account.All.FirstOrDefault(a => a.Name == slave.AccountName);
                 if (slaveAcct == null)
                 {
@@ -722,33 +1032,28 @@ namespace NinjaTrader.Gui.NinjaScript
                     return;
                 }
 
-                // Create a market order on the slave account
                 Order slaveOrder = slaveAcct.CreateOrder(
-                    instrument,          // Same instrument as master
-                    action,              // Buy/Sell — same direction as master
-                    OrderType.Market,    // Market order for immediate fill
+                    instrument,
+                    action,
+                    OrderType.Market,
                     OrderEntry.Automated,
                     TimeInForce.Day,
-                    quantity,            // Configurable per slave
-                    0,                   // limitPrice (not used for market)
-                    0,                   // stopPrice (not used for market)
-                    string.Empty,        // OCO id
-                    "Entry",             // MUST be "Entry" to avoid stuck orders
+                    quantity,
+                    0, 0,
+                    string.Empty,
+                    "Entry",
                     Core.Globals.MaxDate,
-                    null                 // custom order
+                    null
                 );
 
-                // Submit the order
                 slaveAcct.Submit(new[] { slaveOrder });
 
-                // Update slave tracking
                 slave.TradesCopied++;
                 slave.LastTrade = action + " " + quantity + "x " + instrumentName + " @ " + masterPrice.ToString("F2");
                 slave.Status    = "Active";
 
                 Log("  OK > " + slave.AccountName + ": " + action + " " + quantity + "x " + instrumentName + " (market order submitted)");
 
-                // Refresh the grid on UI thread
                 Dispatcher.InvokeAsync(() =>
                 {
                     dgSlaveAccounts.Items.Refresh();
@@ -762,7 +1067,7 @@ namespace NinjaTrader.Gui.NinjaScript
         }
 
         // ═══════════════════════════════════════════════════════════
-        // API LOGGING (optional — sends trade events to AlgoFintech)
+        // API LOGGING
         // ═══════════════════════════════════════════════════════════
 
         private static readonly HttpClient httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
@@ -778,13 +1083,9 @@ namespace NinjaTrader.Gui.NinjaScript
                 if (!res.IsSuccessStatusCode)
                     Log("  [API] Warning: " + res.StatusCode);
             }
-            catch
-            {
-                // API logging is optional — don't disrupt copying if API is down
-            }
+            catch { }
         }
 
-        // Sync account state to API -> Supabase -> Dashboard
         private async Task SyncAccountsToApi(bool running)
         {
             try
@@ -806,56 +1107,62 @@ namespace NinjaTrader.Gui.NinjaScript
         }
 
         // ═══════════════════════════════════════════════════════════
-        // DASHBOARD POLLING — pull changes from website back to NT
+        // WEBSITE -> NT: Check for dashboard changes
         // ═══════════════════════════════════════════════════════════
 
         private void StartPolling()
         {
-            // Poll every 10 seconds
-            pollTimer = new System.Threading.Timer(
-                _ => Task.Run(() => PollAccountStates()),
+            changeCheckTimer = new System.Threading.Timer(
+                _ => Task.Run(() => CheckForDashboardChanges()),
                 null,
-                TimeSpan.FromSeconds(5),   // first poll after 5s
-                TimeSpan.FromSeconds(10)   // then every 10s
+                TimeSpan.FromSeconds(3),
+                TimeSpan.FromSeconds(5)
             );
-            Log("[Sync] Dashboard polling started (every 10s)");
+            Log("[Sync] Listening for dashboard changes...");
         }
 
         private void StopPolling()
         {
-            if (pollTimer != null)
+            if (changeCheckTimer != null)
             {
-                pollTimer.Dispose();
-                pollTimer = null;
+                changeCheckTimer.Dispose();
+                changeCheckTimer = null;
             }
         }
 
-        private async Task PollAccountStates()
+        private async Task CheckForDashboardChanges()
         {
-            if (!isRunning || isPollingSyncing) return;
-            isPollingSyncing = true;
+            if (!isRunning || isSyncing) return;
+            isSyncing = true;
 
             try
             {
-                var res = await httpClient.GetAsync(apiBaseUrl + "/api/copier-accounts");
-                if (!res.IsSuccessStatusCode)
-                {
-                    isPollingSyncing = false;
-                    return;
-                }
+                string url = apiBaseUrl + "/api/check-changes";
+                if (!string.IsNullOrEmpty(lastKnownChangeTime))
+                    url = url + "?since=" + System.Uri.EscapeDataString(lastKnownChangeTime);
+                else
+                    url = url + "?since=" + System.Uri.EscapeDataString(DateTime.UtcNow.AddMinutes(-1).ToString("o"));
+
+                var res = await httpClient.GetAsync(url);
+                if (!res.IsSuccessStatusCode) { isSyncing = false; return; }
 
                 string responseJson = await res.Content.ReadAsStringAsync();
 
-                // Parse the "data" array from response: {"data":[...]}
-                int dataStart = responseJson.IndexOf("\"data\"");
-                if (dataStart < 0) { isPollingSyncing = false; return; }
+                bool hasChanges = ExtractBoolValue(responseJson, "hasChanges");
+                if (!hasChanges) { isSyncing = false; return; }
+
+                string newChangeTime = ExtractStringValue(responseJson, "latestChange");
+                if (!string.IsNullOrEmpty(newChangeTime))
+                    lastKnownChangeTime = newChangeTime;
+
+                int dataStart = responseJson.IndexOf("\"accounts\"");
+                if (dataStart < 0) { isSyncing = false; return; }
                 int arrStart = responseJson.IndexOf('[', dataStart);
                 int arrEnd = responseJson.LastIndexOf(']');
-                if (arrStart < 0 || arrEnd < 0) { isPollingSyncing = false; return; }
+                if (arrStart < 0 || arrEnd < 0) { isSyncing = false; return; }
 
                 string arrContent = responseJson.Substring(arrStart + 1, arrEnd - arrStart - 1);
 
-                // Parse each account object
                 var remoteAccounts = new List<RemoteAccountState>();
                 int searchFrom = 0;
                 while (true)
@@ -876,11 +1183,11 @@ namespace NinjaTrader.Gui.NinjaScript
                     searchFrom = objEnd + 1;
                 }
 
-                // Apply changes to local config
                 bool changed = false;
+                suppressLocalPush = true;
                 foreach (var remote in remoteAccounts)
                 {
-                    if (remote.IsMaster) continue; // skip master
+                    if (remote.IsMaster) continue;
                     if (string.IsNullOrEmpty(remote.AccountName)) continue;
 
                     var local = config.SlaveAccounts.FirstOrDefault(s => s.AccountName == remote.AccountName);
@@ -888,7 +1195,7 @@ namespace NinjaTrader.Gui.NinjaScript
                     {
                         if (local.IsActive != remote.IsActive)
                         {
-                            Log("[Sync] Dashboard changed " + remote.AccountName + " active: " + local.IsActive + " -> " + remote.IsActive);
+                            Log("[Sync] Dashboard toggled " + remote.AccountName + " active: " + local.IsActive + " -> " + remote.IsActive);
                             local.IsActive = remote.IsActive;
                             changed = true;
                         }
@@ -900,23 +1207,20 @@ namespace NinjaTrader.Gui.NinjaScript
                         }
                     }
                 }
+                suppressLocalPush = false;
 
                 if (changed)
                 {
                     SaveConfig();
-                    // Refresh the DataGrid on UI thread
                     Dispatcher.InvokeAsync(() =>
                     {
                         dgSlaveAccounts.Items.Refresh();
                     });
                 }
             }
-            catch
-            {
-                // Polling failure is non-critical
-            }
+            catch { }
 
-            isPollingSyncing = false;
+            isSyncing = false;
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -927,17 +1231,14 @@ namespace NinjaTrader.Gui.NinjaScript
         {
             string line = "[" + DateTime.Now.ToString("HH:mm:ss") + "] " + message;
 
-            // Write to file
             try
             {
                 File.AppendAllText(LogFile, line + Environment.NewLine);
             }
             catch { }
 
-            // Write to NinjaTrader output
             NinjaTrader.Code.Output.Process(line, PrintTo.OutputTab1);
 
-            // Write to UI log (must be on UI thread)
             Dispatcher.InvokeAsync(() =>
             {
                 if (txtLog != null)
@@ -957,13 +1258,12 @@ namespace NinjaTrader.Gui.NinjaScript
             return "AlgoFintech Copier";
         }
 
-        // Cleanup when tab is destroyed — use Cleanup instead of Dispose
         public void Cleanup()
         {
             StopPolling();
+            StopLiveDataTimer();
             StopCopier();
 
-            // Save final state
             var slaveList = dgSlaveAccounts != null ? dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo> : null;
             if (slaveList != null)
             {
@@ -972,7 +1272,6 @@ namespace NinjaTrader.Gui.NinjaScript
             }
         }
 
-        // Required NTTabPage overrides
         protected override string GetHeaderPart(string variable)
         {
             return "AlgoFintech Copier";
@@ -980,12 +1279,10 @@ namespace NinjaTrader.Gui.NinjaScript
 
         protected override void Restore(XElement element)
         {
-            // Restore state from workspace
         }
 
         protected override void Save(XElement element)
         {
-            // Save state to workspace — also use this to cleanup
             Cleanup();
         }
     }
@@ -1016,6 +1313,12 @@ namespace NinjaTrader.Gui.NinjaScript
         private string _status;
         private string _lastTrade;
         private int    _tradesCopied;
+        private string _clientName;
+        private double _unrealized;
+        private double _realized;
+        private double _netLiquidation;
+        private double _totalPnl;
+        private int    _position;
 
         public bool IsActive
         {
@@ -1032,7 +1335,12 @@ namespace NinjaTrader.Gui.NinjaScript
         public int ContractSize
         {
             get { return _contractSize; }
-            set { _contractSize = value; OnPropertyChanged("ContractSize"); }
+            set { _contractSize = value; OnPropertyChanged("ContractSize"); OnPropertyChanged("ContractSizeDisplay"); }
+        }
+
+        public string ContractSizeDisplay
+        {
+            get { return _contractSize + "x"; }
         }
 
         public string Status
@@ -1051,6 +1359,74 @@ namespace NinjaTrader.Gui.NinjaScript
         {
             get { return _tradesCopied; }
             set { _tradesCopied = value; OnPropertyChanged("TradesCopied"); }
+        }
+
+        public string ClientName
+        {
+            get { return _clientName ?? ""; }
+            set { _clientName = value; OnPropertyChanged("ClientName"); }
+        }
+
+        public double Unrealized
+        {
+            get { return _unrealized; }
+            set { _unrealized = value; OnPropertyChanged("Unrealized"); OnPropertyChanged("UnrealizedDisplay"); }
+        }
+
+        public string UnrealizedDisplay
+        {
+            get { return FormatCurrency(_unrealized); }
+        }
+
+        public double Realized
+        {
+            get { return _realized; }
+            set { _realized = value; OnPropertyChanged("Realized"); OnPropertyChanged("RealizedDisplay"); }
+        }
+
+        public string RealizedDisplay
+        {
+            get { return FormatCurrency(_realized); }
+        }
+
+        public double NetLiquidation
+        {
+            get { return _netLiquidation; }
+            set { _netLiquidation = value; OnPropertyChanged("NetLiquidation"); OnPropertyChanged("NetLiquidationDisplay"); }
+        }
+
+        public string NetLiquidationDisplay
+        {
+            get { return "$" + _netLiquidation.ToString("N2"); }
+        }
+
+        public double TotalPnl
+        {
+            get { return _totalPnl; }
+            set { _totalPnl = value; OnPropertyChanged("TotalPnl"); OnPropertyChanged("TotalPnlDisplay"); }
+        }
+
+        public string TotalPnlDisplay
+        {
+            get { return FormatCurrency(_totalPnl); }
+        }
+
+        public int Position
+        {
+            get { return _position; }
+            set { _position = value; OnPropertyChanged("Position"); OnPropertyChanged("PositionDisplay"); }
+        }
+
+        public string PositionDisplay
+        {
+            get { return _position == 0 ? "-" : _position.ToString(); }
+        }
+
+        private static string FormatCurrency(double val)
+        {
+            if (val == 0) return "$0.00";
+            if (val < 0) return "($" + (-val).ToString("N2") + ")";
+            return "$" + val.ToString("N2");
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -1072,7 +1448,6 @@ namespace NinjaTrader.Gui.NinjaScript
         public string   ExecutionId   { get; set; }
     }
 
-    // Used by dashboard polling to parse remote account state
     public class RemoteAccountState
     {
         public string AccountName  { get; set; }
