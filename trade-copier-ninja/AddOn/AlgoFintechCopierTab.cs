@@ -1077,7 +1077,15 @@ namespace NinjaTrader.Gui.NinjaScript
         {
             try
             {
-                var slaves = config.SlaveAccounts;
+                // Get fresh slave list from DataGrid (the live bound objects)
+                List<SlaveAccountInfo> slaves = null;
+                Dispatcher.Invoke(() =>
+                {
+                    var slaveList = dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo>;
+                    if (slaveList != null)
+                        slaves = slaveList.ToList();
+                });
+                if (slaves == null) slaves = config.SlaveAccounts;
                 string json = SerializeSyncPayload(config.MasterAccountName, slaves, running);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var res = await httpClient.PostAsync(apiBaseUrl + "/api/sync-accounts", content);
@@ -1170,40 +1178,47 @@ namespace NinjaTrader.Gui.NinjaScript
                     searchFrom = objEnd + 1;
                 }
 
-                bool changed = false;
-                suppressLocalPush = true;
-                foreach (var remote in remoteAccounts)
+                // Apply changes on UI thread so we update the actual DataGrid-bound objects
+                var remoteCopy = remoteAccounts; // capture for closure
+                Dispatcher.InvokeAsync(() =>
                 {
-                    if (remote.IsMaster) continue;
-                    if (string.IsNullOrEmpty(remote.AccountName)) continue;
+                    var slaveList = dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo>;
+                    if (slaveList == null) return;
 
-                    var local = config.SlaveAccounts.FirstOrDefault(s => s.AccountName == remote.AccountName);
-                    if (local != null)
+                    bool changed = false;
+                    suppressLocalPush = true;
+                    foreach (var remote in remoteCopy)
                     {
-                        if (local.IsActive != remote.IsActive)
+                        if (remote.IsMaster) continue;
+                        if (string.IsNullOrEmpty(remote.AccountName)) continue;
+
+                        // Find in the DATAGRID's bound collection (not config copy)
+                        var local = slaveList.FirstOrDefault(s => s.AccountName == remote.AccountName);
+                        if (local != null)
                         {
-                            Log("[Sync] Dashboard toggled " + remote.AccountName + " active: " + local.IsActive + " -> " + remote.IsActive);
-                            local.IsActive = remote.IsActive;
-                            changed = true;
-                        }
-                        if (local.ContractSize != remote.ContractSize)
-                        {
-                            Log("[Sync] Dashboard changed " + remote.AccountName + " contracts: " + local.ContractSize + " -> " + remote.ContractSize);
-                            local.ContractSize = remote.ContractSize;
-                            changed = true;
+                            if (local.IsActive != remote.IsActive)
+                            {
+                                Log("[Sync] Dashboard toggled " + remote.AccountName + " active: " + local.IsActive + " -> " + remote.IsActive);
+                                local.IsActive = remote.IsActive;
+                                changed = true;
+                            }
+                            if (local.ContractSize != remote.ContractSize)
+                            {
+                                Log("[Sync] Dashboard changed " + remote.AccountName + " contracts: " + local.ContractSize + " -> " + remote.ContractSize);
+                                local.ContractSize = remote.ContractSize;
+                                changed = true;
+                            }
                         }
                     }
-                }
-                suppressLocalPush = false;
+                    suppressLocalPush = false;
 
-                if (changed)
-                {
-                    SaveConfig();
-                    Dispatcher.InvokeAsync(() =>
+                    if (changed)
                     {
-                        dgSlaveAccounts.Items.Refresh();
-                    });
-                }
+                        // Update config from the live DataGrid data
+                        config.SlaveAccounts = slaveList.ToList();
+                        SaveConfig();
+                    }
+                });
             }
             catch { }
 
