@@ -31,6 +31,13 @@ interface CopierAccount {
   last_trade: string | null;
   trades_copied: number;
   notes: string | null;
+  unrealized: number;
+  realized: number;
+  net_liquidation: number;
+  position_qty: number;
+  total_pnl: number;
+  client_name: string;
+  agency_name: string;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +97,23 @@ function actionBg(action: string): string {
   return "bg-slate-500/10 border-slate-500/20";
 }
 
+function formatPnl(val: number): string {
+  if (val === 0 || val == null) return "$0.00";
+  if (val < 0) return `($${Math.abs(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+  return `$${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function pnlColor(val: number): string {
+  if (val > 0) return "text-emerald-400";
+  if (val < 0) return "text-red-400";
+  return "text-slate-500";
+}
+
+function formatCurrency(val: number): string {
+  if (val == null) return "$0.00";
+  return `$${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function statusIcon(status: string) {
   switch (status) {
     case "connected":
@@ -133,8 +157,8 @@ export default function TradeCopier() {
 
   useEffect(() => {
     fetchData();
-    // Auto-refresh every 30s
-    const iv = setInterval(() => fetchData(true), 30000);
+    // Auto-refresh every 10s for live PnL data
+    const iv = setInterval(() => fetchData(true), 10000);
     return () => clearInterval(iv);
   }, [fetchData]);
 
@@ -402,9 +426,9 @@ export default function TradeCopier() {
         ) : null}
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Accounts Table (2/3) */}
-          <div className="xl:col-span-2 bg-[#13161C] border border-white/5 rounded-xl overflow-hidden flex flex-col">
+        <div className="grid grid-cols-1 gap-6">
+          {/* Accounts Table (full width) */}
+          <div className="bg-[#13161C] border border-white/5 rounded-xl overflow-hidden flex flex-col">
             <div className="p-5 border-b border-white/5 flex justify-between items-center">
               <div>
                 <h3 className="text-sm font-semibold text-white">
@@ -427,19 +451,32 @@ export default function TradeCopier() {
                 {masterAccounts.map((acc) => (
                   <div
                     key={acc.id}
-                    className="flex items-center justify-between"
+                    className="flex items-center justify-between flex-wrap gap-y-1"
                   >
                     <div className="flex items-center gap-3">
                       {statusIcon(acc.status)}
                       <span className="text-white font-medium text-sm">
                         {acc.account_name}
                       </span>
+                      {acc.client_name && (
+                        <span className="text-[11px] text-amber-300/70">
+                          {acc.client_name}
+                        </span>
+                      )}
+                      {acc.agency_name && (
+                        <span className="text-[10px] text-slate-500">
+                          ({acc.agency_name})
+                        </span>
+                      )}
                       <span className="text-[10px] text-slate-500">
                         {acc.status}
                       </span>
                     </div>
-                    <div className="text-[10px] text-slate-500">
-                      {acc.trades_copied} trades copied
+                    <div className="flex items-center gap-4 text-[11px]">
+                      <span className="text-slate-500">Net Liq: <span className="text-white font-mono">{formatCurrency(acc.net_liquidation)}</span></span>
+                      <span className="text-slate-500">Unrealized: <span className={`font-mono ${pnlColor(acc.unrealized)}`}>{formatPnl(acc.unrealized)}</span></span>
+                      <span className="text-slate-500">Realized: <span className={`font-mono ${pnlColor(acc.realized)}`}>{formatPnl(acc.realized)}</span></span>
+                      <span className="text-slate-500">{acc.trades_copied} trades</span>
                     </div>
                   </div>
                 ))}
@@ -451,13 +488,18 @@ export default function TradeCopier() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-white/[0.02] text-slate-500 uppercase font-medium">
                   <tr>
-                    <th className="px-5 py-3">Account</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Active</th>
-                    <th className="px-5 py-3">Contracts</th>
-                    <th className="px-5 py-3">Trades</th>
-                    <th className="px-5 py-3">Last Trade</th>
-                    <th className="px-5 py-3" />
+                    <th className="px-4 py-3">Active</th>
+                    <th className="px-4 py-3">Account</th>
+                    <th className="px-4 py-3">Client Name</th>
+                    <th className="px-4 py-3">Agency</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Contracts</th>
+                    <th className="px-4 py-3 text-right">Unrealized</th>
+                    <th className="px-4 py-3 text-right">Realized</th>
+                    <th className="px-4 py-3 text-right">Net Liquidation</th>
+                    <th className="px-4 py-3 text-center">QTY</th>
+                    <th className="px-4 py-3 text-right">Total PNL</th>
+                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -466,35 +508,8 @@ export default function TradeCopier() {
                       key={acc.id}
                       className="group hover:bg-white/[0.02] transition-colors"
                     >
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-medium">
-                            {acc.account_name}
-                          </span>
-                          {acc.notes && (
-                            <span className="text-[10px] text-slate-500 truncate max-w-[120px]">
-                              {acc.notes}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-1.5">
-                          {statusIcon(acc.status)}
-                          <span
-                            className={
-                              acc.status === "connected"
-                                ? "text-emerald-400"
-                                : acc.status === "error"
-                                ? "text-red-400"
-                                : "text-slate-500"
-                            }
-                          >
-                            {acc.status}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
+                      {/* Active Toggle */}
+                      <td className="px-4 py-3">
                         <button
                           onClick={() => toggleActive(acc)}
                           disabled={updatingId === acc.id}
@@ -513,7 +528,43 @@ export default function TradeCopier() {
                           />
                         </button>
                       </td>
-                      <td className="px-5 py-3">
+                      {/* Account Name */}
+                      <td className="px-4 py-3">
+                        <span className="text-white font-medium">
+                          {acc.account_name}
+                        </span>
+                      </td>
+                      {/* Client Name */}
+                      <td className="px-4 py-3">
+                        <span className="text-slate-300">
+                          {acc.client_name || "—"}
+                        </span>
+                      </td>
+                      {/* Agency */}
+                      <td className="px-4 py-3">
+                        <span className="text-slate-400 text-[11px]">
+                          {acc.agency_name || "—"}
+                        </span>
+                      </td>
+                      {/* Status */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {statusIcon(acc.status)}
+                          <span
+                            className={
+                              acc.status === "connected"
+                                ? "text-emerald-400"
+                                : acc.status === "error"
+                                ? "text-red-400"
+                                : "text-slate-500"
+                            }
+                          >
+                            {acc.status}
+                          </span>
+                        </div>
+                      </td>
+                      {/* Contracts */}
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() =>
@@ -543,13 +594,38 @@ export default function TradeCopier() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-slate-300">
-                        {acc.trades_copied}
+                      {/* Unrealized */}
+                      <td className="px-4 py-3 text-right">
+                        <span className={`font-mono ${pnlColor(acc.unrealized)}`}>
+                          {formatPnl(acc.unrealized)}
+                        </span>
                       </td>
-                      <td className="px-5 py-3 text-slate-500 text-[11px]">
-                        {acc.last_trade || "—"}
+                      {/* Realized */}
+                      <td className="px-4 py-3 text-right">
+                        <span className={`font-mono ${pnlColor(acc.realized)}`}>
+                          {formatPnl(acc.realized)}
+                        </span>
                       </td>
-                      <td className="px-5 py-3">
+                      {/* Net Liquidation */}
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-white font-mono">
+                          {formatCurrency(acc.net_liquidation)}
+                        </span>
+                      </td>
+                      {/* QTY (position) */}
+                      <td className="px-4 py-3 text-center">
+                        <span className="text-slate-300">
+                          {acc.position_qty || 0}
+                        </span>
+                      </td>
+                      {/* Total PNL */}
+                      <td className="px-4 py-3 text-right">
+                        <span className={`font-mono font-medium ${pnlColor(acc.total_pnl)}`}>
+                          {formatPnl(acc.total_pnl)}
+                        </span>
+                      </td>
+                      {/* Actions */}
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => setAsMaster(acc)}
@@ -572,7 +648,7 @@ export default function TradeCopier() {
                   {slaveAccounts.length === 0 && (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={12}
                         className="px-5 py-12 text-center text-slate-500"
                       >
                         <div className="flex flex-col items-center gap-2">

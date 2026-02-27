@@ -177,7 +177,7 @@ app.post("/api/sync-accounts", async (req, res) => {
       }`
     );
 
-    // Upsert master account
+    // Upsert master account (client/agency resolved below after lookup)
     if (MasterAccount) {
       const { error: masterErr } = await supabase
         .from("copier_accounts")
@@ -185,7 +185,7 @@ app.post("/api/sync-accounts", async (req, res) => {
           {
             account_name: MasterAccount,
             is_master: true,
-            is_active: false, // master doesn't receive copies
+            is_active: false,
             status: IsRunning ? "connected" : "disconnected",
             contract_size: 1,
             updated_at: new Date().toISOString(),
@@ -198,9 +198,45 @@ app.post("/api/sync-accounts", async (req, res) => {
       }
     }
 
-    // Upsert each slave account
+    // Resolve client names and agency names for all accounts
+    const allAccountNames = (SlaveAccounts || []).map((s) => s.AccountName);
+    if (MasterAccount) allAccountNames.push(MasterAccount);
+
+    let clientMap = {};  // account_number -> { client_name, agency_name }
+    try {
+      const { data: caData } = await supabase
+        .from("client_accounts")
+        .select("account_number, clients(name, agencies(name))")
+        .in("account_number", allAccountNames);
+
+      if (caData) {
+        for (const row of caData) {
+          const clientName = row.clients && row.clients.name ? row.clients.name : "";
+          const agencyName = row.clients && row.clients.agencies && row.clients.agencies.name
+            ? row.clients.agencies.name : "";
+          clientMap[row.account_number] = { client_name: clientName, agency_name: agencyName };
+        }
+      }
+    } catch (e) {
+      console.log("[Sync] Client lookup optional, continuing:", e.message);
+    }
+
+    // Update master with client/agency if found
+    if (MasterAccount && clientMap[MasterAccount]) {
+      const masterResolved = clientMap[MasterAccount];
+      await supabase
+        .from("copier_accounts")
+        .update({
+          client_name: masterResolved.client_name || "",
+          agency_name: masterResolved.agency_name || "",
+        })
+        .eq("account_name", MasterAccount);
+    }
+
+    // Upsert each slave account (now with PnL data + client/agency)
     if (SlaveAccounts && SlaveAccounts.length > 0) {
       for (const slave of SlaveAccounts) {
+        const resolved = clientMap[slave.AccountName] || {};
         const { error: slaveErr } = await supabase
           .from("copier_accounts")
           .upsert(
@@ -212,6 +248,13 @@ app.post("/api/sync-accounts", async (req, res) => {
               contract_size: slave.ContractSize || 1,
               trades_copied: slave.TradesCopied || 0,
               last_trade: slave.LastTrade || null,
+              unrealized: slave.Unrealized || 0,
+              realized: slave.Realized || 0,
+              net_liquidation: slave.NetLiquidation || 0,
+              position_qty: slave.PositionQty || 0,
+              total_pnl: slave.TotalPnl || 0,
+              client_name: resolved.client_name || "",
+              agency_name: resolved.agency_name || "",
               updated_at: new Date().toISOString(),
             },
             { onConflict: "account_name" }

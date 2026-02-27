@@ -252,7 +252,12 @@ namespace NinjaTrader.Gui.NinjaScript
                 sb.Append("\"IsActive\":" + (s.IsActive ? "true" : "false") + ",");
                 sb.Append("\"ContractSize\":" + s.ContractSize + ",");
                 sb.Append("\"TradesCopied\":" + s.TradesCopied + ",");
-                sb.Append("\"LastTrade\":\"" + EscapeJson(s.LastTrade ?? "") + "\"");
+                sb.Append("\"LastTrade\":\"" + EscapeJson(s.LastTrade ?? "") + "\",");
+                sb.Append("\"Unrealized\":" + s.Unrealized.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + ",");
+                sb.Append("\"Realized\":" + s.Realized.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + ",");
+                sb.Append("\"NetLiquidation\":" + s.NetLiquidation.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + ",");
+                sb.Append("\"PositionQty\":" + s.Position + ",");
+                sb.Append("\"TotalPnl\":" + s.TotalPnl.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
                 sb.Append("}");
                 if (i < slaves.Count - 1) sb.Append(",");
             }
