@@ -50,6 +50,7 @@ namespace NinjaTrader.Gui.NinjaScript
         // ─── Bidirectional Sync ────────────────────────────────
         private System.Threading.Timer changeCheckTimer;
         private System.Threading.Timer liveDataTimer;
+        private System.Threading.Timer apiSyncTimer;   // pushes PnL data to API periodically
         private bool isSyncing = false;
         private string lastKnownChangeTime = "";
         private bool suppressLocalPush = false;
@@ -774,6 +775,30 @@ namespace NinjaTrader.Gui.NinjaScript
             }
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // API SYNC TIMER — Pushes PnL data to API every 5s
+        // ═══════════════════════════════════════════════════════════
+
+        private void StartApiSyncTimer()
+        {
+            apiSyncTimer = new System.Threading.Timer(
+                _ => Task.Run(() => SyncAccountsToApi(true)),
+                null,
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(5)
+            );
+            Log("[Sync] PnL data push to API started (every 5s)");
+        }
+
+        private void StopApiSyncTimer()
+        {
+            if (apiSyncTimer != null)
+            {
+                apiSyncTimer.Dispose();
+                apiSyncTimer = null;
+            }
+        }
+
         private void RefreshLiveData()
         {
             try
@@ -883,6 +908,7 @@ namespace NinjaTrader.Gui.NinjaScript
                 Task.Run(() => SyncAccountsToApi(true));
                 StartPolling();
                 StartLiveDataTimer();
+                StartApiSyncTimer();
             }
             catch (Exception ex)
             {
@@ -915,6 +941,7 @@ namespace NinjaTrader.Gui.NinjaScript
 
                 StopPolling();
                 StopLiveDataTimer();
+                StopApiSyncTimer();
 
                 Log("=== COPIER STOPPED ===");
 
@@ -1264,6 +1291,7 @@ namespace NinjaTrader.Gui.NinjaScript
         {
             StopPolling();
             StopLiveDataTimer();
+            StopApiSyncTimer();
             StopCopier();
 
             var slaveList = dgSlaveAccounts != null ? dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo> : null;
