@@ -449,76 +449,81 @@ async function addSlaveAccount(accountData) {
     console.log(`[Automation] Account ${searchAccount} found on cockpit page`);
 
     // ─── Step 10: Ensure toggle is ON ───
-    // The toggle is: input.account-status-slave (checkbox)
-    // OFF = no "checked" attribute, ON = has "checked" attribute
-    // We need to find the toggle in the same row as our account
+    // Toggle is in #table-slaves-accounts > tbody > tr > td:nth-child(9) > div
+    // It's a div.form-switch containing input.account-status-slave checkbox
+    // We need to find the row that contains our account number, then click the toggle div
     console.log("[Automation] Checking account toggle status...");
 
     const toggleStatus = await p.evaluate((accNum) => {
-      // Find all slave rows — look for table rows or card elements containing the account
-      const rows = document.querySelectorAll("tr, .slave-row, [class*='slave']");
+      const table = document.getElementById("table-slaves-accounts");
+      if (!table) return { found: false, error: "table not found" };
+      const rows = table.querySelectorAll("tbody tr");
       for (const row of rows) {
         if (row.textContent.includes(accNum)) {
-          const toggle = row.querySelector("input.account-status-slave");
-          if (toggle) {
-            return { found: true, checked: toggle.checked, id: toggle.id };
+          const toggleInput = row.querySelector("input.account-status-slave");
+          const toggleDiv = row.querySelector("td:nth-child(9) div.form-switch");
+          if (toggleInput) {
+            return {
+              found: true,
+              checked: toggleInput.checked,
+              id: toggleInput.id,
+              hasDiv: !!toggleDiv,
+              rowText: row.textContent.trim().substring(0, 200),
+            };
           }
         }
       }
-      // Fallback: try finding all account-status-slave toggles and match by proximity
-      const allToggles = document.querySelectorAll("input.account-status-slave");
-      for (const toggle of allToggles) {
-        // Walk up to find a parent that contains the account number
-        let parent = toggle.parentElement;
-        for (let i = 0; i < 10 && parent; i++) {
-          if (parent.textContent.includes(accNum)) {
-            return { found: true, checked: toggle.checked, id: toggle.id };
-          }
-          parent = parent.parentElement;
-        }
-      }
-      return { found: false, checked: false, id: null };
+      return { found: false, error: `account ${accNum} not found in ${rows.length} rows` };
     }, searchAccount);
 
-    if (toggleStatus.found) {
-      console.log(`[Automation] Toggle found (id: ${toggleStatus.id}), checked: ${toggleStatus.checked}`);
+    console.log(`[Automation] Toggle check result: ${JSON.stringify(toggleStatus)}`);
 
+    if (toggleStatus.found) {
       if (!toggleStatus.checked) {
-        // Toggle is OFF — click it to turn ON
+        // Toggle is OFF — click the parent div.form-switch (more reliable than input)
         console.log("[Automation] Toggle is OFF — clicking to turn ON...");
-        if (toggleStatus.id) {
-          await p.click(`#${toggleStatus.id}`);
-        } else {
-          // Click by finding it again via evaluate
-          await p.evaluate((accNum) => {
-            const rows = document.querySelectorAll("tr, .slave-row, [class*='slave']");
-            for (const row of rows) {
-              if (row.textContent.includes(accNum)) {
-                const toggle = row.querySelector("input.account-status-slave");
-                if (toggle) { toggle.click(); return; }
+
+        // Click using the toggle's parent div via coordinates (same pattern that works)
+        const toggleBox = await p.evaluate((accNum) => {
+          const table = document.getElementById("table-slaves-accounts");
+          const rows = table.querySelectorAll("tbody tr");
+          for (const row of rows) {
+            if (row.textContent.includes(accNum)) {
+              // Click the div.form-switch container or the input itself
+              const toggleDiv = row.querySelector("td:nth-child(9) div.form-switch");
+              const toggleInput = row.querySelector("input.account-status-slave");
+              const el = toggleDiv || toggleInput;
+              if (el) {
+                const rect = el.getBoundingClientRect();
+                return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
               }
             }
-            // Fallback
-            const allToggles = document.querySelectorAll("input.account-status-slave");
-            for (const toggle of allToggles) {
-              let parent = toggle.parentElement;
-              for (let i = 0; i < 10 && parent; i++) {
-                if (parent.textContent.includes(accNum)) {
-                  toggle.click();
-                  return;
-                }
-                parent = parent.parentElement;
-              }
-            }
-          }, searchAccount);
+          }
+          return null;
+        }, searchAccount);
+
+        if (toggleBox) {
+          console.log(`[Automation] Clicking toggle at (${toggleBox.x}, ${toggleBox.y})`);
+          await p.mouse.click(toggleBox.x, toggleBox.y);
         }
-        console.log("[Automation] Toggle clicked — waiting 3 seconds for connection...");
-        await sleep(3000);
+
+        // Backup: also try clicking by ID
+        if (toggleStatus.id) {
+          try {
+            await p.click(`#${toggleStatus.id}`);
+            console.log(`[Automation] Also clicked toggle by ID: #${toggleStatus.id}`);
+          } catch (e) {
+            console.log(`[Automation] ID click failed: ${e.message}`);
+          }
+        }
+
+        console.log("[Automation] Toggle clicked — waiting 4 seconds for connection...");
+        await sleep(4000);
       } else {
         console.log("[Automation] Toggle already ON");
       }
     } else {
-      console.log("[Automation] WARNING: Could not find toggle for this account");
+      console.log(`[Automation] WARNING: Could not find toggle — ${toggleStatus.error}`);
     }
 
     // ─── Step 11: Check for "Connected" status ───
