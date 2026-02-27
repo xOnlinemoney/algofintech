@@ -60,6 +60,13 @@ export async function GET() {
       (a: { is_master: boolean }) => a.is_master
     );
 
+    // Fetch copier state (is_running, master_account)
+    const { data: copierState } = await supabase
+      .from("copier_state")
+      .select("*")
+      .eq("id", 1)
+      .single();
+
     return NextResponse.json({
       accounts: accounts || [],
       events: events || [],
@@ -70,6 +77,7 @@ export async function GET() {
         master_account: masterAccount?.account_name || null,
         last_trade: events && events.length > 0 ? events[0] : null,
       },
+      copierState: copierState || { is_running: false, master_account: "" },
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
@@ -77,7 +85,7 @@ export async function GET() {
   }
 }
 
-// ─── PATCH: Update a copier account (toggle active, set contract_size) ───
+// ─── PATCH: Update a copier account OR send a command to NinjaTrader ───
 export async function PATCH(req: NextRequest) {
   try {
     const supabase = getSupabase();
@@ -89,10 +97,49 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
+
+    // If "action" is present, this is a command for NinjaTrader
+    if (body.action) {
+      const validActions = [
+        "start_copier",
+        "stop_copier",
+        "close_all_trades",
+        "set_master",
+      ];
+      if (!validActions.includes(body.action)) {
+        return NextResponse.json(
+          { error: "Invalid action: " + body.action },
+          { status: 400 }
+        );
+      }
+
+      const { data: cmd, error: cmdErr } = await supabase
+        .from("copier_commands")
+        .insert([
+          {
+            command: body.action,
+            payload: body.payload || {},
+            status: "pending",
+          },
+        ])
+        .select()
+        .single();
+
+      if (cmdErr) {
+        return NextResponse.json({ error: cmdErr.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ command: cmd });
+    }
+
+    // Otherwise, this is a regular account update
     const { id, ...updates } = body;
 
     if (!id) {
-      return NextResponse.json({ error: "Missing account id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing account id" },
+        { status: 400 }
+      );
     }
 
     const { data, error } = await supabase

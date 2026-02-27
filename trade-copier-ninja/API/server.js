@@ -277,6 +277,16 @@ app.post("/api/sync-accounts", async (req, res) => {
         .eq("account_name", MasterAccount);
     }
 
+    // Update copier_state so dashboard knows running status
+    await supabase
+      .from("copier_state")
+      .update({
+        is_running: !!IsRunning,
+        master_account: MasterAccount || "",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", 1);
+
     res.json({ success: true });
   } catch (err) {
     console.error("[API] Sync error:", err.message);
@@ -353,6 +363,101 @@ app.get("/api/client-names", async (req, res) => {
     }
 
     res.json({ clients: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET /api/pending-commands ───────────────────────────
+// NinjaTrader polls this every 5s to check for website-issued commands
+// (start_copier, stop_copier, close_all_trades, set_master)
+app.get("/api/pending-commands", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("copier_commands")
+      .select("*")
+      .eq("status", "pending")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ commands: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── POST /api/ack-command ──────────────────────────────
+// NinjaTrader acknowledges a command after executing it
+app.post("/api/ack-command", async (req, res) => {
+  try {
+    const { id, status, result } = req.body;
+    if (!id) {
+      return res.status(400).json({ error: "Missing command id" });
+    }
+
+    const { error } = await supabase
+      .from("copier_commands")
+      .update({
+        status: status || "executed",
+        executed_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    console.log(`[Command] Acknowledged: ${id} -> ${status || "executed"}`);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET /api/copier-state ──────────────────────────────
+// Returns the current copier running state (for dashboard)
+app.get("/api/copier-state", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("copier_state")
+      .select("*")
+      .eq("id", 1)
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(data || { is_running: false, master_account: "" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── POST /api/update-state ─────────────────────────────
+// NinjaTrader updates its running state after executing commands
+app.post("/api/update-state", async (req, res) => {
+  try {
+    const { is_running, master_account } = req.body;
+
+    const updates = { updated_at: new Date().toISOString() };
+    if (typeof is_running === "boolean") updates.is_running = is_running;
+    if (typeof master_account === "string") updates.master_account = master_account;
+
+    const { error } = await supabase
+      .from("copier_state")
+      .update(updates)
+      .eq("id", 1);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    console.log(`[State] Updated: running=${is_running}, master=${master_account}`);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

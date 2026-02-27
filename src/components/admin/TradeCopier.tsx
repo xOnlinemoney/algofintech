@@ -16,6 +16,10 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
+  Play,
+  Square,
+  Power,
+  AlertTriangle,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────
@@ -63,10 +67,17 @@ interface CopierStats {
   last_trade: TradeEvent | null;
 }
 
+interface CopierState {
+  is_running: boolean;
+  master_account: string;
+  updated_at?: string;
+}
+
 interface CopierData {
   accounts: CopierAccount[];
   events: TradeEvent[];
   stats: CopierStats;
+  copierState: CopierState;
 }
 
 // ─── Helpers ────────────────────────────────────────────
@@ -139,6 +150,8 @@ export default function TradeCopier() {
   });
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [sendingCommand, setSendingCommand] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   // Fetch data
   const fetchData = useCallback(async (silent = false) => {
@@ -261,10 +274,48 @@ export default function TradeCopier() {
     }
   }
 
+  // Send command to NinjaTrader via API
+  async function sendCommand(action: string, payload: Record<string, string> = {}) {
+    setSendingCommand(true);
+    try {
+      await fetch("/api/admin/copier", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, payload }),
+      });
+      // Wait a moment then refresh to show updated state
+      setTimeout(() => fetchData(true), 2000);
+    } catch {
+      // fail silently
+    }
+    setSendingCommand(false);
+  }
+
+  async function handleStartStop() {
+    const isRunning = data?.copierState?.is_running || false;
+    if (isRunning) {
+      await sendCommand("stop_copier");
+    } else {
+      const master = data?.stats?.master_account || "";
+      await sendCommand("start_copier", master ? { master_account: master } : {});
+    }
+  }
+
+  async function handleCloseAllTrades() {
+    setShowCloseConfirm(false);
+    await sendCommand("close_all_trades");
+  }
+
+  async function handleSetMasterAndCommand(account: CopierAccount) {
+    await setAsMaster(account);
+    await sendCommand("set_master", { master_account: account.account_name });
+  }
+
   const masterAccounts =
     data?.accounts.filter((a) => a.is_master) || [];
   const slaveAccounts =
     data?.accounts.filter((a) => !a.is_master) || [];
+  const copierRunning = data?.copierState?.is_running || false;
 
   // ─── Render ───────────────────────────────────────────
   return (
@@ -424,6 +475,101 @@ export default function TradeCopier() {
             </div>
           </div>
         ) : null}
+
+        {/* Copier Control Panel */}
+        {data && (
+          <div className="bg-[#13161C] border border-white/5 rounded-xl p-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              {/* Status Indicator */}
+              <div className="flex items-center gap-4">
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${
+                  copierRunning
+                    ? "bg-emerald-500/10 border-emerald-500/20"
+                    : "bg-red-500/10 border-red-500/20"
+                }`}>
+                  <Power className={`w-4 h-4 ${copierRunning ? "text-emerald-400" : "text-red-400"}`} />
+                  <span className={`text-sm font-semibold ${copierRunning ? "text-emerald-400" : "text-red-400"}`}>
+                    {copierRunning ? "COPIER RUNNING" : "COPIER STOPPED"}
+                  </span>
+                </div>
+                {data.copierState?.master_account && (
+                  <span className="text-xs text-slate-500">
+                    Master: <span className="text-amber-400">{data.copierState.master_account}</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Control Buttons */}
+              <div className="flex items-center gap-3">
+                {/* Start/Stop */}
+                <button
+                  onClick={handleStartStop}
+                  disabled={sendingCommand}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 ${
+                    copierRunning
+                      ? "bg-red-600 hover:bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                      : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                  }`}
+                >
+                  {copierRunning ? (
+                    <>
+                      <Square className="w-3.5 h-3.5" />
+                      Stop Copier
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5" />
+                      Start Copier
+                    </>
+                  )}
+                </button>
+
+                {/* Close All Trades */}
+                <button
+                  onClick={() => setShowCloseConfirm(true)}
+                  disabled={sendingCommand || !copierRunning}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-amber-600/80 hover:bg-amber-500 text-white transition-all disabled:opacity-30 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Close All Trades
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Close All Trades Confirmation Modal */}
+        {showCloseConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-[#13161C] border border-red-500/20 rounded-xl w-full max-w-sm p-6 shadow-2xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-500/10 rounded-lg">
+                  <AlertTriangle className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">
+                  Close All Trades?
+                </h3>
+              </div>
+              <p className="text-sm text-slate-400 mb-6">
+                This will flatten all positions on every active slave account. This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowCloseConfirm(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCloseAllTrades}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-white bg-red-600 hover:bg-red-500 transition-colors shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                >
+                  Yes, Close All Trades
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 gap-6">
@@ -628,7 +774,7 @@ export default function TradeCopier() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={() => setAsMaster(acc)}
+                            onClick={() => handleSetMasterAndCommand(acc)}
                             className="text-[10px] text-amber-400 hover:text-amber-300"
                             title="Set as master"
                           >

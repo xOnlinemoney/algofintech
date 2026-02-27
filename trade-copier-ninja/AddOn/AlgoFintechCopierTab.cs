@@ -50,8 +50,10 @@ namespace NinjaTrader.Gui.NinjaScript
         // ─── Bidirectional Sync ────────────────────────────────
         private System.Threading.Timer changeCheckTimer;
         private System.Threading.Timer liveDataTimer;
-        private System.Threading.Timer apiSyncTimer;   // pushes PnL data to API periodically
+        private System.Threading.Timer apiSyncTimer;     // pushes PnL data to API periodically
+        private System.Threading.Timer commandCheckTimer; // polls for web commands (always running)
         private bool isSyncing = false;
+        private bool isCheckingCommands = false;
         private string lastKnownChangeTime = "";
         private bool suppressLocalPush = false;
 
@@ -76,6 +78,7 @@ namespace NinjaTrader.Gui.NinjaScript
             LoadConfig();
             BuildUI();
             RefreshAccountList();
+            StartCommandPolling();  // Always listen for web commands (start/stop/close)
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -1129,6 +1132,225 @@ namespace NinjaTrader.Gui.NinjaScript
         }
 
         // ═══════════════════════════════════════════════════════════
+        // WEB COMMAND POLLING — Always active, checks for commands
+        // ═══════════════════════════════════════════════════════════
+
+        private void StartCommandPolling()
+        {
+            commandCheckTimer = new System.Threading.Timer(
+                _ => Task.Run(() => CheckForCommands()),
+                null,
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(5)
+            );
+            Log("[Commands] Listening for web commands...");
+        }
+
+        private void StopCommandPolling()
+        {
+            if (commandCheckTimer != null)
+            {
+                commandCheckTimer.Dispose();
+                commandCheckTimer = null;
+            }
+        }
+
+        private async Task CheckForCommands()
+        {
+            if (isCheckingCommands) return;
+            isCheckingCommands = true;
+
+            try
+            {
+                var res = await httpClient.GetAsync(apiBaseUrl + "/api/pending-commands");
+                if (!res.IsSuccessStatusCode) { isCheckingCommands = false; return; }
+
+                string responseJson = await res.Content.ReadAsStringAsync();
+
+                // Parse the commands array
+                int arrStart = responseJson.IndexOf('[');
+                int arrEnd = responseJson.LastIndexOf(']');
+                if (arrStart < 0 || arrEnd <= arrStart) { isCheckingCommands = false; return; }
+
+                string arrContent = responseJson.Substring(arrStart + 1, arrEnd - arrStart - 1).Trim();
+                if (string.IsNullOrEmpty(arrContent)) { isCheckingCommands = false; return; }
+
+                // Parse each command object
+                int searchFrom = 0;
+                while (true)
+                {
+                    int objStart = arrContent.IndexOf('{', searchFrom);
+                    if (objStart < 0) break;
+
+                    // Find matching closing brace (handle nested JSON in payload)
+                    int depth = 0;
+                    int objEnd = -1;
+                    for (int i = objStart; i < arrContent.Length; i++)
+                    {
+                        if (arrContent[i] == '{') depth++;
+                        else if (arrContent[i] == '}') { depth--; if (depth == 0) { objEnd = i; break; } }
+                    }
+                    if (objEnd < 0) break;
+
+                    string objStr = arrContent.Substring(objStart, objEnd - objStart + 1);
+                    string cmdId = ExtractStringValue(objStr, "id") ?? "";
+                    string command = ExtractStringValue(objStr, "command") ?? "";
+
+                    if (!string.IsNullOrEmpty(command))
+                    {
+                        Log("[Command] Received: " + command + " (id: " + cmdId + ")");
+                        await ExecuteCommand(cmdId, command, objStr);
+                    }
+
+                    searchFrom = objEnd + 1;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("[Commands] Error: " + ex.Message);
+            }
+
+            isCheckingCommands = false;
+        }
+
+        private async Task ExecuteCommand(string cmdId, string command, string fullJson)
+        {
+            string status = "executed";
+            try
+            {
+                switch (command)
+                {
+                    case "start_copier":
+                        string masterForStart = ExtractNestedPayloadValue(fullJson, "master_account");
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (!string.IsNullOrEmpty(masterForStart))
+                            {
+                                // Set the master account in the combo box
+                                for (int i = 0; i < cboMasterAccount.Items.Count; i++)
+                                {
+                                    if (cboMasterAccount.Items[i].ToString() == masterForStart)
+                                    {
+                                        cboMasterAccount.SelectedIndex = i;
+                                        break;
+                                    }
+                                }
+                                config.MasterAccountName = masterForStart;
+                                SaveConfig();
+                            }
+                            if (!isRunning) StartCopier();
+                        });
+                        Log("[Command] Copier STARTED via web dashboard");
+                        break;
+
+                    case "stop_copier":
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (isRunning) StopCopier();
+                        });
+                        Log("[Command] Copier STOPPED via web dashboard");
+                        break;
+
+                    case "close_all_trades":
+                        Log("[Command] Closing ALL positions on active slaves...");
+                        Dispatcher.Invoke(() =>
+                        {
+                            var slaveList = dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo>;
+                            if (slaveList == null) return;
+
+                            foreach (var slave in slaveList)
+                            {
+                                if (!slave.IsActive || slave.AccountName == config.MasterAccountName) continue;
+
+                                Account acct = Account.All.FirstOrDefault(a => a.Name == slave.AccountName);
+                                if (acct == null) continue;
+
+                                try
+                                {
+                                    acct.Flatten(new[] { acct.Instruments.FirstOrDefault() });
+                                    Log("[Command] Flattened: " + slave.AccountName);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log("[Command] Failed to flatten " + slave.AccountName + ": " + ex.Message);
+                                }
+                            }
+                        });
+                        Log("[Command] Close all trades completed");
+                        break;
+
+                    case "set_master":
+                        string newMaster = ExtractNestedPayloadValue(fullJson, "master_account");
+                        if (!string.IsNullOrEmpty(newMaster))
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                for (int i = 0; i < cboMasterAccount.Items.Count; i++)
+                                {
+                                    if (cboMasterAccount.Items[i].ToString() == newMaster)
+                                    {
+                                        cboMasterAccount.SelectedIndex = i;
+                                        break;
+                                    }
+                                }
+                                config.MasterAccountName = newMaster;
+                                SaveConfig();
+                            });
+                            Log("[Command] Master set to: " + newMaster);
+                        }
+                        break;
+
+                    default:
+                        Log("[Command] Unknown command: " + command);
+                        status = "failed";
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("[Command] Execution error: " + ex.Message);
+                status = "failed";
+            }
+
+            // Acknowledge the command
+            try
+            {
+                string ackJson = "{\"id\":\"" + EscapeJson(cmdId) + "\",\"status\":\"" + status + "\"}";
+                var content = new StringContent(ackJson, Encoding.UTF8, "application/json");
+                await httpClient.PostAsync(apiBaseUrl + "/api/ack-command", content);
+
+                // Also update state
+                string stateJson = "{\"is_running\":" + (isRunning ? "true" : "false") + ",\"master_account\":\"" + EscapeJson(config.MasterAccountName ?? "") + "\"}";
+                var stateContent = new StringContent(stateJson, Encoding.UTF8, "application/json");
+                await httpClient.PostAsync(apiBaseUrl + "/api/update-state", stateContent);
+            }
+            catch { }
+        }
+
+        // Extract a value from the nested "payload" object in a command JSON
+        private static string ExtractNestedPayloadValue(string json, string key)
+        {
+            // Find "payload" section
+            int payloadIdx = json.IndexOf("\"payload\"");
+            if (payloadIdx < 0) return null;
+            int braceStart = json.IndexOf('{', payloadIdx);
+            if (braceStart < 0) return null;
+
+            // Find matching close brace
+            int depth = 0;
+            int braceEnd = -1;
+            for (int i = braceStart; i < json.Length; i++)
+            {
+                if (json[i] == '{') depth++;
+                else if (json[i] == '}') { depth--; if (depth == 0) { braceEnd = i; break; } }
+            }
+            if (braceEnd < 0) return null;
+
+            string payloadStr = json.Substring(braceStart, braceEnd - braceStart + 1);
+            return ExtractStringValue(payloadStr, key);
+        }
+
+        // ═══════════════════════════════════════════════════════════
         // WEBSITE -> NT: Check for dashboard changes
         // ═══════════════════════════════════════════════════════════
 
@@ -1289,6 +1511,7 @@ namespace NinjaTrader.Gui.NinjaScript
 
         public void Cleanup()
         {
+            StopCommandPolling();
             StopPolling();
             StopLiveDataTimer();
             StopApiSyncTimer();
