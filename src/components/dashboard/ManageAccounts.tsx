@@ -663,6 +663,18 @@ function AddClientAccountModal({
   const [accountNumber, setAccountNumber] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
+  // Format Tradovate account: APEX-414499-224 → APEX41449900000224
+  function formatTradovateAccount(raw: string): string {
+    const parts = raw.split("-");
+    if (parts.length >= 3) {
+      const prefix = parts[0];
+      const middle = parts[1];
+      const last = parts.slice(2).join("");
+      return `${prefix}${middle}${last.padStart(8, "0")}`;
+    }
+    return raw.replace(/-/g, "");
+  }
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -711,13 +723,14 @@ function AddClientAccountModal({
         onAdd(mapDbRow(json.data));
       } else {
         // Fallback: add locally with temp id
+        const formatted = platform === "Tradovate" ? formatTradovateAccount(accountNumber) : accountNumber;
         const newAccount: ClientAccount = {
           id: `acc_new_${Date.now()}`,
-          account_name: `slave - ${platform.toLowerCase().replace(/\s+/g, "")} - ${accountNumber}`,
-          account_label: `${platform} ${accountType} / ${accountNumber} (USD)`,
+          account_name: `slave - ${platform.toLowerCase().replace(/\s+/g, "")} - ${formatted}`,
+          account_label: `${platform} ${accountType} / ${formatted} (USD)`,
           platform,
           account_type: accountType,
-          account_number: accountNumber,
+          account_number: formatted,
           currency: "USD",
           balance: 0,
           credit: 0,

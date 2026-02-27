@@ -218,8 +218,8 @@ async function addSlaveAccount(accountData) {
 
   if (isTradovate) {
     // Tradovate uses #add-slave-account-number (text input)
-    // Strip dashes from account number — Tradovate format is e.g. APEX414499224
-    const cleanAccountNumber = accountNumber.replace(/-/g, "");
+    // Format: APEX-414499-224 → APEX41449900000224 (last segment padded to 8 digits)
+    const cleanAccountNumber = formatTradovateAccountNumber(accountNumber);
     console.log(`[Automation] Entering Tradovate account number: ${cleanAccountNumber} (original: ${accountNumber})`);
 
     // Wait for the field to be visible (it appears after platform selection)
@@ -697,6 +697,23 @@ async function addSlaveAccount(accountData) {
       note: "Account not visible yet — may need Tradovate OAuth authorization",
     };
   }
+}
+
+/**
+ * Format Tradovate account number: APEX-414499-224 → APEX41449900000224
+ * The last segment is zero-padded to 8 digits
+ */
+function formatTradovateAccountNumber(raw) {
+  const parts = raw.split("-");
+  if (parts.length >= 3) {
+    const prefix = parts[0];               // e.g. "APEX"
+    const middle = parts[1];               // e.g. "414499"
+    const last = parts.slice(2).join("");  // e.g. "224"
+    const paddedLast = last.padStart(8, "0"); // "00000224"
+    return `${prefix}${middle}${paddedLast}`;
+  }
+  // If already in correct format or no dashes, just strip dashes
+  return raw.replace(/-/g, "");
 }
 
 function mapBrokerToSelectValue(broker) {

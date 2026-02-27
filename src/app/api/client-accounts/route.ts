@@ -45,6 +45,22 @@ async function sendSlackNotification(payload: {
   }
 }
 
+// ─── Tradovate account number formatter ──────────────────
+// Converts human-readable format (APEX-414499-224) to Tradovate native format (APEX41449900000224)
+// The last segment is zero-padded to 8 digits
+function formatTradovateAccountNumber(raw: string): string {
+  const parts = raw.split("-");
+  if (parts.length >= 3) {
+    const prefix = parts[0];               // e.g. "APEX"
+    const middle = parts[1];               // e.g. "414499"
+    const last = parts.slice(2).join("");  // e.g. "224" (handle extra dashes)
+    const paddedLast = last.padStart(8, "0"); // "00000224"
+    return `${prefix}${middle}${paddedLast}`;
+  }
+  // If not in expected format, just strip dashes
+  return raw.replace(/-/g, "");
+}
+
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
@@ -136,6 +152,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
 
+    // Format Tradovate account numbers: APEX-414499-224 → APEX41449900000224
+    const formattedAccountNumber =
+      platform === "Tradovate"
+        ? formatTradovateAccountNumber(account_number)
+        : account_number;
+
     const clientUuid = await getClientUuid(supabase, client_display_id);
     if (!clientUuid) {
       return NextResponse.json(
@@ -175,8 +197,8 @@ export async function POST(req: NextRequest) {
       Schwab: "Stocks",
     };
 
-    const accountName = `slave - ${platform.toLowerCase().replace(/\s+/g, "")} - ${account_number}`;
-    const accountLabel = `${platform} ${account_type} / ${account_number} (USD)`;
+    const accountName = `slave - ${platform.toLowerCase().replace(/\s+/g, "")} - ${formattedAccountNumber}`;
+    const accountLabel = `${platform} ${account_type} / ${formattedAccountNumber} (USD)`;
 
     const row: Record<string, unknown> = {
       client_id: clientUuid,
@@ -185,7 +207,7 @@ export async function POST(req: NextRequest) {
       account_label: accountLabel,
       platform,
       account_type,
-      account_number,
+      account_number: formattedAccountNumber,
       currency: "USD",
       balance: 0,
       credit: 0,
@@ -243,7 +265,7 @@ export async function POST(req: NextRequest) {
           agencyName,
           clientName: clientInfo?.name || clientInfo?.email || client_display_id,
           broker: platform,
-          accountNumber: account_number,
+          accountNumber: formattedAccountNumber,
           username: username || "",
           password: password || "",
         });
