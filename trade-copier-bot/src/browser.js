@@ -440,37 +440,135 @@ async function addSlaveAccount(accountData) {
   await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await sleep(1000);
 
-  // Check all page content for the account number
+  // Check all page content for the account number (use clean number for Tradovate)
+  const searchAccount = isTradovate ? accountNumber.replace(/-/g, "") : accountNumber;
   const pageContent = await p.evaluate(() => document.body.textContent);
-  const accountInPage = pageContent.includes(accountNumber);
+  const accountInPage = pageContent.includes(searchAccount) || pageContent.includes(accountNumber);
 
   if (accountInPage) {
-    console.log(`[Automation] Account ${accountNumber} found on cockpit page`);
+    console.log(`[Automation] Account ${searchAccount} found on cockpit page`);
 
-    // Check status
+    // ─── Step 10: Ensure toggle is ON ───
+    // The toggle is: input.account-status-slave (checkbox)
+    // OFF = no "checked" attribute, ON = has "checked" attribute
+    // We need to find the toggle in the same row as our account
+    console.log("[Automation] Checking account toggle status...");
+
+    const toggleStatus = await p.evaluate((accNum) => {
+      // Find all slave rows — look for table rows or card elements containing the account
+      const rows = document.querySelectorAll("tr, .slave-row, [class*='slave']");
+      for (const row of rows) {
+        if (row.textContent.includes(accNum)) {
+          const toggle = row.querySelector("input.account-status-slave");
+          if (toggle) {
+            return { found: true, checked: toggle.checked, id: toggle.id };
+          }
+        }
+      }
+      // Fallback: try finding all account-status-slave toggles and match by proximity
+      const allToggles = document.querySelectorAll("input.account-status-slave");
+      for (const toggle of allToggles) {
+        // Walk up to find a parent that contains the account number
+        let parent = toggle.parentElement;
+        for (let i = 0; i < 10 && parent; i++) {
+          if (parent.textContent.includes(accNum)) {
+            return { found: true, checked: toggle.checked, id: toggle.id };
+          }
+          parent = parent.parentElement;
+        }
+      }
+      return { found: false, checked: false, id: null };
+    }, searchAccount);
+
+    if (toggleStatus.found) {
+      console.log(`[Automation] Toggle found (id: ${toggleStatus.id}), checked: ${toggleStatus.checked}`);
+
+      if (!toggleStatus.checked) {
+        // Toggle is OFF — click it to turn ON
+        console.log("[Automation] Toggle is OFF — clicking to turn ON...");
+        if (toggleStatus.id) {
+          await p.click(`#${toggleStatus.id}`);
+        } else {
+          // Click by finding it again via evaluate
+          await p.evaluate((accNum) => {
+            const rows = document.querySelectorAll("tr, .slave-row, [class*='slave']");
+            for (const row of rows) {
+              if (row.textContent.includes(accNum)) {
+                const toggle = row.querySelector("input.account-status-slave");
+                if (toggle) { toggle.click(); return; }
+              }
+            }
+            // Fallback
+            const allToggles = document.querySelectorAll("input.account-status-slave");
+            for (const toggle of allToggles) {
+              let parent = toggle.parentElement;
+              for (let i = 0; i < 10 && parent; i++) {
+                if (parent.textContent.includes(accNum)) {
+                  toggle.click();
+                  return;
+                }
+                parent = parent.parentElement;
+              }
+            }
+          }, searchAccount);
+        }
+        console.log("[Automation] Toggle clicked — waiting 3 seconds for connection...");
+        await sleep(3000);
+      } else {
+        console.log("[Automation] Toggle already ON");
+      }
+    } else {
+      console.log("[Automation] WARNING: Could not find toggle for this account");
+    }
+
+    // ─── Step 11: Check for "Connected" status ───
+    // Reload to get fresh status
+    await p.reload({ waitUntil: "networkidle2", timeout: 30000 });
+    await sleep(2000);
+    await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await sleep(1000);
+
     const statusInfo = await p.evaluate((accNum) => {
-      const allText = document.body.innerHTML;
-      const hasWrongAccount = allText.includes(accNum) && allText.includes("Wrong Account");
-      const hasConnected = allText.includes(accNum) && allText.includes("CONNECTED");
-      return { wrongAccount: hasWrongAccount, connected: hasConnected };
-    }, accountNumber);
+      const bodyText = document.body.textContent;
+      const bodyHtml = document.body.innerHTML;
+      // Look for status near the account number
+      const rows = document.querySelectorAll("tr, .slave-row, [class*='slave']");
+      for (const row of rows) {
+        if (row.textContent.includes(accNum)) {
+          const rowText = row.textContent.toLowerCase();
+          return {
+            connected: rowText.includes("connected"),
+            wrongAccount: rowText.includes("wrong account"),
+            rowText: row.textContent.trim().substring(0, 200),
+          };
+        }
+      }
+      // Fallback: check whole page
+      return {
+        connected: bodyText.toLowerCase().includes("connected"),
+        wrongAccount: bodyText.toLowerCase().includes("wrong account"),
+        rowText: null,
+      };
+    }, searchAccount);
 
     const isConnected = statusInfo.connected && !statusInfo.wrongAccount;
     console.log(`[Automation] Final status: ${isConnected ? "CONNECTED" : "NOT YET CONNECTED"}`);
+    if (statusInfo.rowText) {
+      console.log(`[Automation] Row content: ${statusInfo.rowText}`);
+    }
 
     return {
       success: true,
       connected: isConnected,
-      accountNumber,
+      accountNumber: searchAccount,
       template: templateValue ? templateValue.text : null,
     };
   } else {
-    console.log(`[Automation] WARNING: Account ${accountNumber} not found on page after adding`);
-    // Still return success=true since the Add button was clicked — the account may need OAuth
+    console.log(`[Automation] WARNING: Account ${searchAccount} not found on page after adding`);
     return {
       success: true,
       connected: false,
-      accountNumber,
+      accountNumber: searchAccount,
       template: templateValue ? templateValue.text : null,
       note: "Account not visible yet — may need Tradovate OAuth authorization",
     };
