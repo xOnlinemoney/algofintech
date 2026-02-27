@@ -15,7 +15,6 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Xml.Linq;
-using Newtonsoft.Json;
 using NinjaTrader.Cbi;
 using NinjaTrader.Data;
 using NinjaTrader.Gui.Tools;
@@ -70,6 +69,149 @@ namespace NinjaTrader.Gui.NinjaScript
         }
 
         // ═══════════════════════════════════════════════════════════
+        // MANUAL JSON HELPERS (no Newtonsoft dependency)
+        // ═══════════════════════════════════════════════════════════
+
+        private static string EscapeJson(string s)
+        {
+            if (s == null) return "";
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+        }
+
+        private static string SerializeConfig(CopierConfig cfg)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("{");
+            sb.AppendLine("  \"MasterAccountName\": \"" + EscapeJson(cfg.MasterAccountName) + "\",");
+            sb.AppendLine("  \"ApiBaseUrl\": \"" + EscapeJson(cfg.ApiBaseUrl) + "\",");
+            sb.AppendLine("  \"SlaveAccounts\": [");
+            for (int i = 0; i < cfg.SlaveAccounts.Count; i++)
+            {
+                var s = cfg.SlaveAccounts[i];
+                sb.Append("    { ");
+                sb.Append("\"AccountName\": \"" + EscapeJson(s.AccountName) + "\", ");
+                sb.Append("\"IsActive\": " + (s.IsActive ? "true" : "false") + ", ");
+                sb.Append("\"ContractSize\": " + s.ContractSize + ", ");
+                sb.Append("\"Status\": \"" + EscapeJson(s.Status ?? "") + "\", ");
+                sb.Append("\"LastTrade\": \"" + EscapeJson(s.LastTrade ?? "") + "\", ");
+                sb.Append("\"TradesCopied\": " + s.TradesCopied);
+                sb.Append(" }");
+                if (i < cfg.SlaveAccounts.Count - 1) sb.Append(",");
+                sb.AppendLine();
+            }
+            sb.AppendLine("  ]");
+            sb.AppendLine("}");
+            return sb.ToString();
+        }
+
+        private static CopierConfig DeserializeConfig(string json)
+        {
+            var cfg = new CopierConfig();
+            try
+            {
+                // Parse MasterAccountName
+                cfg.MasterAccountName = ExtractStringValue(json, "MasterAccountName") ?? "";
+                cfg.ApiBaseUrl = ExtractStringValue(json, "ApiBaseUrl") ?? "http://localhost:3002";
+
+                // Parse SlaveAccounts array
+                int arrStart = json.IndexOf("\"SlaveAccounts\"");
+                if (arrStart >= 0)
+                {
+                    int bracketStart = json.IndexOf('[', arrStart);
+                    int bracketEnd = json.LastIndexOf(']');
+                    if (bracketStart >= 0 && bracketEnd > bracketStart)
+                    {
+                        string arrContent = json.Substring(bracketStart + 1, bracketEnd - bracketStart - 1);
+                        // Split by "}" to find each object
+                        int searchFrom = 0;
+                        while (true)
+                        {
+                            int objStart = arrContent.IndexOf('{', searchFrom);
+                            int objEnd = arrContent.IndexOf('}', objStart >= 0 ? objStart : 0);
+                            if (objStart < 0 || objEnd < 0) break;
+
+                            string objStr = arrContent.Substring(objStart, objEnd - objStart + 1);
+                            var slave = new SlaveAccountInfo
+                            {
+                                AccountName  = ExtractStringValue(objStr, "AccountName") ?? "",
+                                IsActive     = ExtractBoolValue(objStr, "IsActive"),
+                                ContractSize = ExtractIntValue(objStr, "ContractSize", 1),
+                                Status       = ExtractStringValue(objStr, "Status") ?? "",
+                                LastTrade    = ExtractStringValue(objStr, "LastTrade") ?? "",
+                                TradesCopied = ExtractIntValue(objStr, "TradesCopied", 0)
+                            };
+                            if (!string.IsNullOrEmpty(slave.AccountName))
+                                cfg.SlaveAccounts.Add(slave);
+
+                            searchFrom = objEnd + 1;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return cfg;
+        }
+
+        private static string ExtractStringValue(string json, string key)
+        {
+            string search = "\"" + key + "\"";
+            int idx = json.IndexOf(search);
+            if (idx < 0) return null;
+            int colonIdx = json.IndexOf(':', idx + search.Length);
+            if (colonIdx < 0) return null;
+            int quoteStart = json.IndexOf('"', colonIdx + 1);
+            if (quoteStart < 0) return null;
+            int quoteEnd = json.IndexOf('"', quoteStart + 1);
+            if (quoteEnd < 0) return null;
+            return json.Substring(quoteStart + 1, quoteEnd - quoteStart - 1)
+                .Replace("\\\\", "\\").Replace("\\\"", "\"").Replace("\\n", "\n").Replace("\\r", "\r").Replace("\\t", "\t");
+        }
+
+        private static bool ExtractBoolValue(string json, string key)
+        {
+            string search = "\"" + key + "\"";
+            int idx = json.IndexOf(search);
+            if (idx < 0) return false;
+            int colonIdx = json.IndexOf(':', idx + search.Length);
+            if (colonIdx < 0) return false;
+            string rest = json.Substring(colonIdx + 1).TrimStart();
+            return rest.StartsWith("true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int ExtractIntValue(string json, string key, int defaultVal)
+        {
+            string search = "\"" + key + "\"";
+            int idx = json.IndexOf(search);
+            if (idx < 0) return defaultVal;
+            int colonIdx = json.IndexOf(':', idx + search.Length);
+            if (colonIdx < 0) return defaultVal;
+            string rest = json.Substring(colonIdx + 1).TrimStart();
+            string numStr = "";
+            foreach (char c in rest)
+            {
+                if (char.IsDigit(c) || c == '-') numStr += c;
+                else if (numStr.Length > 0) break;
+            }
+            int result;
+            return int.TryParse(numStr, out result) ? result : defaultVal;
+        }
+
+        private static string SerializeTradeEvent(TradeEvent te)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{");
+            sb.Append("\"MasterAccount\":\"" + EscapeJson(te.MasterAccount) + "\",");
+            sb.Append("\"Instrument\":\"" + EscapeJson(te.Instrument) + "\",");
+            sb.Append("\"Action\":\"" + EscapeJson(te.Action) + "\",");
+            sb.Append("\"Quantity\":" + te.Quantity + ",");
+            sb.Append("\"FillPrice\":" + te.FillPrice.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) + ",");
+            sb.Append("\"FillTime\":\"" + te.FillTime.ToString("o") + "\",");
+            sb.Append("\"ExecutionId\":\"" + EscapeJson(te.ExecutionId) + "\"");
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        // ═══════════════════════════════════════════════════════════
         // CONFIGURATION
         // ═══════════════════════════════════════════════════════════
 
@@ -80,7 +222,9 @@ namespace NinjaTrader.Gui.NinjaScript
                 if (File.Exists(ConfigFile))
                 {
                     string json = File.ReadAllText(ConfigFile);
-                    config = JsonConvert.DeserializeObject<CopierConfig>(json);
+                    config = DeserializeConfig(json);
+                    if (!string.IsNullOrEmpty(config.ApiBaseUrl))
+                        apiBaseUrl = config.ApiBaseUrl;
                     Log("Config loaded from " + ConfigFile);
                 }
                 else
@@ -101,7 +245,7 @@ namespace NinjaTrader.Gui.NinjaScript
         {
             try
             {
-                string json = JsonConvert.SerializeObject(config, Formatting.Indented);
+                string json = SerializeConfig(config);
                 File.WriteAllText(ConfigFile, json);
             }
             catch (Exception ex)
@@ -160,7 +304,7 @@ namespace NinjaTrader.Gui.NinjaScript
 
             btnRefreshAccounts = new Button
             {
-                Content = "↻ Refresh",
+                Content = "Refresh",
                 Width   = 70,
                 Margin  = new Thickness(0, 0, 20, 0)
             };
@@ -169,7 +313,7 @@ namespace NinjaTrader.Gui.NinjaScript
 
             btnStart = new Button
             {
-                Content    = "▶ START COPYING",
+                Content    = "START COPYING",
                 Width      = 130,
                 Background = new SolidColorBrush(Color.FromRgb(40, 167, 69)),
                 Foreground = Brushes.White,
@@ -181,7 +325,7 @@ namespace NinjaTrader.Gui.NinjaScript
 
             btnStop = new Button
             {
-                Content    = "■ STOP",
+                Content    = "STOP",
                 Width      = 80,
                 Background = new SolidColorBrush(Color.FromRgb(220, 53, 69)),
                 Foreground = Brushes.White,
@@ -194,7 +338,7 @@ namespace NinjaTrader.Gui.NinjaScript
 
             lblStatus = new TextBlock
             {
-                Text              = "⬤ Stopped",
+                Text              = "Stopped",
                 Foreground        = Brushes.Gray,
                 VerticalAlignment = VerticalAlignment.Center,
                 FontWeight        = FontWeights.Bold
@@ -302,11 +446,11 @@ namespace NinjaTrader.Gui.NinjaScript
                     slaveList.Add(new SlaveAccountInfo
                     {
                         AccountName  = acct.Name,
-                        IsActive     = existing?.IsActive ?? false,
-                        ContractSize = existing?.ContractSize ?? 1,
-                        Status       = acct.Connection?.Status.ToString() ?? "Unknown",
-                        LastTrade    = existing?.LastTrade ?? "",
-                        TradesCopied = existing?.TradesCopied ?? 0
+                        IsActive     = existing != null ? existing.IsActive : false,
+                        ContractSize = existing != null ? existing.ContractSize : 1,
+                        Status       = acct.Connection != null ? acct.Connection.Status.ToString() : "Unknown",
+                        LastTrade    = existing != null ? (existing.LastTrade ?? "") : "",
+                        TradesCopied = existing != null ? existing.TradesCopied : 0
                     });
                 }
 
@@ -319,7 +463,7 @@ namespace NinjaTrader.Gui.NinjaScript
                     cboMasterAccount.SelectedItem = config.MasterAccountName;
                 }
 
-                Log($"Found {Account.All.Count} connected accounts");
+                Log("Found " + Account.All.Count + " connected accounts");
             }
             catch (Exception ex)
             {
@@ -391,14 +535,14 @@ namespace NinjaTrader.Gui.NinjaScript
                 btnStop.IsEnabled            = true;
                 cboMasterAccount.IsEnabled   = false;
                 btnRefreshAccounts.IsEnabled = false;
-                lblStatus.Text               = "⬤ RUNNING";
+                lblStatus.Text               = "RUNNING";
                 lblStatus.Foreground         = new SolidColorBrush(Color.FromRgb(40, 167, 69));
 
                 int activeSlaves = config.SlaveAccounts.Count(s => s.IsActive && s.AccountName != config.MasterAccountName);
-                Log($"═══ COPIER STARTED ═══");
-                Log($"  Master: {config.MasterAccountName}");
-                Log($"  Active Slaves: {activeSlaves}");
-                Log($"  Listening for trades on master account...");
+                Log("=== COPIER STARTED ===");
+                Log("  Master: " + config.MasterAccountName);
+                Log("  Active Slaves: " + activeSlaves);
+                Log("  Listening for trades on master account...");
             }
             catch (Exception ex)
             {
@@ -426,11 +570,11 @@ namespace NinjaTrader.Gui.NinjaScript
                     btnStop.IsEnabled            = false;
                     cboMasterAccount.IsEnabled   = true;
                     btnRefreshAccounts.IsEnabled = true;
-                    lblStatus.Text               = "⬤ Stopped";
+                    lblStatus.Text               = "Stopped";
                     lblStatus.Foreground         = Brushes.Gray;
                 });
 
-                Log("═══ COPIER STOPPED ═══");
+                Log("=== COPIER STOPPED ===");
             }
             catch (Exception ex)
             {
@@ -467,12 +611,12 @@ namespace NinjaTrader.Gui.NinjaScript
                 DateTime    fillTime      = exec.Time;
                 MarketPosition position   = exec.MarketPosition;
 
-                Log($"──── MASTER FILL DETECTED ────");
-                Log($"  Instrument: {instrument}");
-                Log($"  Action:     {action} ({position})");
-                Log($"  Quantity:   {masterQty}");
-                Log($"  Price:      {fillPrice}");
-                Log($"  Time:       {fillTime:HH:mm:ss.fff}");
+                Log("---- MASTER FILL DETECTED ----");
+                Log("  Instrument: " + instrument);
+                Log("  Action:     " + action + " (" + position + ")");
+                Log("  Quantity:   " + masterQty);
+                Log("  Price:      " + fillPrice);
+                Log("  Time:       " + fillTime.ToString("HH:mm:ss.fff"));
 
                 // Copy to each active slave
                 foreach (var slave in config.SlaveAccounts)
@@ -510,7 +654,7 @@ namespace NinjaTrader.Gui.NinjaScript
                 e.OrderState == OrderState.Rejected ||
                 e.OrderState == OrderState.Cancelled)
             {
-                Log($"  [Master Order] {e.Order.Name} → {e.OrderState} | {e.Order.Instrument.FullName} {e.Order.OrderAction} x{e.Order.Quantity}");
+                Log("  [Master Order] " + e.Order.Name + " > " + e.OrderState + " | " + e.Order.Instrument.FullName + " " + e.Order.OrderAction + " x" + e.Order.Quantity);
             }
         }
 
@@ -528,13 +672,12 @@ namespace NinjaTrader.Gui.NinjaScript
                 Account slaveAcct = Account.All.FirstOrDefault(a => a.Name == slave.AccountName);
                 if (slaveAcct == null)
                 {
-                    Log($"  ✗ Slave '{slave.AccountName}' not found / not connected");
+                    Log("  X Slave '" + slave.AccountName + "' not found / not connected");
                     slave.Status = "Disconnected";
                     return;
                 }
 
                 // Create a market order on the slave account
-                // Using "Entry" as name is required to avoid Initialize state issues
                 Order slaveOrder = slaveAcct.CreateOrder(
                     instrument,          // Same instrument as master
                     action,              // Buy/Sell — same direction as master
@@ -555,10 +698,10 @@ namespace NinjaTrader.Gui.NinjaScript
 
                 // Update slave tracking
                 slave.TradesCopied++;
-                slave.LastTrade = $"{action} {quantity}x {instrumentName} @ {masterPrice:F2}";
+                slave.LastTrade = action + " " + quantity + "x " + instrumentName + " @ " + masterPrice.ToString("F2");
                 slave.Status    = "Active";
 
-                Log($"  ✓ → {slave.AccountName}: {action} {quantity}x {instrumentName} (market order submitted)");
+                Log("  OK > " + slave.AccountName + ": " + action + " " + quantity + "x " + instrumentName + " (market order submitted)");
 
                 // Refresh the grid on UI thread
                 Dispatcher.InvokeAsync(() =>
@@ -568,7 +711,7 @@ namespace NinjaTrader.Gui.NinjaScript
             }
             catch (Exception ex)
             {
-                Log($"  ✗ ERROR copying to {slave.AccountName}: {ex.Message}");
+                Log("  X ERROR copying to " + slave.AccountName + ": " + ex.Message);
                 slave.Status = "Error: " + ex.Message;
             }
         }
@@ -583,12 +726,12 @@ namespace NinjaTrader.Gui.NinjaScript
         {
             try
             {
-                string json    = JsonConvert.SerializeObject(tradeEvent);
+                string json    = SerializeTradeEvent(tradeEvent);
                 var    content = new StringContent(json, Encoding.UTF8, "application/json");
                 var    res     = await httpClient.PostAsync(apiBaseUrl + "/api/trade-events", content);
 
                 if (!res.IsSuccessStatusCode)
-                    Log($"  [API] Warning: {res.StatusCode}");
+                    Log("  [API] Warning: " + res.StatusCode);
             }
             catch
             {
@@ -602,7 +745,7 @@ namespace NinjaTrader.Gui.NinjaScript
 
         private void Log(string message)
         {
-            string line = $"[{DateTime.Now:HH:mm:ss}] {message}";
+            string line = "[" + DateTime.Now.ToString("HH:mm:ss") + "] " + message;
 
             // Write to file
             try
@@ -634,22 +777,18 @@ namespace NinjaTrader.Gui.NinjaScript
             return "AlgoFintech Copier";
         }
 
-        // Called when tab is being destroyed
-        protected override void Dispose(bool disposing)
+        // Cleanup when tab is destroyed — use Cleanup instead of Dispose
+        public void Cleanup()
         {
-            if (disposing)
-            {
-                StopCopier();
+            StopCopier();
 
-                // Save final state
-                var slaveList = dgSlaveAccounts?.ItemsSource as ObservableCollection<SlaveAccountInfo>;
-                if (slaveList != null)
-                {
-                    config.SlaveAccounts = slaveList.ToList();
-                    SaveConfig();
-                }
+            // Save final state
+            var slaveList = dgSlaveAccounts != null ? dgSlaveAccounts.ItemsSource as ObservableCollection<SlaveAccountInfo> : null;
+            if (slaveList != null)
+            {
+                config.SlaveAccounts = slaveList.ToList();
+                SaveConfig();
             }
-            base.Dispose(disposing);
         }
 
         // Required NTTabPage overrides
@@ -665,7 +804,8 @@ namespace NinjaTrader.Gui.NinjaScript
 
         protected override void Save(XElement element)
         {
-            // Save state to workspace
+            // Save state to workspace — also use this to cleanup
+            Cleanup();
         }
     }
 
@@ -675,9 +815,16 @@ namespace NinjaTrader.Gui.NinjaScript
 
     public class CopierConfig
     {
-        public string MasterAccountName { get; set; } = "";
-        public string ApiBaseUrl        { get; set; } = "http://localhost:3002";
-        public List<SlaveAccountInfo> SlaveAccounts { get; set; } = new List<SlaveAccountInfo>();
+        public string MasterAccountName { get; set; }
+        public string ApiBaseUrl        { get; set; }
+        public List<SlaveAccountInfo> SlaveAccounts { get; set; }
+
+        public CopierConfig()
+        {
+            MasterAccountName = "";
+            ApiBaseUrl = "http://localhost:3002";
+            SlaveAccounts = new List<SlaveAccountInfo>();
+        }
     }
 
     public class SlaveAccountInfo : INotifyPropertyChanged
@@ -691,44 +838,45 @@ namespace NinjaTrader.Gui.NinjaScript
 
         public bool IsActive
         {
-            get => _isActive;
-            set { _isActive = value; OnPropertyChanged(nameof(IsActive)); }
+            get { return _isActive; }
+            set { _isActive = value; OnPropertyChanged("IsActive"); }
         }
 
         public string AccountName
         {
-            get => _accountName;
-            set { _accountName = value; OnPropertyChanged(nameof(AccountName)); }
+            get { return _accountName; }
+            set { _accountName = value; OnPropertyChanged("AccountName"); }
         }
 
         public int ContractSize
         {
-            get => _contractSize;
-            set { _contractSize = value; OnPropertyChanged(nameof(ContractSize)); }
+            get { return _contractSize; }
+            set { _contractSize = value; OnPropertyChanged("ContractSize"); }
         }
 
         public string Status
         {
-            get => _status;
-            set { _status = value; OnPropertyChanged(nameof(Status)); }
+            get { return _status; }
+            set { _status = value; OnPropertyChanged("Status"); }
         }
 
         public string LastTrade
         {
-            get => _lastTrade;
-            set { _lastTrade = value; OnPropertyChanged(nameof(LastTrade)); }
+            get { return _lastTrade; }
+            set { _lastTrade = value; OnPropertyChanged("LastTrade"); }
         }
 
         public int TradesCopied
         {
-            get => _tradesCopied;
-            set { _tradesCopied = value; OnPropertyChanged(nameof(TradesCopied)); }
+            get { return _tradesCopied; }
+            set { _tradesCopied = value; OnPropertyChanged("TradesCopied"); }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string name)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+            if (PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(name));
         }
     }
 
