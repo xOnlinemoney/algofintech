@@ -1267,8 +1267,16 @@ namespace NinjaTrader.Gui.NinjaScript
 
                                 try
                                 {
-                                    acct.Flatten(new[] { acct.Instruments.FirstOrDefault() });
-                                    Log("[Command] Flattened: " + slave.AccountName);
+                                    // Flatten each instrument that has a position
+                                    var instruments = new List<Cbi.Instrument>();
+                                    foreach (Position pos in acct.Positions)
+                                    {
+                                        if (pos.MarketPosition != MarketPosition.Flat && pos.Instrument != null)
+                                            instruments.Add(pos.Instrument);
+                                    }
+                                    if (instruments.Count > 0)
+                                        acct.Flatten(instruments.ToArray());
+                                    Log("[Command] Flattened: " + slave.AccountName + " (" + instruments.Count + " instruments)");
                                 }
                                 catch (Exception ex)
                                 {
