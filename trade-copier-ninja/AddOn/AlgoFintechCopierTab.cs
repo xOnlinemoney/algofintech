@@ -421,24 +421,6 @@ namespace NinjaTrader.Gui.NinjaScript
                 SelectionUnit            = DataGridSelectionUnit.FullRow
             };
 
-            // Column style for header
-            var headerStyle = new Style(typeof(DataGridColumnHeader));
-            headerStyle.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(200, 210, 230))));
-            headerStyle.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.Black));
-            headerStyle.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.Bold));
-            headerStyle.Setters.Add(new Setter(Control.FontSizeProperty, 12.0));
-            headerStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(6, 4, 6, 4)));
-            headerStyle.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(180, 185, 195))));
-            headerStyle.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
-            dgSlaveAccounts.ColumnHeaderStyle = headerStyle;
-
-            // Cell style
-            var cellStyle = new Style(typeof(DataGridCell));
-            cellStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(6, 3, 6, 3)));
-            cellStyle.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(200, 205, 215))));
-            cellStyle.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 1, 0)));
-            dgSlaveAccounts.CellStyle = cellStyle;
-
             // ─ Column: Active checkbox ─
             dgSlaveAccounts.Columns.Add(new DataGridCheckBoxColumn
             {
