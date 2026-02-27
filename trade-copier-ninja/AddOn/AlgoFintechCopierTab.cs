@@ -47,6 +47,10 @@ namespace NinjaTrader.Gui.NinjaScript
         // Track orders we've already copied to avoid duplicates
         private readonly HashSet<string> processedExecutionIds = new HashSet<string>();
 
+        // ─── Dashboard Polling (bidirectional sync) ────────────
+        private System.Threading.Timer pollTimer;
+        private bool isPollingSyncing = false;
+
         // ─── UI Controls ─────────────────────────────────────────
         private ComboBox     cboMasterAccount;
         private Button       btnStart;
@@ -570,6 +574,9 @@ namespace NinjaTrader.Gui.NinjaScript
 
                 // Sync accounts to dashboard via API
                 Task.Run(() => SyncAccountsToApi(true));
+
+                // Start polling dashboard for remote changes
+                StartPolling();
             }
             catch (Exception ex)
             {
@@ -600,6 +607,9 @@ namespace NinjaTrader.Gui.NinjaScript
                     lblStatus.Text               = "Stopped";
                     lblStatus.Foreground         = Brushes.Gray;
                 });
+
+                // Stop polling dashboard
+                StopPolling();
 
                 Log("=== COPIER STOPPED ===");
 
@@ -796,6 +806,120 @@ namespace NinjaTrader.Gui.NinjaScript
         }
 
         // ═══════════════════════════════════════════════════════════
+        // DASHBOARD POLLING — pull changes from website back to NT
+        // ═══════════════════════════════════════════════════════════
+
+        private void StartPolling()
+        {
+            // Poll every 10 seconds
+            pollTimer = new System.Threading.Timer(
+                _ => Task.Run(() => PollAccountStates()),
+                null,
+                TimeSpan.FromSeconds(5),   // first poll after 5s
+                TimeSpan.FromSeconds(10)   // then every 10s
+            );
+            Log("[Sync] Dashboard polling started (every 10s)");
+        }
+
+        private void StopPolling()
+        {
+            if (pollTimer != null)
+            {
+                pollTimer.Dispose();
+                pollTimer = null;
+            }
+        }
+
+        private async Task PollAccountStates()
+        {
+            if (!isRunning || isPollingSyncing) return;
+            isPollingSyncing = true;
+
+            try
+            {
+                var res = await httpClient.GetAsync(apiBaseUrl + "/api/copier-accounts");
+                if (!res.IsSuccessStatusCode)
+                {
+                    isPollingSyncing = false;
+                    return;
+                }
+
+                string responseJson = await res.Content.ReadAsStringAsync();
+
+                // Parse the "data" array from response: {"data":[...]}
+                int dataStart = responseJson.IndexOf("\"data\"");
+                if (dataStart < 0) { isPollingSyncing = false; return; }
+                int arrStart = responseJson.IndexOf('[', dataStart);
+                int arrEnd = responseJson.LastIndexOf(']');
+                if (arrStart < 0 || arrEnd < 0) { isPollingSyncing = false; return; }
+
+                string arrContent = responseJson.Substring(arrStart + 1, arrEnd - arrStart - 1);
+
+                // Parse each account object
+                var remoteAccounts = new List<RemoteAccountState>();
+                int searchFrom = 0;
+                while (true)
+                {
+                    int objStart = arrContent.IndexOf('{', searchFrom);
+                    int objEnd = arrContent.IndexOf('}', objStart >= 0 ? objStart : 0);
+                    if (objStart < 0 || objEnd < 0) break;
+
+                    string objStr = arrContent.Substring(objStart, objEnd - objStart + 1);
+                    remoteAccounts.Add(new RemoteAccountState
+                    {
+                        AccountName  = ExtractStringValue(objStr, "account_name") ?? "",
+                        IsMaster     = ExtractBoolValue(objStr, "is_master"),
+                        IsActive     = ExtractBoolValue(objStr, "is_active"),
+                        ContractSize = ExtractIntValue(objStr, "contract_size", 1)
+                    });
+
+                    searchFrom = objEnd + 1;
+                }
+
+                // Apply changes to local config
+                bool changed = false;
+                foreach (var remote in remoteAccounts)
+                {
+                    if (remote.IsMaster) continue; // skip master
+                    if (string.IsNullOrEmpty(remote.AccountName)) continue;
+
+                    var local = config.SlaveAccounts.FirstOrDefault(s => s.AccountName == remote.AccountName);
+                    if (local != null)
+                    {
+                        if (local.IsActive != remote.IsActive)
+                        {
+                            Log("[Sync] Dashboard changed " + remote.AccountName + " active: " + local.IsActive + " -> " + remote.IsActive);
+                            local.IsActive = remote.IsActive;
+                            changed = true;
+                        }
+                        if (local.ContractSize != remote.ContractSize)
+                        {
+                            Log("[Sync] Dashboard changed " + remote.AccountName + " contracts: " + local.ContractSize + " -> " + remote.ContractSize);
+                            local.ContractSize = remote.ContractSize;
+                            changed = true;
+                        }
+                    }
+                }
+
+                if (changed)
+                {
+                    SaveConfig();
+                    // Refresh the DataGrid on UI thread
+                    Dispatcher.InvokeAsync(() =>
+                    {
+                        dgSlaveAccounts.Items.Refresh();
+                    });
+                }
+            }
+            catch
+            {
+                // Polling failure is non-critical
+            }
+
+            isPollingSyncing = false;
+        }
+
+        // ═══════════════════════════════════════════════════════════
         // LOGGING
         // ═══════════════════════════════════════════════════════════
 
@@ -836,6 +960,7 @@ namespace NinjaTrader.Gui.NinjaScript
         // Cleanup when tab is destroyed — use Cleanup instead of Dispose
         public void Cleanup()
         {
+            StopPolling();
             StopCopier();
 
             // Save final state
@@ -945,5 +1070,14 @@ namespace NinjaTrader.Gui.NinjaScript
         public double   FillPrice     { get; set; }
         public DateTime FillTime      { get; set; }
         public string   ExecutionId   { get; set; }
+    }
+
+    // Used by dashboard polling to parse remote account state
+    public class RemoteAccountState
+    {
+        public string AccountName  { get; set; }
+        public bool   IsMaster     { get; set; }
+        public bool   IsActive     { get; set; }
+        public int    ContractSize { get; set; }
     }
 }
