@@ -430,8 +430,8 @@ async function addSlaveAccount(accountData) {
   await sleep(2000);
 
   // ─── Step 7: Handle template popup (appears after Tradovate OAuth redirect) ───
-  // Sometimes a popup appears with a "- No Template -" button (button.template-modal with template="null")
-  // If found, we need to select the same template used in the Add Slave form
+  // Sometimes a popup appears with a button.template-modal showing "- No Template -"
+  // Clicking it reveals a <select id="template-select"> dropdown to pick the template
   console.log("[Automation] Checking for template popup...");
   await sleep(2000);
 
@@ -455,81 +455,63 @@ async function addSlaveAccount(accountData) {
   if (templatePopupFound.found && templatePopupFound.isNoTemplate && templateValue) {
     console.log(`[Automation] Template popup shows "- No Template -" — setting to: ${templateValue.text}`);
 
-    // Click the "- No Template -" button to open template selector
+    // Step 1: Click the "- No Template -" button to reveal the template-select dropdown
     await p.click("button.template-modal");
-    await sleep(1000);
+    await sleep(1500);
 
-    // Look for a dropdown/modal/select to pick the template
-    // Try selecting from a dropdown or list that appears after clicking
-    const templateSet = await p.evaluate((tmplText) => {
-      // Method 1: Look for a select element in the popup/modal
-      const selects = document.querySelectorAll("select");
-      for (const sel of selects) {
-        for (const opt of sel.options) {
-          if (opt.text.toLowerCase().includes(tmplText.toLowerCase())) {
-            sel.value = opt.value;
-            sel.dispatchEvent(new Event("change", { bubbles: true }));
-            return { method: "select", matched: opt.text };
-          }
+    // Step 2: Find and select the matching template from #template-select dropdown
+    const templateSet = await p.evaluate((agencyName) => {
+      const sel = document.getElementById("template-select");
+      if (!sel) return { error: "template-select not found" };
+
+      const normalizedAgency = agencyName.toLowerCase().trim();
+
+      // Try to find a matching option by agency name
+      for (const opt of sel.options) {
+        const optText = opt.text.toLowerCase().trim();
+        if (optText === "- no template -") continue;
+
+        // Check if option text contains agency name or vice versa
+        if (optText.includes(normalizedAgency) || normalizedAgency.includes(optText.replace(/\s*(ai|1:1|copy|trading)\s*/gi, "").trim())) {
+          sel.value = opt.value;
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+          return { matched: opt.text, value: opt.value };
         }
       }
 
-      // Method 2: Look for clickable list items or buttons with template names
-      const listItems = document.querySelectorAll("a, button, li, .dropdown-item, .template-item");
-      for (const item of listItems) {
-        if (item.textContent.toLowerCase().includes(tmplText.toLowerCase())) {
-          item.click();
-          return { method: "click", matched: item.textContent.trim() };
-        }
-      }
+      // List all available options for debugging
+      const available = Array.from(sel.options).map(o => o.text);
+      return { error: `No match for "${agencyName}"`, available };
+    }, agency);
 
-      return null;
-    }, templateValue.text);
+    console.log(`[Automation] Template select result: ${JSON.stringify(templateSet)}`);
 
-    if (templateSet) {
-      console.log(`[Automation] Template set via ${templateSet.method}: ${templateSet.matched}`);
+    if (templateSet.matched) {
+      console.log(`[Automation] Selected template: ${templateSet.matched}`);
+      // Use page.select() as well for reliability + dispatch change
+      await p.select("#template-select", templateSet.value);
+      await p.evaluate(() => {
+        const sel = document.getElementById("template-select");
+        if (sel) sel.dispatchEvent(new Event("change", { bubbles: true }));
+      });
     } else {
-      console.log("[Automation] WARNING: Could not find template in popup — trying by template value...");
-
-      // Fallback: try setting by the template value we used earlier
-      const fallbackSet = await p.evaluate((tmplVal, tmplText) => {
-        // Look for any element that could be a template selector
-        const allBtns = document.querySelectorAll("button, a, .dropdown-item");
-        for (const btn of allBtns) {
-          const text = btn.textContent.trim().toLowerCase();
-          const tmplSearch = tmplText.toLowerCase();
-          if (text.includes(tmplSearch) || (btn.getAttribute("template") && btn.getAttribute("template") !== "null")) {
-            btn.click();
-            return { matched: btn.textContent.trim() };
-          }
-        }
-        return null;
-      }, templateValue.value, templateValue.text);
-
-      if (fallbackSet) {
-        console.log(`[Automation] Template set via fallback: ${fallbackSet.matched}`);
-      } else {
-        console.log("[Automation] WARNING: Could not set template in popup");
-      }
+      console.log(`[Automation] WARNING: Could not match template — ${JSON.stringify(templateSet)}`);
     }
 
     await sleep(1000);
 
-    // Close the popup if there's a close/save button
+    // Step 3: Close the popup/modal if needed
     const closedPopup = await p.evaluate(() => {
-      // Look for save/confirm/close buttons in any visible modal
+      // Look for save/confirm/close/done buttons
       const buttons = document.querySelectorAll("button");
       for (const btn of buttons) {
         const text = btn.textContent.trim().toLowerCase();
-        if (text === "save" || text === "ok" || text === "confirm" || text === "close" || text === "done" || text === "apply") {
-          // Make sure this button is visible and in a modal context
-          if (btn.offsetParent !== null) {
-            btn.click();
-            return { clicked: text };
-          }
+        if ((text === "save" || text === "ok" || text === "confirm" || text === "close" || text === "done" || text === "apply") && btn.offsetParent !== null) {
+          btn.click();
+          return { clicked: text };
         }
       }
-      // Try clicking a modal close button (X)
+      // Try modal close button (X)
       const closeBtn = document.querySelector(".btn-close, .close, [data-bs-dismiss='modal'], [data-dismiss='modal']");
       if (closeBtn && closeBtn.offsetParent !== null) {
         closeBtn.click();
