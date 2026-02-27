@@ -211,6 +211,30 @@ namespace NinjaTrader.Gui.NinjaScript
             return sb.ToString();
         }
 
+        private static string SerializeSyncPayload(string masterName, List<SlaveAccountInfo> slaves, bool running)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{");
+            sb.Append("\"MasterAccount\":\"" + EscapeJson(masterName) + "\",");
+            sb.Append("\"IsRunning\":" + (running ? "true" : "false") + ",");
+            sb.Append("\"SlaveAccounts\":[");
+            for (int i = 0; i < slaves.Count; i++)
+            {
+                var s = slaves[i];
+                if (s.AccountName == masterName) continue;
+                sb.Append("{");
+                sb.Append("\"AccountName\":\"" + EscapeJson(s.AccountName) + "\",");
+                sb.Append("\"IsActive\":" + (s.IsActive ? "true" : "false") + ",");
+                sb.Append("\"ContractSize\":" + s.ContractSize + ",");
+                sb.Append("\"TradesCopied\":" + s.TradesCopied + ",");
+                sb.Append("\"LastTrade\":\"" + EscapeJson(s.LastTrade ?? "") + "\"");
+                sb.Append("}");
+                if (i < slaves.Count - 1) sb.Append(",");
+            }
+            sb.Append("]}");
+            return sb.ToString();
+        }
+
         // ═══════════════════════════════════════════════════════════
         // CONFIGURATION
         // ═══════════════════════════════════════════════════════════
@@ -543,6 +567,9 @@ namespace NinjaTrader.Gui.NinjaScript
                 Log("  Master: " + config.MasterAccountName);
                 Log("  Active Slaves: " + activeSlaves);
                 Log("  Listening for trades on master account...");
+
+                // Sync accounts to dashboard via API
+                Task.Run(() => SyncAccountsToApi(true));
             }
             catch (Exception ex)
             {
@@ -575,6 +602,9 @@ namespace NinjaTrader.Gui.NinjaScript
                 });
 
                 Log("=== COPIER STOPPED ===");
+
+                // Sync disconnected state to dashboard
+                Task.Run(() => SyncAccountsToApi(false));
             }
             catch (Exception ex)
             {
@@ -627,17 +657,22 @@ namespace NinjaTrader.Gui.NinjaScript
                     CopyTradeToSlave(slave, order.Instrument, action, slave.ContractSize, instrument, fillPrice, fillTime);
                 }
 
-                // Log to API (non-blocking)
-                Task.Run(() => LogTradeToApi(new TradeEvent
+                // Log to API and sync updated account state (non-blocking)
+                Task.Run(async () =>
                 {
-                    MasterAccount = config.MasterAccountName,
-                    Instrument    = instrument,
-                    Action        = action.ToString(),
-                    Quantity      = masterQty,
-                    FillPrice     = fillPrice,
-                    FillTime      = fillTime,
-                    ExecutionId   = execId
-                }));
+                    await LogTradeToApi(new TradeEvent
+                    {
+                        MasterAccount = config.MasterAccountName,
+                        Instrument    = instrument,
+                        Action        = action.ToString(),
+                        Quantity      = masterQty,
+                        FillPrice     = fillPrice,
+                        FillTime      = fillTime,
+                        ExecutionId   = execId
+                    });
+                    // Also sync account state so dashboard sees updated trade counts
+                    await SyncAccountsToApi(true);
+                });
             }
             catch (Exception ex)
             {
@@ -736,6 +771,27 @@ namespace NinjaTrader.Gui.NinjaScript
             catch
             {
                 // API logging is optional — don't disrupt copying if API is down
+            }
+        }
+
+        // Sync account state to API -> Supabase -> Dashboard
+        private async Task SyncAccountsToApi(bool running)
+        {
+            try
+            {
+                var slaves = config.SlaveAccounts;
+                string json = SerializeSyncPayload(config.MasterAccountName, slaves, running);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var res = await httpClient.PostAsync(apiBaseUrl + "/api/sync-accounts", content);
+
+                if (res.IsSuccessStatusCode)
+                    Log("[API] Account sync OK (" + (running ? "running" : "stopped") + ")");
+                else
+                    Log("[API] Account sync warning: " + res.StatusCode);
+            }
+            catch (Exception ex)
+            {
+                Log("[API] Account sync failed (API may be offline): " + ex.Message);
             }
         }
 

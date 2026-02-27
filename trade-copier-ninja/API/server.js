@@ -164,6 +164,83 @@ app.get("/api/copier-stats", async (req, res) => {
   }
 });
 
+// ─── POST /api/sync-accounts ────────────────────────────
+// Called by NinjaTrader when copier starts/stops or slave toggles change.
+// Upserts master + slave accounts into Supabase automatically.
+app.post("/api/sync-accounts", async (req, res) => {
+  try {
+    const { MasterAccount, SlaveAccounts, IsRunning } = req.body;
+
+    console.log(
+      `[Sync] ${IsRunning ? "STARTED" : "STOPPED"} — Master: ${MasterAccount}, Slaves: ${
+        SlaveAccounts ? SlaveAccounts.length : 0
+      }`
+    );
+
+    // Upsert master account
+    if (MasterAccount) {
+      const { error: masterErr } = await supabase
+        .from("copier_accounts")
+        .upsert(
+          {
+            account_name: MasterAccount,
+            is_master: true,
+            is_active: false, // master doesn't receive copies
+            status: IsRunning ? "connected" : "disconnected",
+            contract_size: 1,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "account_name" }
+        );
+
+      if (masterErr) {
+        console.error("[Supabase] Master upsert error:", masterErr.message);
+      }
+    }
+
+    // Upsert each slave account
+    if (SlaveAccounts && SlaveAccounts.length > 0) {
+      for (const slave of SlaveAccounts) {
+        const { error: slaveErr } = await supabase
+          .from("copier_accounts")
+          .upsert(
+            {
+              account_name: slave.AccountName,
+              is_master: false,
+              is_active: slave.IsActive,
+              status: slave.IsActive && IsRunning ? "connected" : "disconnected",
+              contract_size: slave.ContractSize || 1,
+              trades_copied: slave.TradesCopied || 0,
+              last_trade: slave.LastTrade || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "account_name" }
+          );
+
+        if (slaveErr) {
+          console.error(
+            `[Supabase] Slave upsert error (${slave.AccountName}):`,
+            slaveErr.message
+          );
+        }
+      }
+    }
+
+    // If stopped, mark all accounts as disconnected
+    if (!IsRunning && MasterAccount) {
+      await supabase
+        .from("copier_accounts")
+        .update({ status: "disconnected", updated_at: new Date().toISOString() })
+        .eq("account_name", MasterAccount);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[API] Sync error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Health check ────────────────────────────────────────
 app.get("/health", (req, res) => {
   res.json({ status: "ok", uptime: process.uptime() });
