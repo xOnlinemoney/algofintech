@@ -169,10 +169,10 @@ app.get("/api/copier-stats", async (req, res) => {
 // Upserts master + slave accounts into Supabase automatically.
 app.post("/api/sync-accounts", async (req, res) => {
   try {
-    const { MasterAccount, SlaveAccounts, IsRunning } = req.body;
+    const { MasterAccount, SlaveAccounts, IsRunning, PnlOnly } = req.body;
 
     console.log(
-      `[Sync] ${IsRunning ? "STARTED" : "STOPPED"} — Master: ${MasterAccount}, Slaves: ${
+      `[Sync] ${PnlOnly ? "PNL" : IsRunning ? "STARTED" : "STOPPED"} — Master: ${MasterAccount}, Slaves: ${
         SlaveAccounts ? SlaveAccounts.length : 0
       }`
     );
@@ -237,17 +237,13 @@ app.post("/api/sync-accounts", async (req, res) => {
     if (SlaveAccounts && SlaveAccounts.length > 0) {
       for (const slave of SlaveAccounts) {
         const resolved = clientMap[slave.AccountName] || {};
-        const { error: slaveErr } = await supabase
-          .from("copier_accounts")
-          .upsert(
-            {
-              account_name: slave.AccountName,
-              is_master: false,
-              is_active: slave.IsActive,
-              status: slave.IsActive && IsRunning ? "connected" : "disconnected",
-              contract_size: slave.ContractSize || 1,
-              trades_copied: slave.TradesCopied || 0,
-              last_trade: slave.LastTrade || null,
+
+        if (PnlOnly) {
+          // PnL-only mode: only update financial data, do NOT overwrite is_active/contract_size
+          // This prevents the periodic sync from stomping on website toggle changes
+          const { error: slaveErr } = await supabase
+            .from("copier_accounts")
+            .update({
               unrealized: slave.Unrealized || 0,
               realized: slave.Realized || 0,
               net_liquidation: slave.NetLiquidation || 0,
@@ -255,16 +251,47 @@ app.post("/api/sync-accounts", async (req, res) => {
               total_pnl: slave.TotalPnl || 0,
               client_name: resolved.client_name || "",
               agency_name: resolved.agency_name || "",
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "account_name" }
-          );
+              status: slave.IsActive && IsRunning ? "connected" : "disconnected",
+            })
+            .eq("account_name", slave.AccountName);
 
-        if (slaveErr) {
-          console.error(
-            `[Supabase] Slave upsert error (${slave.AccountName}):`,
-            slaveErr.message
-          );
+          if (slaveErr) {
+            console.error(
+              `[Supabase] Slave PnL update error (${slave.AccountName}):`,
+              slaveErr.message
+            );
+          }
+        } else {
+          // Full sync: upsert everything including is_active/contract_size
+          const { error: slaveErr } = await supabase
+            .from("copier_accounts")
+            .upsert(
+              {
+                account_name: slave.AccountName,
+                is_master: false,
+                is_active: slave.IsActive,
+                status: slave.IsActive && IsRunning ? "connected" : "disconnected",
+                contract_size: slave.ContractSize || 1,
+                trades_copied: slave.TradesCopied || 0,
+                last_trade: slave.LastTrade || null,
+                unrealized: slave.Unrealized || 0,
+                realized: slave.Realized || 0,
+                net_liquidation: slave.NetLiquidation || 0,
+                position_qty: slave.PositionQty || 0,
+                total_pnl: slave.TotalPnl || 0,
+                client_name: resolved.client_name || "",
+                agency_name: resolved.agency_name || "",
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "account_name" }
+            );
+
+          if (slaveErr) {
+            console.error(
+              `[Supabase] Slave upsert error (${slave.AccountName}):`,
+              slaveErr.message
+            );
+          }
         }
       }
     }

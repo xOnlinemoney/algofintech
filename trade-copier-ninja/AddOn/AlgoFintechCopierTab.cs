@@ -240,12 +240,13 @@ namespace NinjaTrader.Gui.NinjaScript
             return sb.ToString();
         }
 
-        private static string SerializeSyncPayload(string masterName, List<SlaveAccountInfo> slaves, bool running)
+        private static string SerializeSyncPayload(string masterName, List<SlaveAccountInfo> slaves, bool running, bool pnlOnly = false)
         {
             var sb = new StringBuilder();
             sb.Append("{");
             sb.Append("\"MasterAccount\":\"" + EscapeJson(masterName) + "\",");
             sb.Append("\"IsRunning\":" + (running ? "true" : "false") + ",");
+            if (pnlOnly) sb.Append("\"PnlOnly\":true,");
             sb.Append("\"SlaveAccounts\":[");
             for (int i = 0; i < slaves.Count; i++)
             {
@@ -785,7 +786,7 @@ namespace NinjaTrader.Gui.NinjaScript
         private void StartApiSyncTimer()
         {
             apiSyncTimer = new System.Threading.Timer(
-                _ => Task.Run(() => SyncAccountsToApi(true)),
+                _ => Task.Run(() => SyncAccountsToApi(true, true)),  // pnlOnly=true for periodic sync
                 null,
                 TimeSpan.FromSeconds(5),
                 TimeSpan.FromSeconds(5)
@@ -1103,7 +1104,7 @@ namespace NinjaTrader.Gui.NinjaScript
             catch { }
         }
 
-        private async Task SyncAccountsToApi(bool running)
+        private async Task SyncAccountsToApi(bool running, bool pnlOnly = false)
         {
             try
             {
@@ -1116,7 +1117,7 @@ namespace NinjaTrader.Gui.NinjaScript
                         slaves = slaveList.ToList();
                 });
                 if (slaves == null) slaves = config.SlaveAccounts;
-                string json = SerializeSyncPayload(config.MasterAccountName, slaves, running);
+                string json = SerializeSyncPayload(config.MasterAccountName, slaves, running, pnlOnly);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var res = await httpClient.PostAsync(apiBaseUrl + "/api/sync-accounts", content);
 
